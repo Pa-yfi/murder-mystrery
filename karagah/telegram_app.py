@@ -94,20 +94,28 @@ async def _reply(update: Update, res: dict):
                 if "not modified" in str(e).lower():
                     return                      # همان محتوا؛ ویرایش لازم نیست
         # اگر ویرایش نشد (پیام پاک شده و ...) → به ارسال عادی برگرد
-    dest = update.effective_user.id if res.get("private") else update.effective_chat.id
-    for attempt in ("md", "plain", "group_plain"):
+    private = bool(res.get("private"))
+    dest = update.effective_user.id if private else update.effective_chat.id
+    for attempt in ("md", "plain"):
         try:
             if attempt == "md":
                 await bot.send_message(dest, res["text"], parse_mode="Markdown", reply_markup=kb)
-            elif attempt == "plain":
-                await bot.send_message(dest, res["text"], reply_markup=kb)
             else:
-                await bot.send_message(update.effective_chat.id,
-                                       "⚠️ ابتدا در پیوی ربات را /start کن.\n\n" + res["text"],
-                                       reply_markup=kb)
+                await bot.send_message(dest, res["text"], reply_markup=kb)
             return
         except Exception as e:
             log.warning("send failed (%s): %s", attempt, e)
+    # پیوی شکست خورد. متن محرمانه (نقش/سرنخ) هرگز نباید در گروه بیفتد —
+    # فقط یک تذکر بی‌محتوا می‌فرستیم.
+    if private:
+        try:
+            await bot.send_message(
+                update.effective_chat.id,
+                "⚠️ نتوانستم پیام خصوصی‌ات را بفرستم. اول در پیوی ربات را /start کن، بعد دوباره امتحان کن.")
+        except Exception as e:
+            log.warning("private notice failed: %s", e)
+        return
+    log.error("delivery failed for chat %s", update.effective_chat.id)
 
 
 def make_cmd(name: str):

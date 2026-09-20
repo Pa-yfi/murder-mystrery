@@ -87,8 +87,9 @@ def _player(chat: int, uid: int):
 
 
 def _ensure(chat: int, uid: int, name: str) -> Game:
-    """اگر لابی نبود، بسازش تا هیچ دکمه‌ای «بی‌واکنش» نماند."""
-    if chat not in GAMES:
+    """اگر لابی نبود (یا بازی قبلی تمام شده)، بسازش تا دکمه‌ای بی‌واکنش نماند."""
+    g = GAMES.get(chat)
+    if g is None or g.s.phase is Phase.END:
         GAMES[chat] = Game(chat, seed=chat or 1, owner=uid)
     return GAMES[chat]
 
@@ -119,12 +120,13 @@ def handle(cmd: str, chat: int, uid: int = 0, name: str = "", arg: str = "") -> 
                 g = GAMES[chat]
                 db.save_game(g)
                 if g.s.phase is Phase.END:
-                    db.record_results(g)
-                    LAST_ROSTER[chat] = [(p.uid, p.name) for p in g.s.players.values()]
-                    for u in g.s.players:            # ایده ۵: کول‌داون نقش بازی بعد
-                        pass
-                    db.drop_snapshot(chat)
-                    del GAMES[chat]
+                    # نتیجه فقط یک بار ثبت می‌شود، ولی خودِ بازی در حافظه می‌ماند
+                    # تا /end بتواند نقش‌ها، MVP و بازسازی پرونده را نشان بدهد.
+                    if not g.s.finalized:
+                        g.s.finalized = True
+                        db.record_results(g)
+                        LAST_ROSTER[chat] = [(p.uid, p.name) for p in g.s.players.values()]
+                        db.drop_snapshot(chat)
                 else:
                     db.save_snapshot(chat, g)
             return res
@@ -163,7 +165,19 @@ def h_menu(chat, uid, name, arg):
     return _ok("🏠 *منوی اصلی*", ui.main_menu())
 
 
+def _guard_replace(chat, uid):
+    """بازی در جریان را فقط میزبانش می‌تواند دور بیندازد."""
+    g = GAMES.get(chat)
+    if g is None:
+        return
+    if g.s.phase in (Phase.LOBBY, Phase.END):
+        return
+    if uid != g.owner:
+        raise RuleError("یک بازی در جریان است؛ فقط میزبان می‌تواند آن را لغو کند.")
+
+
 def h_new(chat, uid, name, arg):
+    _guard_replace(chat, uid)
     GAMES[chat] = Game(chat, seed=chat or 1, owner=uid)
     if uid:
         GAMES[chat].join(uid, _name(name, uid))     # سازنده خودکار عضو می‌شود
@@ -347,7 +361,8 @@ def h_sharelink(chat, uid, name, arg):
 
 # ================= پنل ادمین (روی SQL) =================
 def _admin(uid):
-    if ADMIN_IDS and uid not in ADMIN_IDS:
+    # فهرست خالی = هیچ‌کس ادمین نیست (قبلاً یعنی «همه ادمین‌اند»).
+    if uid not in ADMIN_IDS:
         raise RuleError("دسترسی ادمین لازم است.")
 
 
@@ -521,6 +536,7 @@ def h_rematch(chat, uid, name, arg):              # ایده ۲۴
     roster = LAST_ROSTER.get(chat)
     if not roster:
         raise RuleError("بازی قبلی‌ای برای تکرار نیست.")
+    _guard_replace(chat, uid)
     GAMES[chat] = Game(chat, seed=chat + len(roster), owner=roster[0][0])
     for u, n in roster:
         GAMES[chat].join(u, n)
@@ -543,6 +559,7 @@ def h_tutorial(chat, uid, name, arg):             # ایده ۲۸
 
 
 def h_blitz(chat, uid, name, arg):                # ایده ۳: لابی سریع
+    _guard_replace(chat, uid)
     GAMES[chat] = Game(chat, seed=chat or 1, owner=uid, blitz=True)
     if uid:
         GAMES[chat].join(uid, _name(name, uid))

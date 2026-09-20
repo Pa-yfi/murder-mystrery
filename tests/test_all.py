@@ -349,8 +349,8 @@ def test_restart_recovery_restores_games():
     assert handle("status", 700, 1)["ok"]
 
 
-def test_finished_game_cleaned_up():
-    """بازی تمام‌شده از حافظه و اسنپ‌شات پاک می‌شود (نشت حافظه/لابی)."""
+def test_finished_game_kept_for_reveal_then_replaceable():
+    """بازی تمام‌شده باید تا افشای نقش‌ها بماند، ولی اسنپ‌شاتش پاک شود."""
     handle("new", 710, 1, "Host")
     for i in range(2, 5):
         handle("join", 710, i, f"P{i}")
@@ -360,10 +360,34 @@ def test_finished_game_cleaned_up():
         if p.align is Align.KILLER:
             p.custody = Custody.LIFE_JAIL
     g._check_win()
-    handle("status", 710, 1)                       # هر فرمانی → پاکسازی
-    assert 710 not in GAMES
+    handle("status", 710, 1)
+    assert GAMES[710].s.finalized                  # نتیجه ثبت شد
+    r = handle("end", 710, 1)                      # /end هنوز کار می‌کند
+    assert r["ok"] and "پایان" in r["text"]
+    # اسنپ‌شات پاک شده → ری‌استارت بازیِ تمام‌شده را برنمی‌گرداند
     GAMES.clear()
     assert bot.restore_games() == 0 or 710 not in GAMES
+    # لابی تازه جای بازی تمام‌شده را می‌گیرد (نشت لابی نداریم)
+    handle("new", 710, 1, "Host")
+    assert GAMES[710].s.phase is Phase.LOBBY
+
+
+def test_results_recorded_only_once():
+    """چند فرمان بعد از پایان بازی نباید XP را دوباره ثبت کند."""
+    handle("new", 711, 1, "Host")
+    for i in range(2, 5):
+        handle("join", 711, i, f"P{i}")
+    handle("startgame", 711, 1, arg="2")
+    g = GAMES[711]
+    for p in g.s.players.values():
+        if p.align is Align.KILLER:
+            p.custody = Custody.LIFE_JAIL
+    g._check_win()
+    handle("status", 711, 1)
+    first = db.q_user(1)["xp"]
+    for _ in range(3):
+        handle("status", 711, 1)
+    assert db.q_user(1)["xp"] == first
 
 
 def test_lobby_has_metoo_button_and_edits_inplace():

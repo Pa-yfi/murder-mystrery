@@ -122,6 +122,7 @@ class GameState:
     mvp: Optional[int] = None                   # ایده ۱۷
     tie_break: bool = False                     # ایده ۲۰: مرگ ناگهانی
     _protect_prev: Optional[int] = None         # ایده ۱۱: هدف نجاتِ شب قبل
+    finalized: bool = False                     # نتیجه یک‌بار ثبت شد؛ دوباره XP نده
 
     def alive_players(self) -> List[Player]:
         return [p for p in self.players.values() if p.in_game]
