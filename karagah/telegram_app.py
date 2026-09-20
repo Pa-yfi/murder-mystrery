@@ -165,13 +165,17 @@ async def _post_init(app):
 
 
 async def _timer_job(ctx: ContextTypes.DEFAULT_TYPE):
-    """ایده ۱: هر ۱۵ ثانیه، فازهای منقضی‌شده را خودکار جلو می‌برد."""
+    """ایده ۱: هر ۱۵ ثانیه، فازهای منقضی‌شده را خودکار جلو می‌برد.
+
+    از handle() رد می‌شود، نه مستقیم از موتور — وگرنه قفل چت، ذخیره‌ی
+    اسنپ‌شات و ثبت نتیجه‌ی پایان بازی دور زده می‌شود.
+    """
     from .bot import GAMES
-    for chat, g in list(GAMES.items()):
+    for chat in list(GAMES):
         try:
-            msg = g.tick()
-            if msg:
-                await ctx.bot.send_message(chat, msg)
+            res = handle("tick", chat)
+            if res.get("advanced"):
+                await ctx.bot.send_message(chat, res["text"])
         except Exception as e:
             log.warning("timer tick %s: %s", chat, e)
 

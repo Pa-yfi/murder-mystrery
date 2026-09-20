@@ -363,6 +363,7 @@ class Game:
             if not self.s.tie_break and len(leaders) >= 2:
                 self.s.tie_break = True
                 self.s.votes.clear()
+                self._arm()                     # مهلت تازه؛ وگرنه تیکِ بعدی دور دوم را می‌بلعد
                 self.s.log.append(f"⚔️ تساوی! مرگ ناگهانی بین: "
                                   + "، ".join(self.s.players[u].name for u in leaders))
                 return None                     # فاز رای باز می‌ماند برای دور دوم

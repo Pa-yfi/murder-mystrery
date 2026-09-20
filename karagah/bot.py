@@ -410,9 +410,14 @@ def h_tick(chat, uid, name, arg):
     msg = g.tick()
     if msg is None:
         rem = g.remaining()
-        return _ok(f"{t('timer')}: {rem if rem is not None else '—'} ثانیه | فاز: {g.s.phase.value}",
-                   edit=True)
-    return _ok(msg + "\n\n" + ui.status_board(g.s), ui.back_only())
+        res = _ok(f"{t('timer')}: {rem if rem is not None else '—'} ثانیه | فاز: {g.s.phase.value}",
+                  edit=True)
+        res["advanced"] = False
+        return res
+    # advanced=True یعنی فاز واقعاً جلو رفت — آداپتور فقط این را پخش می‌کند.
+    res = _ok(msg + "\n\n" + ui.status_board(g.s), ui.back_only())
+    res["advanced"] = True
+    return res
 
 
 def h_dashboard(chat, uid, name, arg):            # ایده ۲۶: داشبورد تک‌پیامی
