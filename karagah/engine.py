@@ -290,6 +290,48 @@ class Game:
             out.setdefault(ab, {})[int(actor)] = v
         return out
 
+    def _build_traces(self, acts: Dict[str, Dict[int, int]], killed: List[int]) -> None:
+        """بهبود ۵: مدرکِ برخاسته از کارِ واقعیِ بازیکن‌ها — نه تزئین.
+
+        هر «ملاقات» شبانه رد می‌گذارد. شمارش عمومی است (مبهم می‌ماند چون
+        پزشک و نگهبان هم سر می‌زنند) ولی کسانی که یک‌جا بوده‌اند خصوصی
+        همدیگر را می‌بینند؛ همین حرف‌زدنی می‌شود که می‌توان با آن دروغ گفت.
+        """
+        self.s.traces = []
+        visitors: Dict[int, List[int]] = {}
+        for ab, pairs in acts.items():
+            if ab in ("investigate", "expose", "watch"):
+                continue                   # از دور نگاه کردن ردی نمی‌گذارد
+            for actor, tgt in pairs.items():
+                visitors.setdefault(tgt, []).append(actor)
+
+        for victim in killed:
+            n = len(visitors.get(victim, []))
+            if n:
+                self.s.traces.append(
+                    f"🐾 دیشب {n} نفر به {self.s.players[victim].name} سر زدند "
+                    "(قاتل بین آن‌هاست — ولی پزشک و نگهبان هم سر می‌زنند).")
+
+        # هم‌مکانی: هر دو نفری که یک هدف داشتند، خصوصی همدیگر را می‌بینند
+        for tgt, who in visitors.items():
+            alive_who = [u for u in who if self.s.players[u].in_game]
+            if len(alive_who) < 2:
+                continue
+            name = self.s.players[tgt].name
+            for a in alive_who:
+                others = "، ".join(self.s.players[b].name for b in alive_who if b != a)
+                self.s.players[a].notes.append(
+                    f"👥 شب {self.s.day}: کنار {name} با {others} روبه‌رو شدی.")
+            self.s.traces.append(
+                f"👣 {len(alive_who)} نفر هم‌زمان نزدیک {name} بوده‌اند؛ "
+                "می‌توانند شاهد هم باشند.")
+
+        for tgt, until in self.s.framed.items():
+            if until >= self.s.day:
+                self.s.traces.append(
+                    f"🖐️ اثر انگشت روی صحنه به *{self.s.players[tgt].name}* می‌خورد "
+                    "— اثر انگشت را می‌شود کاشت.")
+
     def _deliver_night_info(self, acts: Dict[str, Dict[int, int]]) -> None:
         """اطلاعات اختصاصی نقش‌ها — سحر، یک‌بار، در دفترچه‌ی خودِ بازیکن."""
         day = self.s.day
@@ -427,6 +469,7 @@ class Game:
         afk = [p.name for p in self.s.alive_players() if p.missed >= 2]
         if afk:
             self.s.log.append("😴 چند شب بی‌حرکت: " + "، ".join(afk))
+        self._build_traces(acts, killed)
         self._deliver_night_info(acts)
         self.s.log.append(f"شب {self.s.day}: کشته‌ها={[self.s.players[u].name for u in killed]}")
         self._check_win()
@@ -652,12 +695,19 @@ class Game:
                           and p.custody is Custody.LIFE_JAIL]
         if jailed_neutral:
             self.s.winner = "سپر بلا 🎭"
+            self.s.win_reason = ("🎭 سپر بلا حبس ابد گرفت — شرط بردش دقیقاً همین بود؛ "
+                                 "شهر گناه را گردن او انداخت.")
         elif len(alive) == 1 and alive[0].role == "جانی سریالی":
             self.s.winner = "جانی سریالی 🩸"    # ایده ۱۸: تنها بازمانده
+            self.s.win_reason = "🩸 جانی سریالی تنها بازمانده شد — شرط بردش تنهایی بود."
         elif not k:
             self.s.winner = "شهر 🕵️"
+            self.s.win_reason = ("🕵️ هیچ قاتلی در بازی نماند (کشته یا حبس ابد) — "
+                                 "شهر همه را پیدا کرد.")
         elif len(k) >= len(c):         # ایده ۴: برد قاتل با برابری (parity)
             self.s.winner = "قاتل‌ها 🔪"
+            self.s.win_reason = (f"🔪 قاتل‌ها {len(k)} نفر ماندند و بقیه {len(c)} نفر — "
+                                 "وقتی قاتل‌ها کم‌تر نباشند دیگر رای شهر جلودارشان نیست.")
         if self.s.winner:
             self.s.phase = Phase.END
             self._payout()
@@ -762,6 +812,45 @@ class Game:
     def reconstruction(self) -> str:
         tail = self.s.log[-12:]
         return "🎬 بازسازی پرونده:\n" + "\n".join(f"  • {l}" for l in tail)
+
+    # ---------------- بهبود ۶: پایانِ قابل‌فهم ----------------
+    def ending_report(self) -> str:
+        """چرا این تیم برد، چه کسی چه بود، و کدام تصمیم‌ها سرنوشت‌ساز شدند."""
+        if self.s.phase is not Phase.END:
+            raise RuleError("بازی هنوز تمام نشده.")
+        rows = []
+        for p in self.s.players.values():
+            rd = ROLES[p.role]
+            if not p.alive:
+                fate = "💀 کشته شد"
+            elif p.custody is Custody.LIFE_JAIL:
+                fate = "⛓️ حبس ابد"
+            elif p.custody is Custody.TEMP_JAIL:
+                fate = "🔒 حبس موقت"
+            else:
+                fate = "🟢 زنده ماند"
+            rows.append(f"  {rd.emoji} {p.name} — {p.role} ({rd.align.value}) — {fate}")
+
+        wrong = [p.name for p in self.s.players.values()
+                 if p.custody is Custody.LIFE_JAIL and p.align is Align.CITY]
+        justice = ("⚖️ شهر بی‌گناه حبس ابد کرد: " + "، ".join(wrong)
+                   if wrong else "⚖️ هیچ بی‌گناهی حبس ابد نگرفت.")
+
+        killers = {p.uid for p in self.s.players.values() if p.align is Align.KILLER}
+        sharp = []
+        for p in self.s.players.values():
+            hits = sum(1 for _, v, t in self.s.vote_history if v == p.uid and t in killers)
+            if hits:
+                sharp.append(f"{p.name} ({hits} رای درست)")
+        votes = ("🎯 رای‌های درست روی قاتل‌ها: " + "، ".join(sharp)
+                 if sharp else "🎯 هیچ‌کس رایِ درستی روی قاتل نداد.")
+
+        mvp = self.s.players[self.s.mvp].name if self.s.mvp else "—"
+        return (f"🏁 *پایان — برنده: {self.s.winner}*\n{'─' * 18}\n"
+                f"{self.s.win_reason}\n{'─' * 18}\n"
+                "🎭 *نقش‌ها:*\n" + "\n".join(rows) +
+                f"\n{'─' * 18}\n{justice}\n{votes}\n⭐ MVP: {mvp}\n\n"
+                + self.reconstruction())
 
     def set_hunter(self, uid: int, target: int) -> str:
         """ایده ۱۵: شکارچی هدف شلیک آخرش را از قبل مشخص می‌کند."""

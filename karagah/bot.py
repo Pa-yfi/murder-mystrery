@@ -304,8 +304,11 @@ def h_dawn(chat, uid, name, arg):
     r = g.resolve_night()
     dead = "، ".join(g.s.players[u].name for u in r["killed"]) or "هیچ‌کس"
     ev_line = f"\n🌩️ رویداد شب: {g.s.night_event}" if g.s.night_event else ""
+    # بهبود ۵: ردهایی که از اکشن واقعیِ دیشب ساخته شده‌اند
+    traces = ("\n\n🔬 *ردهای دیشب:*\n" + "\n".join(f"  • {t}" for t in g.s.traces)) \
+        if g.s.traces else ""
     txt = (f"☀️ *صبح روز {g.s.day}*{ev_line}\n{ui.DIV}\n⚰️ کشته‌شده: {dead}\n\n"
-           + ui.evidence_card(r["evidence"]) + "\n\n" + ui.status_board(g.s))
+           + ui.evidence_card(r["evidence"]) + traces + "\n\n" + ui.status_board(g.s))
     return _ok(txt, ui.kb([[("💬 گفتگو", "discuss")], [ui.BACK, ui.HOME]]), anim=ui.ANIM["morning"])
 
 
@@ -405,10 +408,7 @@ def h_end(chat, uid, name, arg):
     g = _g(chat)
     if g.s.phase is not Phase.END:
         return _err("بازی هنوز تمام نشده؛ تا آخر بازی معلوم نمی‌شود قاتل کیست.")
-    rows = "\n".join(f"  {n} → {r} ({c})" for n, r, c in g.reveal())
-    mvp = g.s.players[g.s.mvp].name if g.s.mvp else "—"
-    return _ok(f"🏁 *پایان — برنده: {g.s.winner}*\n{ui.DIV}\n{rows}\n{ui.DIV}\n"
-               f"⭐ MVP: {mvp}\n\n" + g.reconstruction(),
+    return _ok(g.ending_report(),
                ui.kb([[("🔁 همین ترکیب، دور جدید", "rematch")], [("🎮 بازی جدید", "new")], [ui.HOME]]),
                anim=ui.ANIM["court"])
 

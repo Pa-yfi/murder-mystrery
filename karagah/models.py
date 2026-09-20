@@ -127,6 +127,8 @@ class GameState:
     poison_queue: Dict[int, int] = field(default_factory=dict)   # uid → روزِ مرگ با سم
     framed: Dict[int, int] = field(default_factory=dict)         # uid → روزِ پاپوش‌دوزی
     hidden: List[int] = field(default_factory=list)              # مخفی‌شده‌های قاچاقچی
+    traces: List[str] = field(default_factory=list)   # بهبود ۵: ردِ برخاسته از اکشنِ واقعی
+    win_reason: str = ""                              # بهبود ۶: چرا این تیم برد
     paused: bool = False                        # بهبود ۷: بازی موقتاً متوقف
     paused_left: Optional[int] = None            # ثانیه‌های باقی‌ماندهی فاز هنگام توقف
     phase_before_jury: Optional[Phase] = None    # بعد از هیئت منصفه به همین فاز برگرد
