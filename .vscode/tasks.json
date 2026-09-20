@@ -1,0 +1,17 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    { "label": "all — بررسی + خودآزمایی + تست", "type": "shell",
+      "command": "${workspaceFolder}/.venv/Scripts/python.exe runner.py all",
+      "group": { "kind": "build", "isDefault": true }, "problemMatcher": [] },
+    { "label": "test — سوئیت اصلی", "type": "shell",
+      "command": "${workspaceFolder}/.venv/Scripts/python.exe runner.py test",
+      "group": { "kind": "test", "isDefault": true }, "problemMatcher": [] },
+    { "label": "quality — دفترچه‌ی نقص", "type": "shell",
+      "command": "${workspaceFolder}/.venv/Scripts/python.exe runner.py quality",
+      "problemMatcher": [] },
+    { "label": "bot — اجرای ربات", "type": "shell",
+      "command": "${workspaceFolder}/.venv/Scripts/python.exe runner.py bot",
+      "problemMatcher": [] }
+  ]
+}

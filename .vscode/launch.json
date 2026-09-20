@@ -1,0 +1,29 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "🤖 اجرای ربات (runner.py bot)",
+      "type": "debugpy", "request": "launch",
+      "program": "${workspaceFolder}/runner.py",
+      "args": ["bot"], "console": "integratedTerminal", "justMyCode": false
+    },
+    {
+      "name": "🩺 بررسی محیط (check)",
+      "type": "debugpy", "request": "launch",
+      "program": "${workspaceFolder}/runner.py",
+      "args": ["check"], "console": "integratedTerminal"
+    },
+    {
+      "name": "🧪 خودآزمایی (selftest)",
+      "type": "debugpy", "request": "launch",
+      "program": "${workspaceFolder}/runner.py",
+      "args": ["selftest"], "console": "integratedTerminal"
+    },
+    {
+      "name": "🎬 نمایش یک بازی (demo)",
+      "type": "debugpy", "request": "launch",
+      "program": "${workspaceFolder}/runner.py",
+      "args": ["demo"], "console": "integratedTerminal"
+    }
+  ]
+}
