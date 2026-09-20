@@ -6,7 +6,7 @@ from __future__ import annotations
 import logging
 from typing import Dict, Optional
 
-from . import ui, db, cards
+from . import ui, db, cards, menus
 from .strings import t
 from .config import ADMIN_IDS
 from .engine import Game, RuleError
@@ -96,6 +96,17 @@ GLOBAL_CMDS = {"start", "menu", "back", "help", "roles", "tutorial", "share",
                "admin", "admin_games", "admin_users", "admin_stats", "admin_ban"}
 
 _ACTIVE_TABLE: Dict[int, int] = {}        # uid → چتِ بازیِ انتخاب‌شده
+_PENDING: Dict[int, tuple] = {}           # uid → (chat, cmd) — منتظر متنِ کاربر
+TEXT_CMDS = tuple(menus.PROMPTS)          # تنها فرمان‌هایی که متن می‌خواهند
+
+
+def await_text(uid: int, chat: int, cmd: str) -> None:
+    _PENDING[uid] = (chat, cmd)
+
+
+def take_pending(uid: int):
+    """اگر منتظرِ متنیم، برش دار (یک‌بارمصرف)."""
+    return _PENDING.pop(uid, None)
 
 
 def games_of(uid: int) -> list:
@@ -358,15 +369,22 @@ def h_hints(chat, uid, name, arg):
 
 def h_ask(chat, uid, name, arg):
     g = _g(chat)
+    if not arg:
+        # دکمه‌ی قبلی آیدیِ متهم را به‌جای متنِ سؤال می‌فرستاد؛ حالا متن می‌گیریم.
+        return _ask_text(chat, uid, "ask")
     d = f"\n🛡️ دفاع متهم: «{g.s.defense_text}»" if g.s.defense_text else ""
-    return _ok(f"🗣️ متهم: «{g.ask(uid, arg or 'کجا بودی؟')}»{d}",
-               ui.kb([[("💬 پرسش بعدی", f"ask:{g.s.suspect_uid or 0}")],
-                      [("🔒 حبس موقت", f"ver:{g.s.suspect_uid or 0}:1"),
-                       ("🔓 آزادی", f"ver:{g.s.suspect_uid or 0}:0")]]))
+    return _ok(f"🗣️ متهم: «{g.ask(uid, arg)}»{d}",
+               ui.kb([[("💬 پرسش بعدی", "ask")],
+                      [("🔒 حبس موقت", "verdict:1"),
+                       ("🔓 آزادی", "verdict:0")]]), private=True)
 
 
 def h_verdict(chat, uid, name, arg):
     g = _g(chat)
+    if arg not in ("0", "1"):
+        if g.s.suspect_uid is None:
+            raise RuleError("کسی در بازجویی نیست.")
+        return _ok("⚖️ *حکم تو چیست؟*", menus.verdict_kb(g.s))
     msg = g.officer_verdict(uid, arg == "1")
     db.log_event(chat, g.s.suspect_uid or 0, "verdict", "حبس موقت" if arg == "1" else "آزادی")
     anim = ui.ANIM["jail"] if arg == "1" else None
@@ -377,6 +395,9 @@ def h_verdict(chat, uid, name, arg):
 
 def h_clear(chat, uid, name, arg):
     g = _g(chat)
+    if not arg:
+        return _ok("🕊️ *کدام زندانی را تبرئه می‌کنی؟*",
+                   menus.player_kb(g.s, "clear", only_custody=Custody.TEMP_JAIL))
     return _ok(g.clear_previous(uid, int(arg)) + "\n\n" + ui.status_board(g.s), ui.back_only())
 
 
@@ -426,9 +447,10 @@ def h_help(chat, uid, name, arg):
 
 
 def h_roles(chat, uid, name, arg):
-    from .roles import ROLES
-    lines = [f"{r.emoji} *{r.name}* ({r.align.value}) — {r.desc}" for r in ROLES.values()]
-    return _ok("🎭 *کاتالوگ نقش‌ها*\n" + ui.DIV + "\n" + "\n".join(lines), ui.back_only())
+    """کاتالوگ نقش‌ها = یک دکمه برای هر نقش؛ تپ → توانایی‌های همان نقش."""
+    return _ok("🎭 *کاتالوگ نقش‌ها*\n" + ui.DIV +
+               "\nروی هر نقش بزن تا تیم، کار شبانه و شرط بردش را ببینی.",
+               menus.roles_kb())
 
 
 # ================= اشتراک‌گذاری =================
@@ -467,7 +489,8 @@ def h_admin_users(chat, uid, name, arg):
     """بدون آرگومان: فهرست کاربران از SQL. با آیدی: کارت کامل + خلاصه‌ی بازی‌ها."""
     _admin(uid)
     if not arg:
-        return _ok(ui.admin_users_sql(db.q_users()), ui.back_only())
+        return _ok(ui.admin_users_sql(db.q_users()),
+                   menus.users_kb(db.q_users(), "admin_users"))
     t = int(arg)
     u = db.q_user(t)
     if not u:
@@ -477,6 +500,9 @@ def h_admin_users(chat, uid, name, arg):
 
 def h_admin_ban(chat, uid, name, arg):
     _admin(uid)
+    if not arg:
+        return _ok("🚫 *کدام کاربر مسدود شود؟*",
+                   menus.users_kb(db.q_users(), "admin_ban"))
     t = int(arg)
     db.ban(t, True)
     db.log_event(chat, t, "ban", f"by {uid}")
@@ -509,21 +535,33 @@ def h_dashboard(chat, uid, name, arg):            # ایده ۲۶ + بهبود �
 # ================= ایده‌های ۲/۵/۹ =================
 def h_defense(chat, uid, name, arg):
     g = _g(chat)
-    return _ok(g.defense(uid, arg or "بی‌گناهم."))
+    if not arg:
+        return _ask_text(chat, uid, "defense")
+    return _ok(g.defense(uid, arg))
+
+
+def _ask_text(chat, uid, cmd):
+    """دکمه زده شد ولی متن لازم است → منتظر پیام بعدیِ همین کاربر می‌مانیم."""
+    await_text(uid, chat, cmd)
+    return _ok(menus.prompt_text(cmd), menus.prompt_kb(), private=True)
 
 
 def h_will(chat, uid, name, arg):
     g, p = _player(chat, uid)
-    g.set_will(uid, arg or "")
-    return _ok("📜 وصیت‌نامه ثبت شد؛ اگر کشته شوی صبح خوانده می‌شود.", private=True)
+    if not arg:
+        return _ask_text(chat, uid, "will")
+    g.set_will(uid, arg)
+    return _ok("📜 وصیت‌نامه ثبت شد؛ اگر کشته شوی صبح خوانده می‌شود.",
+               menus.commands_menu(), private=True)
 
 
 def h_note(chat, uid, name, arg):
     g, p = _player(chat, uid)
     if not arg:
-        raise RuleError("متن یادداشت را بعد از دستور بنویس.")
+        return _ask_text(chat, uid, "note")
     g.add_note(uid, arg)
-    return _ok("📝 یادداشت خصوصی ثبت شد.", private=True)
+    return _ok("📝 یادداشت خصوصی ثبت شد.",
+               ui.kb([[("📓 دفترچه‌ی من", "notes")], [menus.BACK, menus.HOME]]), private=True)
 
 
 def h_notes(chat, uid, name, arg):
@@ -537,24 +575,47 @@ def h_notes(chat, uid, name, arg):
 # ================= ایده‌های ۶/۱۰/۱۱/۱۲ =================
 def h_sos(chat, uid, name, arg):
     g = _g(chat)
+    if not arg:
+        return _ok("🚨 *رای اضطراری شهر* — علیه چه کسی؟\n"
+                   "با ۸۰٪ رای، مستقیم به حبس موقت می‌رود. فقط یک بار در بازی.",
+                   menus.player_kb(g.s, "sos", exclude=(uid,)))
     return _ok(g.sos(uid, int(arg)))
 
 
 def h_lab(chat, uid, name, arg):
     g = _g(chat)
-    return _ok(g.submit_lab((arg or "").upper()))
+    if not arg:
+        _need_case(g)
+        return _ok("🧪 *کدام مدرک به آزمایشگاه برود؟*\nنتیجه دو شب دیگر می‌رسد.",
+                   menus.evidence_kb(g.s, "lab"))
+    return _ok(g.submit_lab(arg.upper()), menus.evidence_kb(g.s, "lab"))
 
 
-def h_interp(chat, uid, name, arg):               # interp E2:1
+def h_interp(chat, uid, name, arg):               # interp ← مدرک ← تفسیر
     g = _g(chat)
-    code, idx = (arg or "").upper().split(":", 1)
-    return _ok(g.vote_interp(uid, code, int(idx)))
+    _need_case(g)
+    arg = (arg or "").upper()
+    if not arg:
+        return _ok("🧠 *تفسیر کدام مدرک؟*", menus.evidence_kb(g.s, "interp"))
+    if ":" not in arg:                          # مدرک انتخاب شد → تفسیرها
+        ev = next((e for e in g.s.case.evidence if e["code"] == arg), None)
+        if not ev:
+            raise RuleError("کد مدرک نامعتبر است.")
+        return _ok(ui.evidence_card(ev) + "\n🗳️ کدام تفسیر را قبول داری؟",
+                   menus.interp_kb(ev))
+    code, idx = arg.split(":", 1)
+    return _ok(g.vote_interp(uid, code, int(idx)), menus.evidence_kb(g.s, "interp"))
 
 
 def h_expose(chat, uid, name, arg):
     g = _g(chat)
-    return _ok(f"🔍 اصالت مدرک {(arg or '').upper()}: {g.expose(uid, (arg or '').upper())}",
-               private=True)
+    if not arg:
+        _need_case(g)
+        return _ok("🔍 *اصالت کدام مدرک را بسنجم؟*\nاین کار اکشن شبانه‌ات را خرج می‌کند.",
+                   menus.evidence_kb(g.s, "expose"), private=True)
+    code = arg.upper()
+    return _ok(f"🔍 اصالت مدرک {code}: {g.expose(uid, code)}",
+               menus.evidence_kb(g.s, "expose"), private=True)
 
 
 # ================= ایده‌های ۱۵/۱۶/۱۸/۱۹/۲۰/۲۵ =================
@@ -669,15 +730,16 @@ def h_ready(chat, uid, name, arg):                # بهبود ۲
 
 def h_remind(chat, uid, name, arg):               # بهبود ۷
     g = _g(chat)
+    # در شب نه نام می‌بریم نه تعداد: هر دو می‌گویند چه کسی نقشِ اکشن‌دار دارد،
+    # و تغییرِ عدد بین دو یادآوری، زمانِ اکشنِ آن نفر را لو می‌دهد.
+    if g.s.phase in (Phase.NIGHT, Phase.INTERROGATION):
+        return _ok("⏰ *یادآوری* — هر کسی اکشن شبانه دارد، «🌙 اکشن شبانه» را بزند.\n"
+                   f"➡️ {g.next_step()}", ui.dashboard_kb(g.s))
     left = g.pending_actors()
     if not left:
         return _ok("✅ همه کارشان را کرده‌اند.", ui.back_only())
-    # در شب نام نمی‌بریم: فهرستِ «اکشن نداده‌ها» یعنی فهرستِ نقش‌های اکشن‌دار.
-    if g.s.phase in (Phase.NIGHT, Phase.INTERROGATION):
-        who = f"{len(left)} نفر هنوز اکشن شبانه نداده‌اند (نامشان محرمانه است)"
-    else:
-        who = "منتظر: " + "، ".join(g.s.players[u].name for u in left)
-    return _ok(f"⏰ *یادآوری* — {who}\n➡️ {g.next_step()}",
+    names = "، ".join(g.s.players[u].name for u in left)
+    return _ok(f"⏰ *یادآوری* — منتظر: {names}\n➡️ {g.next_step()}",
                ui.dashboard_kb(g.s))
 
 
@@ -701,7 +763,9 @@ def h_host(chat, uid, name, arg):                 # بهبود ۷: انتقال 
     # میزبانِ حاضر خودش واگذار می‌کند؛ اگر از بازی بیرون است، هر بازیکنی می‌تواند بگیرد.
     if uid != g.owner and owner is not None and owner.in_game:
         raise RuleError("فقط میزبان فعلی می‌تواند میزبانی را واگذار کند.")
-    return _ok(g.transfer_host(int(arg) if arg else uid), ui.back_only())
+    if not arg:
+        return _ok("👑 *میزبانی به چه کسی برسد؟*", menus.player_kb(g.s, "host"))
+    return _ok(g.transfer_host(int(arg)), ui.back_only())
 
 
 def h_balance(chat, uid, name, arg):              # بهبود ۸
@@ -713,6 +777,41 @@ def h_balance(chat, uid, name, arg):              # بهبود ۸
 def h_hunter(chat, uid, name, arg):
     g = _g(chat)
     return _ok(g.set_hunter(uid, int(arg)), private=True)
+
+
+def _need_case(g):
+    if not g.s.case:
+        raise RuleError("بازی هنوز شروع نشده؛ مدرکی وجود ندارد.")
+
+
+# ================= همه‌ی فرمان‌ها = دکمه =================
+def h_commands(chat, uid, name, arg):
+    return _ok(menus.commands_screen(), menus.commands_menu())
+
+
+def h_group(chat, uid, name, arg):
+    keys = [k for k, _t, _i in menus.GROUPS]
+    if arg not in keys:
+        return _ok(menus.commands_screen(), menus.commands_menu())
+    return _ok(f"*{menus.group_title(arg)}*", menus.group_kb(arg))
+
+
+def h_roleinfo(chat, uid, name, arg):
+    try:
+        role = menus.ROLE_NAMES[int(arg)]
+    except (ValueError, IndexError):
+        return _ok("🎭 *کاتالوگ نقش‌ها* — یکی را بزن:", menus.roles_kb())
+    return _ok(menus.role_detail(role), menus.role_detail_kb())
+
+
+def h_abilities(chat, uid, name, arg):
+    g, p = _player(chat, uid)
+    return _ok(menus.abilities_text(g, p), menus.abilities_kb(g, p), private=True)
+
+
+def h_cancel(chat, uid, name, arg):
+    take_pending(uid)
+    return _ok("✖️ باشه، بی‌خیال.", menus.commands_menu())
 
 
 _ROUTES = {
@@ -735,6 +834,8 @@ _ROUTES = {
     "rolecard": h_rolecard, "tutorial": h_tutorial, "blitz": h_blitz,
     "hunter": h_hunter, "table": h_table, "act": h_act,
     "ready": h_ready, "remind": h_remind, "pause": h_pause,
+    "commands": h_commands, "group": h_group, "roleinfo": h_roleinfo,
+    "abilities": h_abilities, "cancel": h_cancel,
     "resume": h_resume, "host": h_host, "balance": h_balance,
 }
 

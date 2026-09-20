@@ -30,7 +30,9 @@ BACK = ("🔙 بازگشت", "menu")
 HOME = ("🏠 منوی اصلی", "menu")
 
 MENU = [
+    [("🎛️ همه‌ی دکمه‌ها", "commands")],
     [("🎮 شروع بازی همین‌جا", "new"), ("⚡ بلیتز", "blitz")],
+    [("🌙 اکشن شبانه", "act"), ("🎯 توانایی‌های من", "abilities")],
     [("🔗 دعوت دوستان", "share"), ("📋 داشبورد", "dashboard")],
     [("🎓 آموزش تعاملی", "tutorial"), ("🎭 نقش‌ها", "roles")],
     [("🏆 برترین‌ها", "top"), ("📅 فصل", "season")],
@@ -164,9 +166,12 @@ def vote_kb(s: GameState) -> Dict:
 
 
 def officer_kb(uid: int) -> Dict:
-    return kb([[("🔦 سرنخ‌ها", "hints"), ("💬 پرسش", f"ask:{uid}")],
+    # «پرسش» بدون آرگومان می‌رود تا ربات متنِ سؤال را بپرسد؛
+    # قبلاً آیدیِ متهم به‌جای متنِ سؤال فرستاده می‌شد.
+    return kb([[("🔦 سرنخ‌ها", "hints"), ("💬 پرسش", "ask")],
                [("🔒 حبس موقت", f"ver:{uid}:1")],
-               [("🔓 تایید بی‌گناهی و آزادی", f"ver:{uid}:0")]])
+               [("🔓 تایید بی‌گناهی و آزادی", f"ver:{uid}:0")],
+               [("🌙 پایان شب", "dawn"), ("🎛️ همه‌ی دکمه‌ها", "commands")]])
 
 
 def jury_kb() -> Dict:
@@ -342,10 +347,14 @@ def dashboard(s: GameState, remaining=None, pending=(), next_step="") -> str:
         wait = " ⏳" if (not secret and p.uid in pending) else ""
         rows.append(f"{icon} {p.name}{tag}{wait}")
     timer = f"\n⏳ باقی‌مانده: {remaining} ثانیه" if remaining is not None else ""
-    who = ""
-    if pending:
-        who = (f"\n⏳ منتظر {len(pending)} نفر (نامشان محرمانه است)" if secret
-               else "\n⏳ منتظر: " + "، ".join(s.players[u].name for u in pending))
+    # در شب حتی *تعداد* را هم نمی‌گوییم: اگر کسی مدام داشبورد را ببیند،
+    # لحظه‌ی کم‌شدن عدد می‌گوید چه وقت آن نقشِ مخفی اکشنش را داد.
+    if secret:
+        who = "\n🌙 شب در جریان است؛ پیشرفتِ اکشن‌ها محرمانه می‌ماند."
+    elif pending:
+        who = "\n⏳ منتظر: " + "، ".join(s.players[u].name for u in pending)
+    else:
+        who = ""
     return (f"📋 *داشبورد — روز {s.day} | فاز: {s.phase.value}*{timer}\n{DIV}\n"
             + "\n".join(rows) +
             f"\n{DIV}\n🔎 مدارک رو شده: {len(s.revealed_evidence)}/۶{who}"

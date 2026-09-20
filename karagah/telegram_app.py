@@ -18,12 +18,12 @@ from telegram.ext import (ApplicationBuilder, CommandHandler, CallbackQueryHandl
 try:
     from . import bot as botmod
     from .bot import (handle, ENDPOINTS, COMMANDS, restore_games,
-                      is_dup_callback, route_chat)
+                      is_dup_callback, route_chat, take_pending)
     from .config import BOT_TOKEN as CONFIG_BOT_TOKEN
 except ImportError:
     import bot as botmod
     from bot import (handle, ENDPOINTS, COMMANDS, restore_games,
-                     is_dup_callback, route_chat)
+                     is_dup_callback, route_chat, take_pending)
     from config import BOT_TOKEN as CONFIG_BOT_TOKEN
 
 logging.basicConfig(level=logging.INFO,
@@ -165,6 +165,20 @@ async def on_callback(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
     await _send_photo_or_voice(update, res)
 
 
+async def on_text(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
+    """متن ساده فقط وقتی معنا دارد که ربات منتظر آن باشد (یادداشت/وصیت/پرسش/دفاع).
+    وگرنه کاربر را به تابلوی دکمه‌ها می‌بریم تا مجبور به تایپ دستور نشود."""
+    uid = update.effective_user.id
+    pending = take_pending(uid)
+    text = (update.effective_message.text or "").strip()
+    if pending and text:
+        chat, cmd = pending
+        res = handle(cmd, chat, uid, update.effective_user.first_name or "", text)
+    else:
+        res = _dispatch(update, "commands", "")
+    await _reply(update, res)
+
+
 async def on_unknown(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
     """هر متن/دستور ناشناخته → منوی اصلی، نه سکوت."""
     res = _dispatch(update, "menu", "")
@@ -205,6 +219,7 @@ def main():
         app.add_handler(CommandHandler(name, make_cmd(name)))
     app.add_handler(CallbackQueryHandler(on_callback))
     app.add_handler(MessageHandler(filters.COMMAND, on_unknown))   # /هرچیزِ نامعلوم → منو
+    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, on_text))
     if app.job_queue:
         app.job_queue.run_repeating(_timer_job, interval=15, first=15)
     else:

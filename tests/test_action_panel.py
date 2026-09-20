@@ -130,17 +130,17 @@ def test_dashboard_shows_phase_and_next_step():
     assert "اکشن" in r["text"]
 
 
-def test_dashboard_lists_who_still_owes_an_action():
+def test_night_dashboard_is_identical_before_and_after_a_secret_action():
+    """اگر داشبورد با اکشن دادنِ قاتل عوض شود، زمانِ اکشنش لو می‌رود."""
     g = _started()
     killer = _role(g, "قاتل")
     before = handle("dashboard", 860, 1)["text"]
-    assert killer.name in before                   # منتظر قاتل هستیم
     victim = next(p.uid for p in g.s.alive_players() if p.uid != killer.uid)
     handle("act", 860, killer.uid, arg=str(victim))
     after = handle("dashboard", 860, 1)["text"]
-    pending = g.pending_actors()
-    assert killer.uid not in pending
-    assert "منتظر" in after
+    assert killer.uid not in g.pending_actors()    # موتور می‌داند
+    assert before == after                         # ولی گروه چیزی نمی‌بیند
+    assert "محرمانه" in after
 
 
 def test_dashboard_pending_tracks_votes():
@@ -176,16 +176,26 @@ def test_night_dashboard_does_not_name_power_role_holders():
     assert str(len(pending)) in text              # فقط تعداد
 
 
-def test_night_remind_gives_a_count_not_a_roster():
+def test_night_remind_leaks_neither_names_nor_counts():
     g = _started()
     r = handle("remind", 860, 1)
     assert r["ok"]
-    assert "محرمانه" in r["text"]
-    vanilla = [p for p in g.s.players.values() if p.uid not in g.pending_actors()]
-    # نه نامِ منتظرها می‌آید، نه با حذف می‌شود فهمید چه کسی شهروند ساده است
-    for u in g.pending_actors():
-        assert f"منتظر: {g.s.players[u].name}" not in r["text"]
-    assert vanilla                                 # ترکیب واقعاً نقش بی‌اکشن دارد
+    pending = g.pending_actors()
+    assert pending                                 # واقعاً کسی مانده
+    for u in pending:                              # نه نام
+        assert g.s.players[u].name not in r["text"]
+    assert str(len(pending)) not in r["text"]      # نه تعداد
+    vanilla = [p for p in g.s.players.values() if p.uid not in pending]
+    assert vanilla                                 # ترکیب نقش بی‌اکشن هم دارد
+
+
+def test_night_remind_is_stable_across_polling():
+    """پیامِ یادآوری نباید با اکشن دادنِ یک نفر تغییر کند."""
+    g = _started()
+    before = handle("remind", 860, 1)["text"]
+    actor = g.pending_actors()[0]
+    handle("act", 860, actor, arg=str(g.legal_targets(actor)[0]))
+    assert handle("remind", 860, 1)["text"] == before
 
 
 def test_vote_phase_may_name_pending_voters():

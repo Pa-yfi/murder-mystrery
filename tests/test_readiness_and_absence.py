@@ -134,13 +134,14 @@ def test_host_can_be_claimed_when_owner_is_out():
     assert g.owner == 3
 
 
-def test_remind_counts_but_never_names_at_night():
-    """نام بردن از «اکشن نداده‌ها» یعنی لو دادن نقش‌های اکشن‌دار."""
+def test_remind_leaks_neither_names_nor_counts_at_night():
+    """نام یا تعدادِ «اکشن نداده‌ها» هر دو نقشِ مخفی را لو می‌دهند."""
     g = _lobby(); handle("startgame", CHAT, 1)
     r = handle("remind", CHAT, 1)
     assert r["ok"]
     pending = g.pending_actors()
-    assert str(len(pending)) in r["text"] and "محرمانه" in r["text"]
+    assert pending
+    assert str(len(pending)) not in r["text"]
     for u in pending:
         assert g.s.players[u].name not in r["text"]
 
@@ -153,12 +154,14 @@ def test_remind_names_pending_voters_in_the_vote_phase():
     assert any(g.s.players[u].name in r["text"] for u in g.pending_actors())
 
 
-def test_remind_is_quiet_when_everyone_acted():
+def test_remind_is_quiet_when_every_voter_has_voted():
+    """در رای‌گیری محرمانگی نداریم، پس یادآوری واقعی است."""
     g = _lobby(); handle("startgame", CHAT, 1)
-    for u in list(g.pending_actors()):
-        tgt = g.legal_targets(u)
-        if tgt:
-            handle("act", CHAT, u, arg=str(tgt[0]))
+    handle("dawn", CHAT); handle("discuss", CHAT); handle("vote", CHAT)
+    voters = [p.uid for p in g.s.alive_players() if p.can_vote]
+    for u in voters:
+        tgt = next(v for v in voters if v != u)
+        handle("castvote", CHAT, u, arg=str(tgt))
     r = handle("remind", CHAT, 1)
     assert r["ok"] and "همه کارشان" in r["text"]
 
