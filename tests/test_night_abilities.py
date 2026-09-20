@@ -158,3 +158,50 @@ def test_spy_learns_interrogation_target():
     g.night_action(spy.uid, _other(g, spy))
     g.resolve_night()
     assert any(sus.name in n for n in spy.notes)
+
+
+# ---------- طوفان نباید سمِ سررسیده را ببلعد ----------
+def test_storm_cancels_the_attack_but_not_mature_poison():
+    """سم دو شب پیش خورده شده؛ طوفانِ امشب راه را می‌بندد، نه معده را."""
+    g = Game(chat_id=5, seed=3)          # chat 5 → شب سوم طوفانی است
+    for i in range(1, 11):
+        g.join(i, f"بازیکن{i}")
+    g.start(5)
+    poisoner = _role(g, "سم‌ساز")
+    victim = g.s.players[_other(g, poisoner)]
+    g.night_action(poisoner.uid, victim.uid)
+    g.resolve_night()
+    for _ in range(2):
+        g.s.phase, g.s.day = Phase.NIGHT, g.s.day + 1
+        g.resolve_night()
+    assert g.s.night_event.startswith("طوفان")
+    assert not victim.alive                      # سم کار خودش را کرد
+    assert not g.s.poison_queue                  # و صف هم پاک شد
+
+
+def test_storm_still_stops_a_direct_kill():
+    g = Game(chat_id=5, seed=3)
+    for i in range(1, 11):
+        g.join(i, f"بازیکن{i}")
+    g.start(5)
+    killer = _role(g, "قاتل")
+    target = g.s.players[_other(g, killer)]
+    g.s.phase, g.s.day = Phase.NIGHT, 3          # شب طوفانی
+    g.night_action(killer.uid, target.uid)
+    g.resolve_night()
+    assert g.s.night_event.startswith("طوفان")
+    assert target.alive                          # حمله ناکام ماند
+    assert any("طوفان" in l for l in g.s.log)
+
+
+def test_poison_queue_survives_a_stormy_non_due_night():
+    g = Game(chat_id=5, seed=3)
+    for i in range(1, 11):
+        g.join(i, f"بازیکن{i}")
+    g.start(5)
+    poisoner = _role(g, "سم‌ساز")
+    victim = g.s.players[_other(g, poisoner)]
+    g.s.phase, g.s.day = Phase.NIGHT, 3          # سم در شب طوفانی خورانده می‌شود
+    g.night_action(poisoner.uid, victim.uid)
+    g.resolve_night()
+    assert g.s.poison_queue.get(victim.uid) == 5  # سررسید ثبت شد، نه حذف

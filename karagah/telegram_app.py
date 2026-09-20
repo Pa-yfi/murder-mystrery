@@ -207,6 +207,10 @@ def main():
     app.add_handler(MessageHandler(filters.COMMAND, on_unknown))   # /هرچیزِ نامعلوم → منو
     if app.job_queue:
         app.job_queue.run_repeating(_timer_job, interval=15, first=15)
+    else:
+        # بی‌صدا رد نشو: بدون job-queue، مهلت فازها هرگز خودکار جلو نمی‌رود.
+        log.warning("⚠️ JobQueue نصب نیست → تایمر خودکار فازها کار نمی‌کند. "
+                    'نصب کن: pip install "python-telegram-bot[job-queue]"')
     log.info("🕵️ ربات کارآگاه بالا آمد.")
     try:
         app.run_polling(drop_pending_updates=True)

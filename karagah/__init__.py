@@ -1,5 +1,5 @@
 """🕵️ کارآگاه — نسخه‌ی پیشرفته‌ی مافیا + معمای قتل برای تلگرام (فارسی)."""
-__version__ = "3.0.0"
+__version__ = "3.1.0"
 
 from . import config, models, roles, cases, dialogue, engine, ui, db, bot, cards, strings
 from .engine import Game, RuleError

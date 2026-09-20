@@ -672,8 +672,12 @@ def h_remind(chat, uid, name, arg):               # بهبود ۷
     left = g.pending_actors()
     if not left:
         return _ok("✅ همه کارشان را کرده‌اند.", ui.back_only())
-    names = "، ".join(g.s.players[u].name for u in left)
-    return _ok(f"⏰ *یادآوری* — منتظر: {names}\n➡️ {g.next_step()}",
+    # در شب نام نمی‌بریم: فهرستِ «اکشن نداده‌ها» یعنی فهرستِ نقش‌های اکشن‌دار.
+    if g.s.phase in (Phase.NIGHT, Phase.INTERROGATION):
+        who = f"{len(left)} نفر هنوز اکشن شبانه نداده‌اند (نامشان محرمانه است)"
+    else:
+        who = "منتظر: " + "، ".join(g.s.players[u].name for u in left)
+    return _ok(f"⏰ *یادآوری* — {who}\n➡️ {g.next_step()}",
                ui.dashboard_kb(g.s))
 
 

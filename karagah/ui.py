@@ -5,7 +5,10 @@ from __future__ import annotations
 from typing import Dict, List
 from .models import Custody, GameState
 from .roles import ROLES
-from .config import BOT_USERNAME
+from .config import BOT_USERNAME, MIN_PLAYERS, MAX_PLAYERS
+
+def _fa(n) -> str:
+    return str(n).translate(str.maketrans("0123456789", "۰۱۲۳۴۵۶۷۸۹"))
 
 DIV = "─" * 18
 
@@ -56,7 +59,7 @@ def main_menu() -> Dict:
 def first_screen() -> str:
     return ("🕵️ *به «کارآگاه» خوش آمدی!*\n" + DIV +
             "\nنسخه‌ی پیشرفته‌ی مافیا + معمای قتل — کاملاً فارسی."
-            "\n👥 ۴ تا ۸ بازیکن | 🕯️ ۴۰ پرونده | 🔦 حذف سه‌مرحله‌ای\n\n"
+            f"\n👥 {_fa(MIN_PLAYERS)} تا {_fa(MAX_PLAYERS)} بازیکن | 🕯️ ۴۰ پرونده | 🔦 حذف سه‌مرحله‌ای\n\n"
             "برای شروع، ربات را به گروه اضافه کن یا دوستانت را دعوت کن:")
 
 
@@ -116,7 +119,7 @@ def lobby_screen(s: GameState) -> str:
     names = "\n".join(f"  {i+1}. {'✅' if p.ready else '⏳'} {p.name}"
                       for i, p in enumerate(s.players.values())) or "  — هنوز کسی نیست —"
     return (f"🏛️ *لابی کارآگاه*\n{DIV}\n{names}\n{DIV}\n"
-            f"👥 {len(s.players)}/۸ (حداقل ۴ نفر)\n"
+            f"👥 {_fa(len(s.players))}/{_fa(MAX_PLAYERS)} (حداقل {_fa(MIN_PLAYERS)} نفر)\n"
             "✅ = پیویِ ربات را باز کرده (نقش محرمانه آنجا می‌رود)\n"
             "🎬 «🎬 شروع بازی» را بزن.")
 
@@ -196,7 +199,7 @@ def share_links(chat_id: int) -> Dict[str, str]:
 
 def share_screen(chat_id: int, players: int) -> str:
     l = share_links(chat_id)
-    return (f"🔗 *دعوت به بازی*\n{DIV}\n👥 {players}/۸ نفر داخل لابی‌اند.\n\n"
+    return (f"🔗 *دعوت به بازی*\n{DIV}\n👥 {_fa(players)}/{_fa(MAX_PLAYERS)} نفر داخل لابی‌اند.\n\n"
             f"لینک دعوت مستقیم:\n`{l['join']}`\n\n"
             "با دکمه‌های زیر بفرست یا ربات را به گروه/کانال اضافه کن.")
 
@@ -324,17 +327,25 @@ def action_kb(s: GameState, p, targets: List[int], chosen=None) -> Dict:
 
 # ── بهبود ۳: داشبورد راهنما ──
 def dashboard(s: GameState, remaining=None, pending=(), next_step="") -> str:
+    """در شب فقط *تعداد* منتظرها را می‌گوید.
+
+    نام بردن از کسانی که اکشن شبانه نداده‌اند یعنی لو دادن اینکه چه کسانی
+    اصلاً نقشِ اکشن‌دار دارند — و در نتیجه چه کسانی شهروند ساده‌اند.
+    در رای‌گیری و هیئت منصفه این اطلاعات عمومی است، پس نام می‌آید.
+    """
+    from .models import Phase
+    secret = s.phase in (Phase.NIGHT, Phase.INTERROGATION)
     rows = []
     for p in s.players.values():
         icon = CUSTODY_ICON[p.custody] if p.alive else "💀"
         tag = "" if p.custody is Custody.FREE or not p.alive else f" — {p.custody.value}"
-        wait = " ⏳" if p.uid in pending else ""
+        wait = " ⏳" if (not secret and p.uid in pending) else ""
         rows.append(f"{icon} {p.name}{tag}{wait}")
     timer = f"\n⏳ باقی‌مانده: {remaining} ثانیه" if remaining is not None else ""
     who = ""
     if pending:
-        names = "، ".join(s.players[u].name for u in pending)
-        who = f"\n⏳ منتظر: {names}"
+        who = (f"\n⏳ منتظر {len(pending)} نفر (نامشان محرمانه است)" if secret
+               else "\n⏳ منتظر: " + "، ".join(s.players[u].name for u in pending))
     return (f"📋 *داشبورد — روز {s.day} | فاز: {s.phase.value}*{timer}\n{DIV}\n"
             + "\n".join(rows) +
             f"\n{DIV}\n🔎 مدارک رو شده: {len(s.revealed_evidence)}/۶{who}"

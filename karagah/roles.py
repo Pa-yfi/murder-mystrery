@@ -4,6 +4,11 @@ from dataclasses import dataclass
 from typing import Dict, List
 from .models import Align
 
+
+def _fa(n) -> str:
+    """عدد فارسی برای متنِ قانون."""
+    return str(n).translate(str.maketrans("0123456789", "۰۱۲۳۴۵۶۷۸۹"))
+
 # ability: کلید اکشن شبانه | info: نوع اطلاعاتی که فقط این نقش می‌بیند
 
 
@@ -76,7 +81,7 @@ COMPOSITIONS: Dict[int, List[str]] = {
 
 def composition(n: int) -> List[str]:
     if n not in COMPOSITIONS:
-        raise ValueError("تعداد بازیکن باید بین ۴ تا ۸ باشد.")
+        raise ValueError(f"تعداد بازیکن باید بین {_fa(min(COMPOSITIONS))} تا {_fa(max(COMPOSITIONS))} باشد.")
     return list(COMPOSITIONS[n])
 
 

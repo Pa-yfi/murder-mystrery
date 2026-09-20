@@ -134,12 +134,23 @@ def test_host_can_be_claimed_when_owner_is_out():
     assert g.owner == 3
 
 
-def test_remind_names_who_is_holding_things_up():
+def test_remind_counts_but_never_names_at_night():
+    """نام بردن از «اکشن نداده‌ها» یعنی لو دادن نقش‌های اکشن‌دار."""
     g = _lobby(); handle("startgame", CHAT, 1)
     r = handle("remind", CHAT, 1)
-    assert r["ok"] and "منتظر" in r["text"]
+    assert r["ok"]
     pending = g.pending_actors()
-    assert any(g.s.players[u].name in r["text"] for u in pending)
+    assert str(len(pending)) in r["text"] and "محرمانه" in r["text"]
+    for u in pending:
+        assert g.s.players[u].name not in r["text"]
+
+
+def test_remind_names_pending_voters_in_the_vote_phase():
+    g = _lobby(); handle("startgame", CHAT, 1)
+    handle("dawn", CHAT); handle("discuss", CHAT); handle("vote", CHAT)
+    r = handle("remind", CHAT, 1)
+    assert "منتظر:" in r["text"]
+    assert any(g.s.players[u].name in r["text"] for u in g.pending_actors())
 
 
 def test_remind_is_quiet_when_everyone_acted():

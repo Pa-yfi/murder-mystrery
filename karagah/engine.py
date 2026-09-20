@@ -16,6 +16,11 @@ from .config import (MIN_PLAYERS, MAX_PLAYERS, INTERROGATION_NIGHTS,
 MIN_P, MAX_P = MIN_PLAYERS, MAX_PLAYERS
 
 
+def _fa(n) -> str:
+    """عدد فارسی — متنِ قانون همیشه از روی همین کانفیگ ساخته شود."""
+    return str(n).translate(str.maketrans("0123456789", "۰۱۲۳۴۵۶۷۸۹"))
+
+
 class RuleError(Exception):
     pass
 
@@ -102,7 +107,7 @@ class Game:
         if uid in self.s.players:
             raise RuleError("قبلاً عضو شده‌ای.")
         if len(self.s.players) >= MAX_P:
-            raise RuleError("ظرفیت لابی پر است (حداکثر ۸ نفر).")
+            raise RuleError(f"ظرفیت لابی پر است (حداکثر {_fa(MAX_P)} نفر).")
         p = Player(uid=uid, name=name)
         self.s.players[uid] = p
         return p
@@ -131,7 +136,7 @@ class Game:
         """force=False یعنی اول آمادگی همه را چک کن (لایه‌ی ربات)."""
         n = len(self.s.players)
         if not (MIN_P <= n <= MAX_P):
-            raise RuleError("تعداد بازیکن باید بین ۴ تا ۸ باشد.")
+            raise RuleError(f"تعداد بازیکن باید بین {_fa(MIN_P)} تا {_fa(MAX_P)} باشد.")
         if not validate_composition(n):
             raise RuleError("ترکیب نقش نامعتبر است.")
         if not force:
@@ -400,21 +405,27 @@ class Game:
         # پاپوش‌دوزی همدست: مدرک فردا به این نفر اشاره می‌کند
         for tgt in acts.get("frame", {}).values():
             self.s.framed[tgt] = self.s.day + 1
+        # حمله‌ی مستقیم امشب — طوفان فقط همین را لغو می‌کند
         killed: List[int] = []
         for tgt in acts.get("kill", {}).values():
             if tgt not in protected and tgt not in killed:
                 killed.append(tgt)
+        if self.s.night_event.startswith("طوفان") and killed:
+            self.s.log.append("⛈️ طوفان راه‌ها را بست؛ حمله‌ی امشب ناکام ماند.")
+            killed = []
+        # سمِ سررسیده ربطی به طوفان ندارد: دو شب پیش خورده شده.
         for tgt, due in list(self.s.poison_queue.items()):
             if due > self.s.day:
                 continue
-            del self.s.poison_queue[tgt]
             if tgt in protected:
+                del self.s.poison_queue[tgt]
                 self.s.log.append(f"💉 پادزهر به موقع رسید: {self.s.players[tgt].name} نجات یافت.")
-            elif self.s.players[tgt].in_game and tgt not in killed:
+            elif not self.s.players[tgt].in_game:
+                del self.s.poison_queue[tgt]      # قبلاً از بازی بیرون رفته
+            elif tgt not in killed:
+                del self.s.poison_queue[tgt]
                 killed.append(tgt)
                 self.s.log.append(f"☠️ {self.s.players[tgt].name} بر اثر سم از پا درآمد.")
-        if self.s.night_event.startswith("طوفان"):
-            killed = []                           # طوفان قتل امشب را لغو کرد
         # ایده ۸: زوج سرنوشت
         if self.s.fate_pair:
             a, b = self.s.fate_pair

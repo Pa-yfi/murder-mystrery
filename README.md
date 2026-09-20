@@ -1,6 +1,6 @@
 # 🕵️ کارآگاه — مافیای پیشرفته + معمای قتل (تلگرام، فارسی)
 
-نسخه ۱.۱ — موتور کامل، ۴۰ پرونده، بدون LLM، **پنل ادمین روی SQLite**.
+نسخه ۳.۱ — ۱۸ نقش، ۴۰ پرونده، ۴ تا ۱۰ بازیکن، بدون LLM، **پنل ادمین روی SQLite**.
 
 ## راه‌اندازی (PowerShell / ویندوز)
 ```powershell
@@ -9,7 +9,7 @@ python -m venv .venv
 .\.venv\Scripts\Activate.ps1
 pip install -r requirements.txt
 copy .env.example .env      # بعد BOT_TOKEN و BOT_USERNAME و ADMIN_IDS را داخلش بگذار
-python -m pytest -q         # باید ۱۷۷ تست سبز شود
+python -m pytest -q tests --ignore=tests/quality   # ۱۸۴ تست سبز
 python run.py               # ربات بالا می‌آید
 ```
 لینوکس/مک: `source .venv/bin/activate` و `cp .env.example .env`.
@@ -28,24 +28,29 @@ run.py → karagah/telegram_app.py → karagah/bot.py (۶۴ اندپوینت)
                                         ├── ui.py      (کیبورد، ایموجی، انیمیشن)
                                         └── db.py      (SQLite — پنل ادمین)
 karagah/config.py ← .env
-tests/ ← ۱۷۷ تست
+tests/        ← ۱۸۴ تست سبز
+tests/quality/ ← قراردادهای کیفی، عمداً قرمز (دفترچه‌ی نقص)
 ```
 
 ## جریان بازی
 `/start` → منوی اصلی → «🎮 شروع بازی» (پنل میزبان) → دعوت دوستان/گروه
-→ ۴ تا ۸ نفر → «🎬 شروع» → «🔐 نقش من» (پیوی)
+→ ۴ تا ۱۰ نفر → «✅ آماده‌ام» (همه) → «🎬 شروع» → «🔐 نقش من» (پیوی)
 → 🌙 شب → ☀️ صبح → 💬 گفتگو → 🗳️ رای
 → 🔦 متهم یک **شب** در اتاق بازجویی (بقیه همان شب اکشن شبانه دارند)
 → ☀️ صبح: سرنخ/پرسش/حکم — یا ⚖️ هیئت منصفه (۶۰٪ = تبرئه)
 → 🔒 حبس موقت → ⛓️ حبس ابد (بدون افشای نقش)
 → 🏁 پایان (نقش‌ها فاش می‌شود).
 
-**در پیوی:** فرمان‌های خصوصی (`/night` ، `/myrole` ، `/notes` …) خودشان بازیِ
+**در پیوی:** فرمان‌های خصوصی (`/act` ، `/myrole` ، `/notes` …) خودشان بازیِ
 گروهت را پیدا می‌کنند. اگر هم‌زمان در چند بازی باشی، با `/table` میز فعال را انتخاب کن.
 
 ## پنل ادمین (SQL)
-فقط آیدی‌های `ADMIN_IDS`: `/admin` ، `/admin_games` ، `/admin_users [id]` ، `/admin_stats` ، `/admin_ban <id>`.
-همه‌ی داده‌ها از جدول‌های `users/games/players/events` در `karagah.db` خوانده می‌شوند.
+فقط آیدی‌های `ADMIN_IDS`: `/admin` ، `/admin_games` ، `/admin_users [id]` ، `/admin_stats` ، `/admin_ban <id>` ، `/balance`.
+
+⚠️ فهرست خالی `ADMIN_IDS` یعنی **هیچ‌کس** ادمین نیست (قبلاً یعنی «همه»).
+
+جدول‌های `karagah.db`: `users` ، `games` ، `players` ، `events` ، `outcomes` (تعادل) ،
+`snapshots` (بازیابی بعد از ری‌استارت) ، `season_xp` ، `achievements` ، `missions` ، `accuracy`.
 
 ## امنیت
 توکن فقط در `.env` (داخل `.gitignore`). اگر لو رفت، در BotFather `/revoke` بزن.
@@ -67,3 +72,13 @@ tests/ ← ۱۷۷ تست
 - **🧪 تست بازیِ کامل:** بازیِ سرتاسری، بازیِ تایمرمحور، هیئت منصفه، ری‌استارت، و شکست پیام خصوصی.
 
 دستورهای تازه: `/act` `/ready` `/remind` `/pause` `/resume` `/host` `/table` `/balance`
+
+## دو سوئیت تست
+- `tests/` — رفتارِ موجود. باید همیشه سبز باشد.
+- `tests/quality/` — قراردادِ رفتارِ مطلوب (از `improvement.md`). **عمداً قرمز است**؛ هر شکست یک نقصِ شناخته‌شده است، نه رگرسیون.
+  فهرست نقص‌های باز در پایان `PLAN.md`.
+
+```powershell
+python -m pytest -q tests --ignore=tests/quality   # باید سبز باشد
+python -m pytest -q tests/quality                  # دفترچه‌ی نقص
+```

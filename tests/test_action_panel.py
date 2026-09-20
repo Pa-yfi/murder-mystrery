@@ -162,3 +162,36 @@ def test_dashboard_button_matches_phase():
     assert "vote" in _cbs(ui.dashboard_kb(g.s))
     handle("vote", 860)
     assert "closevote" in _cbs(ui.dashboard_kb(g.s))
+
+
+# ---------- داشبورد نباید نقش‌های اکشن‌دار را لو بدهد ----------
+def test_night_dashboard_does_not_name_power_role_holders():
+    g = _started()
+    pending = g.pending_actors()
+    assert pending
+    text = handle("dashboard", 860, 1)["text"]
+    named = [u for u in pending if f"{g.s.players[u].name} ⏳" in text]
+    assert not named                              # هیچ‌کس با ⏳ علامت نمی‌خورد
+    assert "محرمانه" in text
+    assert str(len(pending)) in text              # فقط تعداد
+
+
+def test_night_remind_gives_a_count_not_a_roster():
+    g = _started()
+    r = handle("remind", 860, 1)
+    assert r["ok"]
+    assert "محرمانه" in r["text"]
+    vanilla = [p for p in g.s.players.values() if p.uid not in g.pending_actors()]
+    # نه نامِ منتظرها می‌آید، نه با حذف می‌شود فهمید چه کسی شهروند ساده است
+    for u in g.pending_actors():
+        assert f"منتظر: {g.s.players[u].name}" not in r["text"]
+    assert vanilla                                 # ترکیب واقعاً نقش بی‌اکشن دارد
+
+
+def test_vote_phase_may_name_pending_voters():
+    """در رای‌گیری، «چه کسی رای نداده» اطلاعات محرمانه نیست."""
+    g = _started()
+    handle("dawn", 860); handle("discuss", 860); handle("vote", 860)
+    text = handle("dashboard", 860, 1)["text"]
+    assert "منتظر:" in text
+    assert any(g.s.players[u].name in text for u in g.pending_actors())
