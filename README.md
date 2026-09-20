@@ -9,7 +9,7 @@ python -m venv .venv
 .\.venv\Scripts\Activate.ps1
 pip install -r requirements.txt
 copy .env.example .env      # بعد BOT_TOKEN و BOT_USERNAME و ADMIN_IDS را داخلش بگذار
-python -m pytest -q         # باید ۳۰ تست سبز شود
+python -m pytest -q         # باید ۱۱۶ تست سبز شود
 python run.py               # ربات بالا می‌آید
 ```
 لینوکس/مک: `source .venv/bin/activate` و `cp .env.example .env`.
@@ -22,21 +22,26 @@ python run.py               # ربات بالا می‌آید
 
 ## ساختار
 ```
-run.py → karagah/telegram_app.py → karagah/bot.py (۳۳ اندپوینت)
+run.py → karagah/telegram_app.py → karagah/bot.py (۵۷ اندپوینت)
                                         ├── engine.py  (قواعد + ماشین حالت)
                                         ├── roles.py / cases.py / dialogue.py / models.py
                                         ├── ui.py      (کیبورد، ایموجی، انیمیشن)
                                         └── db.py      (SQLite — پنل ادمین)
 karagah/config.py ← .env
-tests/test_all.py ← ۳۰ تست
+tests/ ← ۱۱۶ تست
 ```
 
 ## جریان بازی
 `/start` → منوی اصلی → «🎮 شروع بازی» (پنل میزبان) → دعوت دوستان/گروه
 → ۴ تا ۸ نفر → «🎬 شروع» → «🔐 نقش من» (پیوی)
 → 🌙 شب → ☀️ صبح → 💬 گفتگو → 🗳️ رای
-→ 🔦 بازجویی (سرنخ/پرسش/حکم) → 🔒 حبس موقت → ⛓️ حبس ابد (بدون افشای نقش)
-→ ⚖️ هیئت منصفه → 🏁 پایان (نقش‌ها فاش می‌شود).
+→ 🔦 متهم یک **شب** در اتاق بازجویی (بقیه همان شب اکشن شبانه دارند)
+→ ☀️ صبح: سرنخ/پرسش/حکم — یا ⚖️ هیئت منصفه (۶۰٪ = تبرئه)
+→ 🔒 حبس موقت → ⛓️ حبس ابد (بدون افشای نقش)
+→ 🏁 پایان (نقش‌ها فاش می‌شود).
+
+**در پیوی:** فرمان‌های خصوصی (`/night` ، `/myrole` ، `/notes` …) خودشان بازیِ
+گروهت را پیدا می‌کنند. اگر هم‌زمان در چند بازی باشی، با `/table` میز فعال را انتخاب کن.
 
 ## پنل ادمین (SQL)
 فقط آیدی‌های `ADMIN_IDS`: `/admin` ، `/admin_games` ، `/admin_users [id]` ، `/admin_stats` ، `/admin_ban <id>`.

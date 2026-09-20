@@ -86,6 +86,53 @@ def _player(chat: int, uid: int):
     return g, g.s.players[uid]
 
 
+# فرمان‌هایی که به بازی وابسته نیستند و در پیوی همان‌جا اجرا می‌شوند
+GLOBAL_CMDS = {"start", "menu", "back", "help", "roles", "tutorial", "share",
+               "sharelink", "top", "league", "season", "missions", "achv",
+               "new", "blitz", "newtable", "table",
+               "admin", "admin_games", "admin_users", "admin_stats", "admin_ban"}
+
+_ACTIVE_TABLE: Dict[int, int] = {}        # uid → چتِ بازیِ انتخاب‌شده
+
+
+def games_of(uid: int) -> list:
+    """چت‌های بازی‌های تمام‌نشده‌ای که این کاربر در آن‌هاست."""
+    return [c for c, g in GAMES.items()
+            if uid in g.s.players and g.s.phase is not Phase.END]
+
+
+def route_chat(cmd: str, chat: int, uid: int, private: bool) -> int:
+    """در پیوی، chat_id خودِ کاربر است و بازی گروه را پیدا نمی‌کند.
+    بازیِ فعالِ کاربر را برمی‌گرداند؛ ۰ یعنی مبهم/پیدا نشد."""
+    if not private or cmd in GLOBAL_CMDS:
+        return chat
+    if chat in GAMES and uid in GAMES[chat].s.players:
+        return chat                       # پیویِ خودش واقعاً یک میز است
+    pinned = _ACTIVE_TABLE.get(uid)
+    if pinned in GAMES and uid in GAMES[pinned].s.players:
+        return pinned
+    found = games_of(uid)
+    if len(found) == 1:
+        return found[0]
+    return 0 if found else chat           # هیچ بازی‌ای نداری → خطای عادی
+
+
+def h_table(chat, uid, name, arg):
+    """انتخاب میز برای فرمان‌های پیوی وقتی کاربر در چند بازی است."""
+    found = games_of(uid)
+    if arg:
+        target = int(arg)
+        if target not in found:
+            raise RuleError("در این بازی عضو نیستی.")
+        _ACTIVE_TABLE[uid] = target
+        return _ok(f"✅ میز فعالت: `{target}`", ui.back_only(), private=True)
+    if not found:
+        raise RuleError("در هیچ بازی فعالی نیستی.")
+    rows = [[(f"🎲 میز {c}", f"table:{c}")] for c in found]
+    return _ok("🎲 *کدام میز؟* برای فرمان‌های خصوصی یکی را انتخاب کن:",
+               ui.kb(rows + [[ui.BACK, ui.HOME]]), private=True)
+
+
 def _ensure(chat: int, uid: int, name: str) -> Game:
     """اگر لابی نبود (یا بازی قبلی تمام شده)، بسازش تا دکمه‌ای بی‌واکنش نماند."""
     g = GAMES.get(chat)
@@ -599,10 +646,10 @@ _ROUTES = {
     "missions": h_missions, "achv": h_achv, "newtable": h_newtable,
     "spectate": h_spectate, "voteanon": h_voteanon, "rematch": h_rematch,
     "rolecard": h_rolecard, "tutorial": h_tutorial, "blitz": h_blitz,
-    "hunter": h_hunter,
+    "hunter": h_hunter, "table": h_table,
 }
 
 # دستورهایی که به BotFather معرفی می‌شوند (زیرمجموعه‌ی امن برای منوی دستورها)
 COMMANDS = ["start", "menu", "new", "join", "startgame", "myrole", "status",
-            "help", "roles", "share", "admin"]
+            "table", "notes", "help", "roles", "share", "admin"]
 ENDPOINTS = sorted(_ROUTES)

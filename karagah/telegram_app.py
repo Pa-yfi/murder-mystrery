@@ -17,11 +17,13 @@ from telegram.ext import (ApplicationBuilder, CommandHandler, CallbackQueryHandl
 
 try:
     from . import bot as botmod
-    from .bot import handle, ENDPOINTS, COMMANDS, restore_games, is_dup_callback
+    from .bot import (handle, ENDPOINTS, COMMANDS, restore_games,
+                      is_dup_callback, route_chat)
     from .config import BOT_TOKEN as CONFIG_BOT_TOKEN
 except ImportError:
     import bot as botmod
-    from bot import handle, ENDPOINTS, COMMANDS, restore_games, is_dup_callback
+    from bot import (handle, ENDPOINTS, COMMANDS, restore_games,
+                     is_dup_callback, route_chat)
     from config import BOT_TOKEN as CONFIG_BOT_TOKEN
 
 logging.basicConfig(level=logging.INFO,
@@ -118,11 +120,25 @@ async def _reply(update: Update, res: dict):
     log.error("delivery failed for chat %s", update.effective_chat.id)
 
 
+AMBIGUOUS = ("🎲 در چند بازی هستی. اول با /table میز فعالت را انتخاب کن.")
+
+
+def _dispatch(update: Update, cmd: str, arg: str) -> dict:
+    """در پیوی، chat_id بازی گروه نیست — اول میز کاربر را پیدا کن."""
+    chat = update.effective_chat.id
+    uid = update.effective_user.id
+    private = update.effective_chat.type == "private"
+    target = route_chat(cmd, chat, uid, private)
+    if not target:
+        return {"ok": False, "text": AMBIGUOUS, "keyboard": None,
+                "private": True, "edit": False}
+    return handle(cmd, target, uid, update.effective_user.first_name or "", arg)
+
+
 def make_cmd(name: str):
     async def h(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
         arg = " ".join(ctx.args) if ctx.args else ""
-        res = handle(name, update.effective_chat.id, update.effective_user.id,
-                     update.effective_user.first_name or "", arg)
+        res = _dispatch(update, name, arg)
         await _reply(update, res)
         await _send_photo_or_voice(update, res)
     return h
@@ -144,15 +160,14 @@ async def on_callback(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
         arg = rest.split(":")[-1] if head == "ver" else rest
     else:                                 # دکمه‌ی ساده = نام اندپوینت (بدون نگاشت)
         cmd = data
-    res = handle(cmd, q.message.chat_id, q.from_user.id, q.from_user.first_name or "", arg)
+    res = _dispatch(update, cmd, arg)
     await _reply(update, res)
     await _send_photo_or_voice(update, res)
 
 
 async def on_unknown(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
     """هر متن/دستور ناشناخته → منوی اصلی، نه سکوت."""
-    res = handle("menu", update.effective_chat.id, update.effective_user.id,
-                 update.effective_user.first_name or "", "")
+    res = _dispatch(update, "menu", "")
     await _reply(update, res)
 
 

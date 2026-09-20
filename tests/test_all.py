@@ -713,7 +713,7 @@ def test_voice_map_exists():                    # ایده ۲۹
 
 
 def test_endpoint_count_v2():
-    assert len(bot.ENDPOINTS) == 56
+    assert len(bot.ENDPOINTS) == 57       # + table (انتخاب میز در پیوی)
 
 
 # ================= نسخه ۳: ۲۰ بهبود کیفیت و گیم‌پلی =================
@@ -881,4 +881,4 @@ def test_hunter_endpoint():                       # ایده ۱۵ (اندپوی�
 
 
 def test_endpoint_count_v3():
-    assert len(bot.ENDPOINTS) == 56
+    assert len(bot.ENDPOINTS) == 57       # + table (انتخاب میز در پیوی)
