@@ -143,19 +143,79 @@ class Game:
             if getattr(self.s, "_protect_prev", None) == target and \
                f"protect:{uid}" not in self.s.night_actions:
                 raise RuleError("دو شب پیاپی نمی‌توانی یک نفر را نجات دهی.")
-        if ab == "investigate" and self.s.night_actions.get(f"_inv_last:{uid}") == target:
-            raise RuleError("همین نفر را شب قبل استعلام کردی؛ کس دیگری را انتخاب کن.")
+        if ab == "investigate":
+            if self.s.night_actions.get(f"_inv_last:{uid}") == target:
+                raise RuleError("همین نفر را شب قبل استعلام کردی؛ کس دیگری را انتخاب کن.")
+            if f"expose:{uid}" in self.s.night_actions:
+                raise RuleError("امشب اکشنت را روی راستی‌آزمایی مدرک خرج کرده‌ای.")
         self.s.night_actions[f"{ab}:{uid}"] = target   # اکشن دوباره = ویرایش اکشن
         if ab == "protect":
             self.s.night_actions["_last_protect"] = target
         if ab == "investigate":
             self.s.night_actions[f"_inv_last:{uid}"] = target
-        if ab == "investigate":
-            t = self.s.players[target]
-            res = "پاک" if t.align is Align.CITY else "مشکوک"
-            p.notes.append(f"شب {self.s.day}: {t.name} → {res}")
-            return res
+            # نتیجه سحر می‌رسد. اگر همین‌جا جواب می‌دادیم، کارآگاه می‌توانست
+            # هدف را پشت‌سرهم عوض کند و در یک شب همه را استعلام کند.
+            return f"ثبت شد: {self.s.players[target].name} — نتیجه سحر به دفترچه‌ات می‌رسد."
         return "ثبت شد"
+
+    def _committed_actions(self) -> Dict[str, Dict[int, int]]:
+        """اکشن‌های واقعیِ امشب: {ability: {actor_uid: target}}.
+        کلیدهای دفترچه‌ای (با _ شروع می‌شوند) کنار گذاشته می‌شوند."""
+        out: Dict[str, Dict[int, int]] = {}
+        for k, v in self.s.night_actions.items():
+            if k.startswith("_") or ":" not in k:
+                continue
+            ab, actor = k.split(":", 1)
+            out.setdefault(ab, {})[int(actor)] = v
+        return out
+
+    def _deliver_night_info(self, acts: Dict[str, Dict[int, int]]) -> None:
+        """اطلاعات اختصاصی نقش‌ها — سحر، یک‌بار، در دفترچه‌ی خودِ بازیکن."""
+        day = self.s.day
+        visits: Dict[int, int] = {}
+        for ab, pairs in acts.items():
+            if ab in ("investigate", "expose", "watch"):
+                continue                       # استعلام/راستی‌آزمایی/نگهبانی «ملاقات» نیست
+            for tgt in pairs.values():
+                visits[tgt] = visits.get(tgt, 0) + 1
+
+        for actor, tgt in acts.get("investigate", {}).items():
+            p, t = self.s.players[actor], self.s.players[tgt]
+            if tgt in self.s.hidden:
+                res = "پاک"                     # قاچاقچی ردش را پاک کرده
+            elif self.s.framed.get(tgt, 0) >= day:
+                res = "مشکوک"                   # پاپوشِ همدست
+            else:
+                res = "پاک" if t.align is Align.CITY else "مشکوک"
+            p.notes.append(f"شب {day}: {t.name} → {res}")
+
+        for actor, tgt in acts.get("watch", {}).items():
+            p, t = self.s.players[actor], self.s.players[tgt]
+            n = 0 if tgt in self.s.hidden else visits.get(tgt, 0)
+            p.notes.append(f"🛡️ شب {day}: {t.name} — {n} ملاقات")
+
+        for actor in acts.get("spy", {}):
+            p = self.s.players[actor]
+            sus = self.s.suspect_uid
+            who = self.s.players[sus].name if sus else "کسی"
+            p.notes.append(f"📞 شب {day}: بازجو سراغ {who} رفته بود.")
+
+        for actor, tgt in acts.get("autopsy", {}).items():
+            p = self.s.players[actor]
+            code = self.s.case.evidence[min(day - 1, len(self.s.case.evidence) - 1)]["code"]
+            ev = next(e for e in self.s.case.evidence if e["code"] == code)
+            p.notes.append(f"🧪 شب {day}: مدرک {code} → "
+                           + ("جعلی 🎭" if ev["misleading"] else "اصل ✅"))
+
+        for actor in acts.get("reveal", {}):    # خبرنگار: مدرک اضافه برای کل شهر
+            nxt = self.s.case.evidence[min(day, len(self.s.case.evidence) - 1)]
+            if nxt["code"] not in self.s.revealed_evidence:
+                self.s.revealed_evidence.append(nxt["code"])
+                self.s.log.append(f"📰 خبرنگار مدرک {nxt['code']} را رو کرد.")
+
+        for tgt, until in list(self.s.framed.items()):
+            if until < day:
+                del self.s.framed[tgt]
 
     def resolve_night(self) -> Dict:
         if self.s.phase is not Phase.NIGHT:
@@ -166,11 +226,28 @@ class Game:
         self.s.night_event = ("قطعی برق 🕯️" if roll < 0.12 else
                               "طوفان ⛈️" if roll < 0.22 else
                               "شاهد ناشناس 👁️" if roll < 0.32 else "")
-        protected = {v for k, v in self.s.night_actions.items() if k.startswith("protect:")}
+        acts = self._committed_actions()
+        protected = set(acts.get("protect", {}).values())
+        self.s.hidden = list(set(acts.get("hide", {}).values()))
+        # سم: هدف دو شب بعد می‌میرد مگر پزشک همان شب نجاتش دهد
+        for tgt in acts.get("poison", {}).values():
+            self.s.poison_queue.setdefault(tgt, self.s.day + 2)
+        # پاپوش‌دوزی همدست: مدرک فردا به این نفر اشاره می‌کند
+        for tgt in acts.get("frame", {}).values():
+            self.s.framed[tgt] = self.s.day + 1
         killed: List[int] = []
-        for k, v in self.s.night_actions.items():
-            if k.startswith("kill:") and v not in protected:
-                killed.append(v)
+        for tgt in acts.get("kill", {}).values():
+            if tgt not in protected and tgt not in killed:
+                killed.append(tgt)
+        for tgt, due in list(self.s.poison_queue.items()):
+            if due > self.s.day:
+                continue
+            del self.s.poison_queue[tgt]
+            if tgt in protected:
+                self.s.log.append(f"💉 پادزهر به موقع رسید: {self.s.players[tgt].name} نجات یافت.")
+            elif self.s.players[tgt].in_game and tgt not in killed:
+                killed.append(tgt)
+                self.s.log.append(f"☠️ {self.s.players[tgt].name} بر اثر سم از پا درآمد.")
         if self.s.night_event.startswith("طوفان"):
             killed = []                           # طوفان قتل امشب را لغو کرد
         # ایده ۸: زوج سرنوشت
@@ -218,6 +295,7 @@ class Game:
             nxt = self.s.case.evidence[min(self.s.day, len(self.s.case.evidence) - 1)]
             if nxt["code"] not in self.s.revealed_evidence:
                 self.s.revealed_evidence.append(nxt["code"])
+        self._deliver_night_info(acts)
         self.s.log.append(f"شب {self.s.day}: کشته‌ها={[self.s.players[u].name for u in killed]}")
         self._check_win()
         return {"killed": killed, "evidence": ev}

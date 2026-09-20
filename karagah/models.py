@@ -122,6 +122,9 @@ class GameState:
     mvp: Optional[int] = None                   # ایده ۱۷
     tie_break: bool = False                     # ایده ۲۰: مرگ ناگهانی
     _protect_prev: Optional[int] = None         # ایده ۱۱: هدف نجاتِ شب قبل
+    poison_queue: Dict[int, int] = field(default_factory=dict)   # uid → روزِ مرگ با سم
+    framed: Dict[int, int] = field(default_factory=dict)         # uid → روزِ پاپوش‌دوزی
+    hidden: List[int] = field(default_factory=list)              # مخفی‌شده‌های قاچاقچی
     finalized: bool = False                     # نتیجه یک‌بار ثبت شد؛ دوباره XP نده
 
     def alive_players(self) -> List[Player]:

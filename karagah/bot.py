@@ -442,8 +442,10 @@ def h_note(chat, uid, name, arg):
 
 def h_notes(chat, uid, name, arg):
     g, p = _player(chat, uid)
-    body = "\n".join(f"  • {n}" for n in p.private_notes) or "  — خالی —"
-    return _ok(f"📝 *دفترچه کارآگاهی تو:*\n{body}", ui.back_only(), private=True)
+    found = "\n".join(f"  • {n}" for n in p.notes) or "  — هنوز چیزی نرسیده —"
+    mine = "\n".join(f"  • {n}" for n in p.private_notes) or "  — خالی —"
+    return _ok(f"🔎 *یافته‌های نقش تو:*\n{found}\n\n📝 *یادداشت‌های خودت:*\n{mine}",
+               ui.back_only(), private=True)
 
 
 # ================= ایده‌های ۶/۱۰/۱۱/۱۲ =================
