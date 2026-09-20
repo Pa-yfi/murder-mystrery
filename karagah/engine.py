@@ -122,7 +122,10 @@ class Game:
         self.s.log.append(f"پرونده #{self.s.case.cid}: {self.s.case.title}")
 
     # ---------------- شب ----------------
-    def night_action(self, uid: int, target: int) -> str:
+    def check_night_action(self, uid: int, target: int) -> str:
+        """قواعد اکشن شبانه در یک جا. خطا پرت می‌کند یا نام توانایی را می‌دهد.
+        هم night_action و هم legal_targets از همین رد می‌شوند تا دکمه‌ها
+        هیچ‌وقت با قواعد فرق نکنند."""
         if self.s.phase not in (Phase.NIGHT, Phase.INTERROGATION):
             raise RuleError("الان شب نیست.")
         p = self.s.players[uid]
@@ -148,6 +151,29 @@ class Game:
                 raise RuleError("همین نفر را شب قبل استعلام کردی؛ کس دیگری را انتخاب کن.")
             if f"expose:{uid}" in self.s.night_actions:
                 raise RuleError("امشب اکشنت را روی راستی‌آزمایی مدرک خرج کرده‌ای.")
+        return ab
+
+    def legal_targets(self, uid: int) -> List[int]:
+        """هدف‌هایی که همین حالا برای این بازیکن مجازند — برای ساخت دکمه‌ها."""
+        out = []
+        for t in self.s.players:
+            try:
+                self.check_night_action(uid, t)
+            except RuleError:
+                continue
+            out.append(t)
+        return out
+
+    def chosen_target(self, uid: int) -> Optional[int]:
+        """هدفی که این بازیکن امشب ثبت کرده (برای نشان دادن ✅ روی دکمه)."""
+        for ab, pairs in self._committed_actions().items():
+            if uid in pairs:
+                return pairs[uid]
+        return None
+
+    def night_action(self, uid: int, target: int) -> str:
+        ab = self.check_night_action(uid, target)
+        p = self.s.players[uid]
         self.s.night_actions[f"{ab}:{uid}"] = target   # اکشن دوباره = ویرایش اکشن
         if ab == "protect":
             self.s.night_actions["_last_protect"] = target
@@ -157,6 +183,42 @@ class Game:
             # هدف را پشت‌سرهم عوض کند و در یک شب همه را استعلام کند.
             return f"ثبت شد: {self.s.players[target].name} — نتیجه سحر به دفترچه‌ات می‌رسد."
         return "ثبت شد"
+
+    def pending_actors(self) -> List[int]:
+        """چه کسانی هنوز کاری که این فاز از آن‌ها می‌خواهد انجام نداده‌اند."""
+        if self.s.phase in (Phase.NIGHT, Phase.INTERROGATION):
+            acted = {a for pairs in self._committed_actions().values() for a in pairs}
+            return [p.uid for p in self.s.alive_players()
+                    if p.can_speak and ROLES[p.role].ability not in ("", "hunter")
+                    and p.uid not in acted]
+        if self.s.phase is Phase.VOTE:
+            return [p.uid for p in self.s.alive_players()
+                    if p.can_vote and p.uid not in self.s.votes]
+        if self.s.phase is Phase.JURY:
+            return [p.uid for p in self.s.alive_players()
+                    if p.can_vote and p.uid not in self.s.jury_votes]
+        return []
+
+    def next_step(self) -> str:
+        """یک جمله: الان نوبت چیست."""
+        ph = self.s.phase
+        if ph is Phase.LOBBY:
+            n = len(self.s.players)
+            return ("منتظر بازیکن بیشتر" if n < MIN_P else "میزبان «🎬 شروع بازی» را بزند")
+        if ph in (Phase.NIGHT, Phase.INTERROGATION):
+            return "نقش‌های شبانه اکشنشان را بدهند، بعد «🌙 پایان شب»"
+        if ph is Phase.MORNING:
+            sus = self.s.suspect_uid
+            if sus is not None:
+                return f"بازجو درباره‌ی {self.s.players[sus].name} حکم بدهد، یا ⚖️ هیئت منصفه"
+            return "«💬 گفتگو» را باز کنید"
+        if ph is Phase.DISCUSSION:
+            return "بحث کنید، بعد «🗳️ رای‌گیری»"
+        if ph is Phase.VOTE:
+            return "رای بدهید، بعد «📊 بستن رای‌گیری»"
+        if ph is Phase.JURY:
+            return "هیئت منصفه رای بدهد، بعد «📊 نتیجه»"
+        return "بازی تمام شده — «🏁 پایان» نقش‌ها را نشان می‌دهد"
 
     def _committed_actions(self) -> Dict[str, Dict[int, int]]:
         """اکشن‌های واقعیِ امشب: {ability: {actor_uid: target}}.

@@ -274,3 +274,83 @@ def tutorial_text() -> str:
 # ── ایده ۲۹: نگاشت صدای فاز (اگر فایل موجود باشد، آداپتور ویس می‌فرستد) ──
 VOICE = {"night": "night.ogg", "morning": "morning.ogg", "vote": "vote.ogg",
          "interrogation": "interrogation.ogg", "jail": "jail.ogg", "court": "court.ogg"}
+
+
+# ── بهبود ۱: پنل اکشن خصوصی — انتخاب هدف با نام، بدون آیدی عددی ──
+ABILITY_TEXT = {
+    "kill": ("🔪 قتل", "امشب چه کسی را هدف می‌گیری؟"),
+    "investigate": ("🕵️ استعلام هویت", "هویت تیمیِ چه کسی را استعلام می‌کنی؟ نتیجه سحر می‌رسد."),
+    "protect": ("💉 محافظت", "امشب از چه کسی محافظت می‌کنی؟"),
+    "watch": ("🛡️ نگهبانی", "چه کسی را زیر نظر می‌گیری؟ تعداد ملاقات‌هایش را می‌بینی."),
+    "poison": ("☠️ مسموم‌سازی", "چه کسی را مسموم می‌کنی؟ دو شب بعد می‌میرد مگر پزشک برسد."),
+    "frame": ("🧤 پاپوش‌دوزی", "اثر انگشت جعلی روی چه کسی بگذارم؟"),
+    "spy": ("📞 خبرچینی", "یک نفر را انتخاب کن؛ می‌فهمی بازجو سراغ چه کسی رفته."),
+    "hide": ("🚬 مخفی‌کاری", "چه کسی را از دید کارآگاه و نگهبان پنهان می‌کنی؟"),
+    "autopsy": ("🧪 آزمایشگاه", "یک نفر را انتخاب کن؛ اصالت مدرک امشب را می‌فهمی."),
+    "reveal": ("📰 افشاگری", "یک نفر را انتخاب کن؛ یک مدرک اضافه برای کل شهر رو می‌شود."),
+}
+
+
+def action_panel(s: GameState, p, chosen=None) -> str:
+    """متن پنل اکشن شبانه‌ی یک بازیکن."""
+    ab = ROLES[p.role].ability
+    if ab == "hunter":
+        title, ask = "🏹 شلیک آخر", "اگر کشته شوی یا حبس ابد بگیری، چه کسی را با خودت می‌بری؟"
+    elif not ab:
+        return (f"{ROLES[p.role].emoji} *{p.role}*\n{DIV}\n"
+                "🌙 نقش تو اکشن شبانه ندارد. بخواب و صبح بحث کن.")
+    else:
+        title, ask = ABILITY_TEXT.get(ab, (f"🌙 {ab}", "هدفت را انتخاب کن:"))
+    done = f"\n\n✅ انتخاب فعلی: *{s.players[chosen].name}* (می‌توانی عوض کنی)" if chosen else ""
+    return (f"{title} — شب {s.day}\n{DIV}\n{ask}{done}")
+
+
+def action_kb(s: GameState, p, targets: List[int], chosen=None) -> Dict:
+    """دکمه‌ی هر هدف با نام؛ بدون تایپ آیدی."""
+    cmd = "hunter" if ROLES[p.role].ability == "hunter" else "act"
+    rows = [[(("✅ " if t == chosen else "👉 ") + s.players[t].name, f"{cmd}:{t}")]
+            for t in targets]
+    if not rows:
+        rows = [[("— هدف مجازی نیست —", "notes")]]
+    return kb(rows + [[("📋 داشبورد", "dashboard")], [BACK, HOME]])
+
+
+# ── بهبود ۳: داشبورد راهنما ──
+def dashboard(s: GameState, remaining=None, pending=(), next_step="") -> str:
+    rows = []
+    for p in s.players.values():
+        icon = CUSTODY_ICON[p.custody] if p.alive else "💀"
+        tag = "" if p.custody is Custody.FREE or not p.alive else f" — {p.custody.value}"
+        wait = " ⏳" if p.uid in pending else ""
+        rows.append(f"{icon} {p.name}{tag}{wait}")
+    timer = f"\n⏳ باقی‌مانده: {remaining} ثانیه" if remaining is not None else ""
+    who = ""
+    if pending:
+        names = "، ".join(s.players[u].name for u in pending)
+        who = f"\n⏳ منتظر: {names}"
+    return (f"📋 *داشبورد — روز {s.day} | فاز: {s.phase.value}*{timer}\n{DIV}\n"
+            + "\n".join(rows) +
+            f"\n{DIV}\n🔎 مدارک رو شده: {len(s.revealed_evidence)}/۶{who}"
+            f"\n➡️ *قدم بعدی:* {next_step}")
+
+
+def dashboard_kb(s: GameState) -> Dict:
+    """دکمه‌ی «کار بعدی» متناسب با فاز — بازیکن دنبال دستور نگردد."""
+    from .models import Phase
+    ph = s.phase
+    rows = []
+    if ph in (Phase.NIGHT, Phase.INTERROGATION):
+        rows = [[("🌙 اکشن شبانه‌ی من", "act")], [("🌙 پایان شب", "dawn")]]
+    elif ph is Phase.MORNING:
+        rows = [[("💬 گفتگو", "discuss")]]
+        if s.suspect_uid:
+            rows.insert(0, [("⚖️ هیئت منصفه", "jury")])
+    elif ph is Phase.DISCUSSION:
+        rows = [[("🗳️ رای‌گیری", "vote")]]
+    elif ph is Phase.VOTE:
+        rows = [[("📊 بستن رای‌گیری", "closevote")]]
+    elif ph is Phase.JURY:
+        rows = [[("📊 نتیجه‌ی هیئت", "closejury")]]
+    elif ph is Phase.END:
+        rows = [[("🏁 پایان و افشای نقش‌ها", "end")]]
+    return kb(rows + [[("🔄 بروزرسانی", "dashboard"), ("📝 دفترچه", "notes")], [BACK, HOME]])

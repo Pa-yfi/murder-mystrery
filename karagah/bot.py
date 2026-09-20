@@ -11,6 +11,7 @@ from .strings import t
 from .config import ADMIN_IDS
 from .engine import Game, RuleError
 from .models import Custody, Phase
+from .roles import ROLES
 
 import time as _time
 import threading
@@ -262,10 +263,29 @@ def h_myrole(chat, uid, name, arg):
 
 
 # ================= شب / روز =================
+def h_act(chat, uid, name, arg):
+    """پنل اکشن شبانه: بدون آرگومان = فهرست هدف‌ها با نام؛ با آرگومان = ثبت."""
+    g, p = _player(chat, uid)
+    if arg:
+        res = g.night_action(uid, int(arg))
+        tgt = g.s.players[int(arg)].name
+        return _ok(f"✅ ثبت شد — هدف: *{tgt}*\n{res}",
+                   ui.action_kb(g.s, p, g.legal_targets(uid), chosen=int(arg)),
+                   private=True)
+    chosen = g.chosen_target(uid)
+    if ROLES[p.role].ability == "hunter":
+        targets = [t for t in g.s.players
+                   if t != uid and g.s.players[t].in_game]
+        chosen = p.hunter_target
+    else:
+        targets = g.legal_targets(uid)
+    return _ok(ui.action_panel(g.s, p, chosen),
+               ui.action_kb(g.s, p, targets, chosen), private=True)
+
+
 def h_night(chat, uid, name, arg):
-    g, _ = _player(chat, uid)
-    res = g.night_action(uid, int(arg))
-    return _ok(f"🌙 اکشن شبانه ثبت شد: {res}", private=True)
+    """سازگاری با /night <id> — بدون آرگومان همان پنل دکمه‌ای را می‌دهد."""
+    return h_act(chat, uid, name, arg)
 
 
 def h_dawn(chat, uid, name, arg):
@@ -467,11 +487,10 @@ def h_tick(chat, uid, name, arg):
     return res
 
 
-def h_dashboard(chat, uid, name, arg):            # ایده ۲۶: داشبورد تک‌پیامی
+def h_dashboard(chat, uid, name, arg):            # ایده ۲۶ + بهبود ۳
     g = _g(chat)
-    rem = g.remaining()
-    timer = f"\n{t('timer')}: {rem} ثانیه" if rem is not None else ""
-    return _ok(ui.status_board(g.s) + timer, ui.kb([[("🔄 بروزرسانی", "dashboard")]]), edit=True)
+    return _ok(ui.dashboard(g.s, g.remaining(), g.pending_actors(), g.next_step()),
+               ui.dashboard_kb(g.s), edit=True)
 
 
 # ================= ایده‌های ۲/۵/۹ =================
@@ -646,10 +665,11 @@ _ROUTES = {
     "missions": h_missions, "achv": h_achv, "newtable": h_newtable,
     "spectate": h_spectate, "voteanon": h_voteanon, "rematch": h_rematch,
     "rolecard": h_rolecard, "tutorial": h_tutorial, "blitz": h_blitz,
-    "hunter": h_hunter, "table": h_table,
+    "hunter": h_hunter, "table": h_table, "act": h_act,
 }
 
 # دستورهایی که به BotFather معرفی می‌شوند (زیرمجموعه‌ی امن برای منوی دستورها)
-COMMANDS = ["start", "menu", "new", "join", "startgame", "myrole", "status",
-            "table", "notes", "help", "roles", "share", "admin"]
+COMMANDS = ["start", "menu", "new", "join", "startgame", "myrole", "act",
+            "dashboard", "status", "table", "notes", "help", "roles",
+            "share", "admin"]
 ENDPOINTS = sorted(_ROUTES)
