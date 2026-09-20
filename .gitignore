@@ -1,0 +1,15 @@
+# رازها — هرگز کامیت نشوند
+.env
+
+# پایگاه‌داده‌ی محلی بازی
+*.db
+*.db-journal
+
+# پایتون
+__pycache__/
+*.py[cod]
+.venv/
+.pytest_cache/
+
+# صدا/دارایی‌های محلی
+assets/voice/*.ogg
