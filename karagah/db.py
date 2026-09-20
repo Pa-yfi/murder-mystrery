@@ -69,6 +69,20 @@ CREATE TABLE IF NOT EXISTS missions (           -- ایده ۱۹
 CREATE TABLE IF NOT EXISTS accuracy (           -- ایده ۱۶
     uid INTEGER PRIMARY KEY, hits INTEGER DEFAULT 0, total INTEGER DEFAULT 0
 );
+CREATE TABLE IF NOT EXISTS outcomes (         -- بهبود ۸: تعادل بازی
+    id        INTEGER PRIMARY KEY AUTOINCREMENT,
+    chat_id   INTEGER,
+    uid       INTEGER,
+    role      TEXT,
+    align     TEXT,
+    won       INTEGER DEFAULT 0,
+    seats     INTEGER,            -- تعداد بازیکن آن بازی
+    days      INTEGER,            -- طول بازی برحسب روز
+    seconds   INTEGER,            -- طول واقعی
+    abandoned INTEGER DEFAULT 0,  -- بدون برنده رها شد
+    ts        INTEGER
+);
+CREATE INDEX IF NOT EXISTS idx_outcomes_role ON outcomes(role);
 CREATE TABLE IF NOT EXISTS snapshots (
     chat_id INTEGER PRIMARY KEY,
     blob    BLOB NOT NULL,
@@ -277,7 +291,61 @@ def record_results(g) -> None:
             _award(p.uid, "scapegoat_win")
     if s.mvp:
         _award(s.mvp, "mvp")
+    _record_outcomes(g)
     conn().commit()
+
+
+def _record_outcomes(g, abandoned: bool = False) -> None:
+    """بهبود ۸: یک ردیف به ازای هر بازیکن، برای سنجش تعادل نقش‌ها."""
+    s = g.s
+    row = conn().execute("SELECT started_at FROM games WHERE chat_id=?",
+                         (s.chat_id,)).fetchone()
+    started = row["started_at"] if row and row["started_at"] else None
+    seconds = (_now() - started) if started else None
+    seats = len(s.players)
+    for p in s.players.values():
+        won = bool(s.winner) and (s.winner.startswith(p.align.value[:3]) or
+                                  (p.role == "سپر بلا" and s.winner.startswith("سپر")))
+        conn().execute(
+            "INSERT INTO outcomes(chat_id,uid,role,align,won,seats,days,seconds,abandoned,ts) "
+            "VALUES(?,?,?,?,?,?,?,?,?,?)",
+            (s.chat_id, p.uid, p.role, p.align.value, int(won), seats,
+             s.day, seconds, int(abandoned), _now()))
+
+
+def record_abandoned(g) -> None:
+    """بازی‌ای که بدون برنده رها شد — برای نرخ رهاشدگی."""
+    if g.s.winner:
+        return
+    _record_outcomes(g, abandoned=True)
+    conn().commit()
+
+
+def q_balance(min_games: int = 1):
+    """نرخ برد هر نقش."""
+    return conn().execute(
+        "SELECT role, align, COUNT(*) AS n, SUM(won) AS wins, "
+        "       ROUND(100.0*SUM(won)/COUNT(*), 1) AS pct "
+        "FROM outcomes WHERE abandoned=0 GROUP BY role HAVING n >= ? "
+        "ORDER BY pct DESC", (min_games,)).fetchall()
+
+
+def q_balance_by_seats():
+    """طول بازی و برد تیم‌ها به تفکیک تعداد بازیکن."""
+    return conn().execute(
+        "SELECT seats, COUNT(DISTINCT chat_id) AS games, "
+        "       ROUND(AVG(days), 1) AS avg_days, "
+        "       ROUND(AVG(seconds)/60.0, 1) AS avg_min "
+        "FROM outcomes WHERE abandoned=0 GROUP BY seats ORDER BY seats").fetchall()
+
+
+def q_abandonment():
+    total = conn().execute(
+        "SELECT COUNT(DISTINCT chat_id) AS n FROM outcomes").fetchone()["n"] or 0
+    gone = conn().execute(
+        "SELECT COUNT(DISTINCT chat_id) AS n FROM outcomes WHERE abandoned=1").fetchone()["n"] or 0
+    return {"games": total, "abandoned": gone,
+            "pct": round(100.0 * gone / total, 1) if total else 0.0}
 
 
 def _award(uid: int, key: str) -> None:

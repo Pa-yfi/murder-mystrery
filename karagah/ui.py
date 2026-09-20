@@ -216,7 +216,8 @@ def share_kb(chat_id: int) -> Dict:
 def admin_menu() -> Dict:
     return with_back([[("🎲 بازی‌های فعال", "admin_games")],
                       [("👤 کاربران", "admin_users")],
-                      [("📈 آمار کلی", "admin_stats")]])
+                      [("📈 آمار کلی", "admin_stats")],
+                      [("📊 تعادل نقش‌ها", "balance")]])
 
 
 def admin_games_sql(rows) -> str:
@@ -360,3 +361,16 @@ def dashboard_kb(s: GameState) -> Dict:
     elif ph is Phase.END:
         rows = [[("🏁 پایان و افشای نقش‌ها", "end")]]
     return kb(rows + [[("🔄 بروزرسانی", "dashboard"), ("📝 دفترچه", "notes")], [BACK, HOME]])
+
+
+# ── بهبود ۸: گزارش تعادل ──
+def balance_report_sql(roles, seats, aband) -> str:
+    if not roles:
+        return "📊 هنوز بازیِ تمام‌شده‌ای ثبت نشده است."
+    r = "\n".join(f"  {x['role']} ({x['align']}) — {x['pct']}٪ از {x['n']} بازی"
+                  for x in roles)
+    s = "\n".join(f"  {x['seats']} نفره — {x['games']} بازی | "
+                  f"{x['avg_days']} روز | {x['avg_min']} دقیقه" for x in seats) or "  —"
+    return (f"📊 *تعادل بازی*\n{DIV}\n🎭 نرخ برد هر نقش:\n{r}\n{DIV}\n"
+            f"👥 بر اساس تعداد بازیکن:\n{s}\n{DIV}\n"
+            f"🚪 رهاشدگی: {aband['abandoned']}/{aband['games']} ({aband['pct']}٪)")

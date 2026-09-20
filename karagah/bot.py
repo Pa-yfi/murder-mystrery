@@ -90,6 +90,7 @@ def _player(chat: int, uid: int):
 
 # فرمان‌هایی که به بازی وابسته نیستند و در پیوی همان‌جا اجرا می‌شوند
 GLOBAL_CMDS = {"start", "menu", "back", "help", "roles", "tutorial", "share",
+               "balance",
                "sharelink", "top", "league", "season", "missions", "achv",
                "new", "blitz", "newtable", "table",
                "admin", "admin_games", "admin_users", "admin_stats", "admin_ban"}
@@ -231,6 +232,7 @@ def _guard_replace(chat, uid):
         return
     if uid != g.owner:
         raise RuleError("یک بازی در جریان است؛ فقط میزبان می‌تواند آن را لغو کند.")
+    db.record_abandoned(g)      # بهبود ۸: بازیِ نیمه‌کاره در آمار رهاشدگی بماند
 
 
 def h_new(chat, uid, name, arg):
@@ -698,6 +700,12 @@ def h_host(chat, uid, name, arg):                 # بهبود ۷: انتقال 
     return _ok(g.transfer_host(int(arg) if arg else uid), ui.back_only())
 
 
+def h_balance(chat, uid, name, arg):              # بهبود ۸
+    _admin(uid)
+    return _ok(ui.balance_report_sql(db.q_balance(), db.q_balance_by_seats(),
+                                     db.q_abandonment()), ui.back_only())
+
+
 def h_hunter(chat, uid, name, arg):
     g = _g(chat)
     return _ok(g.set_hunter(uid, int(arg)), private=True)
@@ -723,7 +731,7 @@ _ROUTES = {
     "rolecard": h_rolecard, "tutorial": h_tutorial, "blitz": h_blitz,
     "hunter": h_hunter, "table": h_table, "act": h_act,
     "ready": h_ready, "remind": h_remind, "pause": h_pause,
-    "resume": h_resume, "host": h_host,
+    "resume": h_resume, "host": h_host, "balance": h_balance,
 }
 
 # دستورهایی که به BotFather معرفی می‌شوند (زیرمجموعه‌ی امن برای منوی دستورها)
