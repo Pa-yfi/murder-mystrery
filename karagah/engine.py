@@ -38,12 +38,49 @@ class Game:
         self.s.deadline = (_time.time() + sec) if sec else None
 
     def remaining(self) -> Optional[int]:
+        if self.s.paused:
+            return self.s.paused_left
         if self.s.deadline is None:
             return None
         return max(0, int(self.s.deadline - _time.time()))
 
+    # ---------------- بهبود ۷: توقف/ادامه ----------------
+    def pause(self) -> str:
+        if self.s.phase in (Phase.LOBBY, Phase.END):
+            raise RuleError("بازی در جریان نیست.")
+        if self.s.paused:
+            raise RuleError("بازی همین حالا متوقف است.")
+        self.s.paused_left = self.remaining()   # اول بخوان، بعد پرچم را بزن
+        self.s.paused = True
+        self.s.deadline = None            # تایمر دیگر فاز را جلو نمی‌برد
+        self.s.log.append("⏸️ بازی موقتاً متوقف شد.")
+        return "⏸️ بازی متوقف شد. با «▶️ ادامه» برگردید."
+
+    def resume(self) -> str:
+        if not self.s.paused:
+            raise RuleError("بازی متوقف نیست.")
+        self.s.paused = False
+        left = self.s.paused_left
+        self.s.paused_left = None
+        self.s.deadline = (_time.time() + left) if left else None
+        self.s.log.append("▶️ بازی ادامه یافت.")
+        return f"▶️ ادامه! {left if left else '—'} ثانیه از این فاز مانده."
+
+    def transfer_host(self, new_owner: int) -> str:
+        """میزبان غایب → میزبانی به یک بازیکنِ داخل بازی منتقل می‌شود."""
+        p = self.s.players.get(new_owner)
+        if not p:
+            raise RuleError("این نفر در بازی نیست.")
+        if not p.in_game:
+            raise RuleError("میزبان باید در بازی باشد.")
+        self.owner = new_owner
+        self.s.log.append(f"👑 میزبانی به {p.name} رسید.")
+        return f"👑 میزبان جدید: {p.name}"
+
     def tick(self) -> Optional[str]:
         """اگر مهلت فاز گذشته باشد، خودکار جلو می‌برد. خروجی: توضیح اتفاق."""
+        if self.s.paused:                 # بازیِ متوقف هرگز خودکار جلو نمی‌رود
+            return None
         if self.s.deadline is None or _time.time() < self.s.deadline:
             return None
         if self.s.phase in (Phase.NIGHT, Phase.INTERROGATION):
@@ -77,12 +114,34 @@ class Game:
         if uid == self.owner and self.s.players:      # مهاجرت میزبانی
             self.owner = next(iter(self.s.players))
 
-    def start(self, case_id: Optional[int] = None) -> None:
+    # ---------------- بهبود ۲: آمادگی پیش از شروع ----------------
+    def mark_ready(self, uid: int) -> str:
+        """فقط از راه دیپ‌لینکِ پیوی صدا می‌شود — یعنی ربات واقعاً می‌تواند
+        به این بازیکن پیام خصوصی بدهد."""
+        p = self.s.players.get(uid)
+        if not p:
+            raise RuleError("اول وارد لابی شو.")
+        p.ready = True
+        return f"✅ {p.name} آماده است."
+
+    def not_ready(self) -> List[int]:
+        return [p.uid for p in self.s.players.values() if not p.ready]
+
+    def start(self, case_id: Optional[int] = None, force: bool = True) -> None:
+        """force=False یعنی اول آمادگی همه را چک کن (لایه‌ی ربات)."""
         n = len(self.s.players)
         if not (MIN_P <= n <= MAX_P):
             raise RuleError("تعداد بازیکن باید بین ۴ تا ۸ باشد.")
         if not validate_composition(n):
             raise RuleError("ترکیب نقش نامعتبر است.")
+        if not force:
+            missing = self.not_ready()
+            if missing:
+                names = "، ".join(self.s.players[u].name for u in missing)
+                raise RuleError(
+                    f"این بازیکن‌ها هنوز پیوی ربات را باز نکرده‌اند: {names}\n"
+                    "هر کدام دکمه‌ی «✅ آماده‌ام» را بزنند (نقش محرمانه آنجا می‌رود). "
+                    "برای شروع بدون آن‌ها: /startgame force")
         self.s.case = CASES[(case_id - 1) if case_id else self.rng.randrange(len(CASES))]
         from .roles import assign_with_cooldown
         uids = list(self.s.players)
@@ -359,6 +418,15 @@ class Game:
             nxt = self.s.case.evidence[min(self.s.day, len(self.s.case.evidence) - 1)]
             if nxt["code"] not in self.s.revealed_evidence:
                 self.s.revealed_evidence.append(nxt["code"])
+        # بهبود ۷: اکشنِ نداده پیش‌فرضش «هیچ‌کاری» است، ولی غیبت شمرده می‌شود.
+        # از acts استفاده می‌کنیم چون night_actions همین بالا پاک شده.
+        acted = {a for pairs in acts.values() for a in pairs}
+        for p in self.s.players.values():
+            if p.can_speak and ROLES[p.role].ability not in ("", "hunter"):
+                p.missed = 0 if p.uid in acted else p.missed + 1
+        afk = [p.name for p in self.s.alive_players() if p.missed >= 2]
+        if afk:
+            self.s.log.append("😴 چند شب بی‌حرکت: " + "، ".join(afk))
         self._deliver_night_info(acts)
         self.s.log.append(f"شب {self.s.day}: کشته‌ها={[self.s.players[u].name for u in killed]}")
         self._check_win()

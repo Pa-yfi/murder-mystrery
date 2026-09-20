@@ -197,6 +197,7 @@ async def _timer_job(ctx: ContextTypes.DEFAULT_TYPE):
 
 def main():
     botmod.RATE_LIMIT_ENABLED = True          # ایده ۹: ضد اسپم فقط در محیط واقعی
+    botmod.REQUIRE_READY = True               # بهبود ۲: بدون پیویِ باز، بازی شروع نشود
     if not TOKEN or TOKEN == "your_telegram_bot_token_here":
         raise SystemExit("⛔ BOT_TOKEN تنظیم نشده یا هنوز مقدار نمونه را دارد. در فایل .env توکن واقعی BotFather را جایگزین کن.")
     app = ApplicationBuilder().token(TOKEN).post_init(_post_init).concurrent_updates(True).build()

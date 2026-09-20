@@ -90,6 +90,7 @@ def owner_kb(chat_id: int) -> Dict:
     l = share_links(chat_id)
     return {"inline_keyboard": [
         [{"text": "🙋 منم بازی می‌کنم!", "callback_data": "join"}],
+        [{"text": "✅ آماده‌ام (در پیوی)", "url": l["ready"]}],
         [{"text": "🎬 شروع بازی", "callback_data": "startgame"}],
         [{"text": "📨 دعوت دوست", "url": l["share"]},
          {"text": "👥 افزودن به گروه", "url": l["group"]}],
@@ -103,6 +104,7 @@ def lobby_kb(chat_id: int) -> Dict:
     l = share_links(chat_id)
     return {"inline_keyboard": [
         [{"text": "🙋 منم بازی می‌کنم!", "callback_data": "join"}],
+        [{"text": "✅ آماده‌ام (در پیوی)", "url": l["ready"]}],
         [{"text": "🎬 شروع بازی", "callback_data": "startgame"},
          {"text": "🚪 خروج از لابی", "callback_data": "leave"}],
         [{"text": "📨 دعوت دوست", "url": l["share"]}],
@@ -111,9 +113,12 @@ def lobby_kb(chat_id: int) -> Dict:
 
 
 def lobby_screen(s: GameState) -> str:
-    names = "\n".join(f"  {i+1}. 👤 {p.name}" for i, p in enumerate(s.players.values())) or "  — هنوز کسی نیست —"
+    names = "\n".join(f"  {i+1}. {'✅' if p.ready else '⏳'} {p.name}"
+                      for i, p in enumerate(s.players.values())) or "  — هنوز کسی نیست —"
     return (f"🏛️ *لابی کارآگاه*\n{DIV}\n{names}\n{DIV}\n"
-            f"👥 {len(s.players)}/۸ (حداقل ۴ نفر)\n🎬 «🎬 شروع بازی» را بزن.")
+            f"👥 {len(s.players)}/۸ (حداقل ۴ نفر)\n"
+            "✅ = پیویِ ربات را باز کرده (نقش محرمانه آنجا می‌رود)\n"
+            "🎬 «🎬 شروع بازی» را بزن.")
 
 
 def role_card(role: str, knows: List[str]) -> str:
@@ -180,6 +185,7 @@ def share_links(chat_id: int) -> Dict[str, str]:
     u = BOT_USERNAME
     return {
         "join": f"https://t.me/{u}?start=join_{chat_id}",
+        "ready": f"https://t.me/{u}?start=ready_{chat_id}",
         "group": f"https://t.me/{u}?startgroup=play",
         "channel": f"https://t.me/{u}?startchannel=play",
         "share": ("https://t.me/share/url?url="

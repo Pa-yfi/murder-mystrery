@@ -54,6 +54,8 @@ class Player:
     qa: Dict[str, str] = field(default_factory=dict)         # ایده ۱۳: تناقض‌یاب
     hunter_target: Optional[int] = None                      # ایده ۱۵: هدف شلیک آخر
     role_assigned: str = ""
+    ready: bool = False            # بهبود ۲: پیویِ ربات را باز کرده و آماده است
+    missed: int = 0                # بهبود ۷: شب‌هایی که هیچ اکشنی نداده
 
     @property
     def in_game(self) -> bool:
@@ -125,6 +127,8 @@ class GameState:
     poison_queue: Dict[int, int] = field(default_factory=dict)   # uid → روزِ مرگ با سم
     framed: Dict[int, int] = field(default_factory=dict)         # uid → روزِ پاپوش‌دوزی
     hidden: List[int] = field(default_factory=list)              # مخفی‌شده‌های قاچاقچی
+    paused: bool = False                        # بهبود ۷: بازی موقتاً متوقف
+    paused_left: Optional[int] = None            # ثانیه‌های باقی‌ماندهی فاز هنگام توقف
     phase_before_jury: Optional[Phase] = None    # بعد از هیئت منصفه به همین فاز برگرد
     finalized: bool = False                     # نتیجه یک‌بار ثبت شد؛ دوباره XP نده
 

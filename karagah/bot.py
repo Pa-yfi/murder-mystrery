@@ -24,6 +24,7 @@ _LAST_CALL: Dict[tuple, float] = {}              # ایده ۹: نرخ‌محد�
 _LAST_CB: Dict[tuple, float] = {}                # ایده ۲: حذف callback تکراری
 RATE_WINDOW = 0.6                                # ثانیه بین دو فرمانِ یک کاربر
 RATE_LIMIT_ENABLED = False                       # فقط آداپتور تلگرام روشنش می‌کند
+REQUIRE_READY = False                            # بهبود ۲ — همان الگو: فقط در محیط واقعی
 DEDUP_WINDOW = 1.5                               # ثانیه: تپ تکراری روی یک دکمه
 
 
@@ -190,6 +191,14 @@ def handle(cmd: str, chat: int, uid: int = 0, name: str = "", arg: str = "") -> 
 # ================= منو و شروع =================
 def h_start(chat, uid, name, arg):
     """/start همیشه یا لابیِ دعوت را باز می‌کند یا منوی اصلی را نشان می‌دهد."""
+    if arg.startswith("ready_"):                # بهبود ۲: تاییدِ «پیویم باز است»
+        try:
+            target = int(arg[6:])
+        except ValueError:
+            return _ok(ui.first_screen(), ui.first_kb(chat))
+        if target not in GAMES:
+            return _err("این لابی دیگر فعال نیست.")
+        return h_ready(target, uid, name, "")
     if arg.startswith("join_"):                 # دیپ‌لینک دعوت
         try:
             target = int(arg[5:])
@@ -247,7 +256,9 @@ def h_leave(chat, uid, name, arg):
 
 def h_startgame(chat, uid, name, arg):
     g = _g(chat)
-    g.start(int(arg) if arg else None)
+    asked = "force" in (arg or "").lower()
+    case = (arg or "").replace("force", "").strip()
+    g.start(int(case) if case else None, force=asked or not REQUIRE_READY)
     db.log_event(chat, uid, "start", g.s.case.title if g.s.case else "")
     return _ok(ui.case_intro(g.s) + "\n\n" + ui.status_board(g.s) +
                "\n\n🔐 هر کس /myrole را بزند نقش محرمانه‌اش به پیوی می‌رود.",
@@ -642,6 +653,51 @@ def h_blitz(chat, uid, name, arg):                # ایده ۳: لابی سری
                ui.owner_kb(chat))
 
 
+def h_ready(chat, uid, name, arg):                # بهبود ۲
+    g = _g(chat)
+    msg = g.mark_ready(uid)
+    left = g.not_ready()
+    if left:
+        names = "، ".join(g.s.players[u].name for u in left)
+        tail = f"\n⏳ مانده: {names}"
+    else:
+        tail = "\n🟢 همه آماده‌اند — میزبان می‌تواند شروع کند."
+    return _ok(msg + tail, ui.back_only(), private=True)
+
+
+def h_remind(chat, uid, name, arg):               # بهبود ۷
+    g = _g(chat)
+    left = g.pending_actors()
+    if not left:
+        return _ok("✅ همه کارشان را کرده‌اند.", ui.back_only())
+    names = "، ".join(g.s.players[u].name for u in left)
+    return _ok(f"⏰ *یادآوری* — منتظر: {names}\n➡️ {g.next_step()}",
+               ui.dashboard_kb(g.s))
+
+
+def h_pause(chat, uid, name, arg):                # بهبود ۷
+    g = _g(chat)
+    if uid != g.owner:
+        raise RuleError("فقط میزبان می‌تواند بازی را متوقف کند.")
+    return _ok(g.pause(), ui.kb([[("▶️ ادامه", "resume")], [ui.BACK, ui.HOME]]))
+
+
+def h_resume(chat, uid, name, arg):               # بهبود ۷
+    g = _g(chat)
+    if uid != g.owner:
+        raise RuleError("فقط میزبان می‌تواند بازی را ادامه دهد.")
+    return _ok(g.resume(), ui.dashboard_kb(g.s))
+
+
+def h_host(chat, uid, name, arg):                 # بهبود ۷: انتقال میزبانی
+    g = _g(chat)
+    owner = g.s.players.get(g.owner)
+    # میزبانِ حاضر خودش واگذار می‌کند؛ اگر از بازی بیرون است، هر بازیکنی می‌تواند بگیرد.
+    if uid != g.owner and owner is not None and owner.in_game:
+        raise RuleError("فقط میزبان فعلی می‌تواند میزبانی را واگذار کند.")
+    return _ok(g.transfer_host(int(arg) if arg else uid), ui.back_only())
+
+
 def h_hunter(chat, uid, name, arg):
     g = _g(chat)
     return _ok(g.set_hunter(uid, int(arg)), private=True)
@@ -666,10 +722,13 @@ _ROUTES = {
     "spectate": h_spectate, "voteanon": h_voteanon, "rematch": h_rematch,
     "rolecard": h_rolecard, "tutorial": h_tutorial, "blitz": h_blitz,
     "hunter": h_hunter, "table": h_table, "act": h_act,
+    "ready": h_ready, "remind": h_remind, "pause": h_pause,
+    "resume": h_resume, "host": h_host,
 }
 
 # دستورهایی که به BotFather معرفی می‌شوند (زیرمجموعه‌ی امن برای منوی دستورها)
 COMMANDS = ["start", "menu", "new", "join", "startgame", "myrole", "act",
             "dashboard", "status", "table", "notes", "help", "roles",
+            "ready", "remind", "pause", "resume", "host",
             "share", "admin"]
 ENDPOINTS = sorted(_ROUTES)
