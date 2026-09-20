@@ -109,3 +109,22 @@ python -m pytest -q tests/quality                  # دفترچه‌ی نقص
 **تنها جایی که تایپ لازم است** متن آزاد است: 📝 یادداشت، 📜 وصیت‌نامه،
 💬 پرسش از متهم، 🛡️ دفاع. دکمه را می‌زنی، ربات می‌پرسد، پیام بعدی‌ات همان متن است
 («✖️ بی‌خیال» برای انصراف).
+
+## 🚀 runner.py — یک نقطه‌ی ورود برای همه‌چیز
+```powershell
+python runner.py            # فهرست کارها
+python runner.py all        # بررسی محیط + خودآزمایی + تست‌ها
+python runner.py check      # پایتون، وابستگی‌ها، .env، توکن، JobQueue، جدول‌ها
+python runner.py selftest   # ۱۳ ماژول، ۶۹ اندپوینت، فاز، یک بازی کامل — بدون شبکه
+python runner.py demo       # یک بازی کامل را چاپ می‌کند (--players ۸ --case ۳)
+python runner.py buttons    # درخت کامل دکمه‌ها
+python runner.py roles      # ۱۸ نقش و ترکیب‌ها
+python runner.py cases      # ۴۰ پرونده
+python runner.py db         # جدول‌ها و تعداد ردیف‌ها
+python runner.py stats      # آمار کلی و تعادل نقش‌ها
+python runner.py test       # سوئیت اصلی
+python runner.py quality    # دفترچه‌ی نقص (عمداً قرمز)
+python runner.py bot        # اجرای ربات واقعی
+```
+جز `bot`، هیچ زیرفرمانی به شبکه وصل نمی‌شود و هیچ‌کدام `karagah.db` واقعی را
+عوض نمی‌کنند (همه روی دیتابیسِ حافظه کار می‌کنند). `run.py` هم مثل قبل کار می‌کند.

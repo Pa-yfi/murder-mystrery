@@ -290,6 +290,8 @@ def h_myrole(chat, uid, name, arg):
 def h_act(chat, uid, name, arg):
     """پنل اکشن شبانه: بدون آرگومان = فهرست هدف‌ها با نام؛ با آرگومان = ثبت."""
     g, p = _player(chat, uid)
+    if not p.role:      # هنوز نقشی پخش نشده → خطای دوستانه، نه KeyError
+        raise RuleError("بازی هنوز شروع نشده؛ نقش‌ها پخش نشده‌اند.")
     if arg:
         res = g.night_action(uid, int(arg))
         tgt = g.s.players[int(arg)].name
