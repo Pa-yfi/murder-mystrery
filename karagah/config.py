@@ -35,6 +35,7 @@ PHASE_SECONDS = {
     "شب": int(os.getenv("NIGHT_SECONDS", 60)),
     "گفتگو": int(os.getenv("DISCUSS_SECONDS", 180)),
     "رای‌گیری": int(os.getenv("VOTE_SECONDS", 90)),
+    "اتاق بازجویی": int(os.getenv("NIGHT_SECONDS", 60)),   # شبِ بازجویی
 }
 DEFENSE_SECONDS = int(os.getenv("DEFENSE_SECONDS", 30))    # ایده ۲
 VOICE_DIR = os.getenv("VOICE_DIR", "assets/voice")         # ایده ۲۹

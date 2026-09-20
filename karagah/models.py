@@ -125,6 +125,7 @@ class GameState:
     poison_queue: Dict[int, int] = field(default_factory=dict)   # uid → روزِ مرگ با سم
     framed: Dict[int, int] = field(default_factory=dict)         # uid → روزِ پاپوش‌دوزی
     hidden: List[int] = field(default_factory=list)              # مخفی‌شده‌های قاچاقچی
+    phase_before_jury: Optional[Phase] = None    # بعد از هیئت منصفه به همین فاز برگرد
     finalized: bool = False                     # نتیجه یک‌بار ثبت شد؛ دوباره XP نده
 
     def alive_players(self) -> List[Player]:

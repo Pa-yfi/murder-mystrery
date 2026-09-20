@@ -260,8 +260,9 @@ def h_closevote(chat, uid, name, arg):
                    ui.kb([[("🌙 پایان شب", "dawn")]]), anim=ui.ANIM["night"])
     p = g.s.players[who]
     db.log_event(chat, who, "interrogation", "رای گروه")
-    return _ok(f"🔦 *{p.name}* به اتاق بازجویی منتقل شد (فاصله: ۱ شب).\n"
-               f"بازجو می‌تواند سؤال بپرسد و حکم بدهد.",
+    return _ok(f"🔦 *{p.name}* به اتاق بازجویی منتقل شد.\n"
+               f"بازجو امشب سؤال می‌پرسد؛ حکم فردا صبح صادر می‌شود.\n"
+               f"بقیه اکشن شبانه‌شان را دارند — بعد «🌙 پایان شب».",
                ui.officer_kb(who), anim=ui.ANIM["interrogation"])
 
 
@@ -286,8 +287,9 @@ def h_verdict(chat, uid, name, arg):
     msg = g.officer_verdict(uid, arg == "1")
     db.log_event(chat, g.s.suspect_uid or 0, "verdict", "حبس موقت" if arg == "1" else "آزادی")
     anim = ui.ANIM["jail"] if arg == "1" else None
+    # شبِ بازجویی قبلاً گذشته؛ روز از همین‌جا ادامه می‌دهد.
     return _ok(msg + "\n\n" + ui.status_board(g.s),
-               ui.kb([[("🌙 پایان شب", "dawn")], [ui.BACK, ui.HOME]]), anim=anim)
+               ui.kb([[("💬 گفتگو", "discuss")], [ui.BACK, ui.HOME]]), anim=anim)
 
 
 def h_clear(chat, uid, name, arg):

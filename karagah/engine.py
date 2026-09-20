@@ -46,7 +46,7 @@ class Game:
         """اگر مهلت فاز گذشته باشد، خودکار جلو می‌برد. خروجی: توضیح اتفاق."""
         if self.s.deadline is None or _time.time() < self.s.deadline:
             return None
-        if self.s.phase is Phase.NIGHT:
+        if self.s.phase in (Phase.NIGHT, Phase.INTERROGATION):
             self.resolve_night()
             return "⏰ شب به پایان رسید."
         if self.s.phase is Phase.DISCUSSION:
@@ -123,7 +123,7 @@ class Game:
 
     # ---------------- شب ----------------
     def night_action(self, uid: int, target: int) -> str:
-        if self.s.phase is not Phase.NIGHT:
+        if self.s.phase not in (Phase.NIGHT, Phase.INTERROGATION):
             raise RuleError("الان شب نیست.")
         p = self.s.players[uid]
         if not p.in_game:
@@ -218,7 +218,9 @@ class Game:
                 del self.s.framed[tgt]
 
     def resolve_night(self) -> Dict:
-        if self.s.phase is not Phase.NIGHT:
+        # فاز بازجویی هم یک شب است: متهم شب را در اتاق می‌گذراند
+        # و بقیه اکشن شبانه‌شان را دارند.
+        if self.s.phase not in (Phase.NIGHT, Phase.INTERROGATION):
             raise RuleError("الان شب نیست.")
         # ایده ۴: رویداد تصادفی شبانه (قطعی بر اساس seed+روز)
         ev_rng = random.Random(self.s.chat_id * 1000 + self.s.day)
@@ -385,6 +387,8 @@ class Game:
         p.stress += 20
         self.s.suspect_uid = uid
         self.s.phase = Phase.INTERROGATION
+        self.s.day += 1                 # شبِ بازجویی آغاز شد
+        self._arm()
         self.s.log.append(f"🔦 {p.name} به بازجویی رفت (فاصله: ۱ شب).")
 
     def officer_hints(self, officer_uid: int) -> List[str]:
@@ -410,9 +414,11 @@ class Game:
         """confirm=True → حبس موقت (۲ شب). confirm=False → آزادی + تایید بی‌گناهی."""
         if officer_uid != self.s.officer_uid:
             raise RuleError("فقط بازجو حکم می‌دهد.")
-        if self.s.phase is not Phase.INTERROGATION:
-            raise RuleError("فاز اشتباه است.")
+        if self.s.suspect_uid is None:
+            raise RuleError("کسی در بازجویی نیست.")
         p = self.s.players[self.s.suspect_uid]
+        if p.custody_nights < self.interrogation_nights:
+            raise RuleError("حکم بعد از گذشتن یک شب بازجویی صادر می‌شود.")
         if confirm:
             p.custody = Custody.TEMP_JAIL
             p.custody_nights = 0
@@ -426,8 +432,9 @@ class Game:
         self.s.suspect_uid = None
         self.s.defense_text = ""
         self.s.log.append(msg)
-        self.s.phase = Phase.NIGHT
-        self.s.day += 1
+        # شب قبلاً گذشته؛ روز از همین صبح ادامه می‌دهد.
+        if self.s.phase is Phase.INTERROGATION:
+            self.s.phase = Phase.MORNING
         self._arm()
         self._check_win()
         return msg
@@ -468,6 +475,7 @@ class Game:
         req.add(uid)
         need = 1 if self.s.players[uid].role == "وکیل" else JURY_MIN_REQUESTS
         if len(req) >= need:
+            self.s.phase_before_jury = self.s.phase
             self.s.phase = Phase.JURY
             self.s.jury_votes.clear()
             target.jury_used = True
@@ -488,16 +496,18 @@ class Game:
         p = self.s.players[self.s.suspect_uid]
         yes = sum(1 for v in self.s.jury_votes.values() if v)
         total = max(1, len(self.s.jury_votes))
+        back = self.s.phase_before_jury or Phase.MORNING
         if yes * 100 >= JURY_ACQUIT_PERCENT * total:
             p.custody = Custody.FREE
             p.cleared = True
+            p.custody_nights = 0
             self.s.suspect_uid = None
-            self.s.phase = Phase.NIGHT
-            self.s.day += 1
             msg = f"⚖️ هیئت منصفه {p.name} را تبرئه کرد."
         else:
-            self.s.phase = Phase.INTERROGATION
             msg = f"⚖️ هیئت منصفه رای به ادامه‌ی بازجویی داد؛ حکم نهایی با بازجوست."
+        # شبِ بازجویی قبلاً گذشته؛ به همان روز برمی‌گردیم.
+        self.s.phase = Phase.MORNING if back is Phase.INTERROGATION else back
+        self.s.phase_before_jury = None
         self.s.log.append(msg)
         return msg
 
@@ -542,7 +552,7 @@ class Game:
 
     # ---------------- ایده ۲: آخرین دفاع ----------------
     def defense(self, uid: int, text: str) -> str:
-        if self.s.phase is not Phase.INTERROGATION or uid != self.s.suspect_uid:
+        if uid != self.s.suspect_uid:
             raise RuleError("فقط متهمِ داخل بازجویی می‌تواند دفاع کند.")
         self.s.defense_text = text[:300]
         return f"🗣️ آخرین دفاع {self.s.players[uid].name}: «{self.s.defense_text}»"
@@ -603,7 +613,7 @@ class Game:
         p = self.s.players.get(uid)
         if not p or p.role != "کارآگاه" or not p.in_game:
             raise RuleError("فقط کارآگاه می‌تواند اصالت مدرک را بسنجد.")
-        if self.s.phase is not Phase.NIGHT:
+        if self.s.phase not in (Phase.NIGHT, Phase.INTERROGATION):
             raise RuleError("راستی‌آزمایی فقط در شب ممکن است.")
         if f"investigate:{uid}" in self.s.night_actions or f"expose:{uid}" in self.s.night_actions:
             raise RuleError("امشب اکشنت را خرج کرده‌ای.")

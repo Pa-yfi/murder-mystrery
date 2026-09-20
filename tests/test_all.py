@@ -93,6 +93,9 @@ def test_stage1_interrogation_one_night():
 def test_stage2_temp_jail_needs_new_suspect():
     g = _game(); g.start(4); g.resolve_night()
     t = _first_free(g); g.send_to_interrogation(t)
+    with pytest.raises(RuleError):          # حکم قبل از گذشتن شب ممنوع
+        g.officer_verdict(_officer(g), True)
+    g.resolve_night()                       # متهم شب را در اتاق گذراند
     g.officer_verdict(_officer(g), True)
     assert g.s.players[t].custody is Custody.TEMP_JAIL
     with pytest.raises(RuleError):
@@ -105,7 +108,9 @@ def test_stage2_temp_jail_needs_new_suspect():
 def test_stage3_life_jail_no_reveal():
     g = _game(); g.start(5); g.resolve_night()
     t = _first_free(g); g.send_to_interrogation(t)
+    g.resolve_night()
     g.officer_verdict(_officer(g), True)
+    g.open_discussion(); g.open_vote(); g.close_vote()
     g.resolve_night()
     g.open_discussion(); g.open_vote(); g.close_vote()
     g.resolve_night()
@@ -120,7 +125,7 @@ def test_jailed_cannot_vote_or_act():
     t = _first_free(g); g.send_to_interrogation(t)
     with pytest.raises(RuleError):
         g.night_action(t, _officer(g))
-    g.officer_verdict(_officer(g), True); g.resolve_night()
+    g.resolve_night(); g.officer_verdict(_officer(g), True)
     g.open_discussion(); g.open_vote()
     with pytest.raises(RuleError):
         g.vote(t, _officer(g))
@@ -130,6 +135,7 @@ def test_officer_release_clears():
     g = _game(); g.start(7); g.resolve_night()
     t = _first_free(g); g.send_to_interrogation(t)
     g.ask(_officer(g), "چرا دروغ گفتی؟")
+    g.resolve_night()
     assert "آزاد" in g.officer_verdict(_officer(g), False)
     assert g.s.players[t].custody is Custody.FREE
 
@@ -139,7 +145,8 @@ def test_jury_after_one_night_acquits():
     t = _first_free(g); g.send_to_interrogation(t)
     with pytest.raises(RuleError):
         g.request_jury(_officer(g))
-    g.s.players[t].custody_nights = 1
+    g.resolve_night()                       # شبِ بازجویی طی شد
+    assert g.s.players[t].custody_nights >= 1
     voters = [p.uid for p in g.s.alive_players() if p.uid != t][:2]
     assert g.request_jury(voters[0]) is False
     assert g.request_jury(voters[1]) is True
@@ -318,6 +325,8 @@ def test_full_endpoint_playthrough():
     assert handle("hints", chat, target)["ok"] is False
     assert "متهم" in handle("ask", chat, off, arg="کجا بودی؟")["text"]
     assert handle("end", chat)["ok"] is False        # قبل از پایان فاش نمی‌شود
+    assert handle("verdict", chat, off, arg="1")["ok"] is False   # هنوز شب نگذشته
+    assert handle("dawn", chat)["ok"]               # شبِ بازجویی
     assert handle("verdict", chat, off, arg="1")["ok"]
     assert g.s.players[target].custody is Custody.TEMP_JAIL
     assert handle("status", chat)["ok"]
