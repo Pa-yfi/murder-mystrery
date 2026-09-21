@@ -37,44 +37,45 @@ def _vote_out(chat, g):
     return target
 
 
+def _gate(g, suspect, chat):
+    """rules.md v2 R07.1."""
+    off = g.s.officer_uid
+    handle("ask", chat, off, arg="دیشب کجا بودی؟")
+    handle("reply", chat, suspect, arg="خانه بودم.")
+    handle("closeroom", chat, off)
+    handle("hints", chat, off)
+
+
 def test_jury_reachable_through_normal_play():
-    """بدون دست‌کاری دستیِ custody_nights — فقط با دستورهای عادی."""
+    """v2: هیئت را بازجو بعد از دروازه‌ی گفتگو تشکیل می‌دهد."""
     chat = 800
     g = _started(chat)
     target = _vote_out(chat, g)
     assert g.s.players[target].custody is Custody.INTERROGATION
     assert g.s.phase is Phase.INTERROGATION
 
-    # هنوز شب نگذشته: هیئت تشکیل نمی‌شود — ولی دکمه هم بی‌جواب نمی‌ماند،
-    # می‌گوید چه چیزی لازم است.
+    # پیش از دروازه: نه حکم، نه ارجاع — ولی دکمه توضیح می‌دهد چه لازم است
     r = handle("jury", chat, 2)
-    assert g.s.phase is Phase.INTERROGATION
-    assert "پایان شب" in r["text"]
+    assert g.s.phase is Phase.INTERROGATION and "گفتگو" in r["text"]
     assert handle("verdict", chat, g.s.officer_uid, arg="1")["ok"] is False
+    assert handle("refer", chat, g.s.officer_uid)["ok"] is False
 
-    assert handle("dawn", chat)["ok"]              # شبِ بازجویی طی شد
-    assert g.s.players[target].custody_nights >= 1
-
-    jurors = [p.uid for p in g.s.alive_players() if p.uid != target][:2]
-    assert handle("jury", chat, jurors[0])["ok"]
-    r = handle("jury", chat, jurors[1])
-    assert r["ok"] and "تشکیل شد" in r["text"]
-    assert g.s.phase is Phase.JURY
+    _gate(g, target, chat)
+    assert handle("refer", chat, g.s.officer_uid)["ok"]
+    assert g.s.phase is Phase.JURY and len(g.s.jury_panel) == 2
 
 
 def test_jury_acquittal_returns_to_day_not_night():
     chat = 801
     g = _started(chat)
     target = _vote_out(chat, g)
-    handle("dawn", chat)
+    _gate(g, target, chat)
     day_before = g.s.day
-    jurors = [p.uid for p in g.s.alive_players() if p.uid != target][:2]
-    handle("jury", chat, jurors[0])
-    handle("jury", chat, jurors[1])
-    for u in [p.uid for p in g.s.alive_players() if p.can_vote]:
-        handle("juryvote", chat, u, arg="1")
-    r = handle("closejury", chat, jurors[0])
-    assert "تبرئه" in r["text"]
+    handle("refer", chat, g.s.officer_uid)
+    for u in g.s.jury_panel:
+        handle("juryvote", chat, u, arg="1")       # هر دو: آزادی
+    r = handle("closejury", chat, g.s.officer_uid)
+    assert "آزاد" in r["text"]
     assert g.s.players[target].custody is Custody.FREE
     assert g.s.phase is not Phase.NIGHT            # شب دوباره تکرار نمی‌شود
     assert g.s.day == day_before
@@ -99,7 +100,7 @@ def test_verdict_keeps_the_day_going():
     chat = 803
     g = _started(chat)
     target = _vote_out(chat, g)
-    handle("dawn", chat)
+    _gate(g, target, chat)
     day_before = g.s.day
     assert handle("verdict", chat, g.s.officer_uid, arg="1")["ok"]
     assert g.s.players[target].custody is Custody.TEMP_JAIL

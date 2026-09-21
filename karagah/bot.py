@@ -507,7 +507,7 @@ def h_closevote(chat, uid, name, arg):
     db.log_event(chat, who, "interrogation", "رای گروه")
     # پنل بازجو *فقط* به پیویِ خودِ بازجو می‌رود. اگر در گروه بیفتد، همه
     # می‌فهمند بازجو کیست — و قاتل اولین کاری که می‌کند کشتنِ اوست.
-    dm = [(g.s.officer_uid, ui.officer_panel(g.s), ui.officer_kb(who))]
+    dm = [(g.s.officer_uid, ui.officer_panel(g.s), ui.officer_kb(who, g.s))]
     dm += [(p.uid, "🔦 *تو در اتاق بازجویی‌ای.*\nامشب اکشن شبانه نداری. "
                    "می‌توانی «🛡️ دفاع من» را بفرستی.",
             ui.kb([[("🛡️ دفاع من", "defense")], [ui.BACK, ui.HOME]]))]
@@ -527,7 +527,7 @@ def h_hints(chat, uid, name, arg):
     return _ok(f"🔦 *سرنخ‌های بازجویی از {sus} — شب {g.s.day}*\n{ui.DIV}\n"
                + "\n".join(f"  • {h}" for h in hs) +
                "\n\n❗ هیچ‌کدام اثبات نیست؛ هر شب سرنخ‌ها عوض می‌شوند.",
-               ui.officer_kb(g.s.suspect_uid), private=True)
+               ui.officer_kb(g.s.suspect_uid, g.s), private=True)
 
 
 def h_ask(chat, uid, name, arg):
@@ -535,13 +535,11 @@ def h_ask(chat, uid, name, arg):
     if not arg:
         # دکمه‌ی قبلی آیدیِ متهم را به‌جای متنِ سؤال می‌فرستاد؛ حالا متن می‌گیریم.
         return _ask_text(chat, uid, "ask")
-    d = f"\n🛡️ دفاع متهم: «{g.s.defense_text}»" if g.s.defense_text else ""
-    ans = g.ask(uid, arg)
-    # متهم خودش هم می‌بیند چه چیزی از زبانش درآمد — وگرنه نمی‌داند از چه دفاع کند.
-    dm = [(g.s.suspect_uid, f"🔦 *بازجو پرسید:* «{_sanitize(arg)}»\n"
-                            f"🗣️ *تو جواب دادی:* «{ans}»", None)]
-    return _ok(f"🗣️ متهم: «{ans}»{d}", ui.officer_kb(g.s.suspect_uid),
-               private=True, dm=dm)
+    # R08: جواب را ربات نمی‌سازد؛ پرسش به پیویِ متهم می‌رود و خودش می‌نویسد.
+    msg = g.ask(uid, arg)
+    if g.s.suspect_uid:
+        await_text(g.s.suspect_uid, chat, "reply")
+    return _ok(msg, ui.officer_kb(g.s.suspect_uid, g.s), private=True)
 
 
 def h_verdict(chat, uid, name, arg):
@@ -559,11 +557,50 @@ def h_verdict(chat, uid, name, arg):
 
 
 def h_clear(chat, uid, name, arg):
+    """R07.4: آزادی از حبس موقت با رای شهر است، نه تصمیمِ یک‌طرفه‌ی بازجو."""
+    g = _g(chat)
+    openr = g.open_releases()
+    if not openr:
+        raise RuleError("بازبینی آزادی‌ای باز نیست. این فرصت وقتی باز می‌شود "
+                        "که متهمِ تازه‌ای وارد بازجویی شود.")
+    if not arg:
+        rows = [[(f"🕊️ آزادی {g.s.players[u].name}", f"clear:{u}:1"),
+                 (f"🔒 ادامه‌ی حبس {g.s.players[u].name}", f"clear:{u}:0")]
+                for u in openr]
+        return _ok("🗳️ *بازبینی آزادی* — رای تو چیست؟",
+                   ui.kb(rows + [[("📊 بستن بازبینی", "closerelease")],
+                                 [ui.BACK, ui.HOME]]), private=True)
+    pid, _, choice = arg.partition(":")
+    return _ok(g.release_vote(uid, int(pid), choice == "1"),
+               ui.back_only(), private=True)
+
+
+def h_closerelease(chat, uid, name, arg):
+    g = _g(chat)
+    openr = g.open_releases()
+    if not openr:
+        raise RuleError("بازبینی‌ای باز نیست.")
+    out = [g.close_release(u) for u in list(openr)]
+    return _ok("\n".join(out) + "\n\n" + ui.status_board(g.s), ui.back_only())
+
+
+def h_reply(chat, uid, name, arg):
+    """پاسخِ واقعیِ متهم به پرسش بازجو (R08)."""
     g = _g(chat)
     if not arg:
-        return _ok("🕊️ *کدام زندانی را تبرئه می‌کنی؟*",
-                   menus.player_kb(g.s, "clear", only_custody=Custody.TEMP_JAIL))
-    return _ok(g.clear_previous(uid, int(arg)) + "\n\n" + ui.status_board(g.s), ui.back_only())
+        if g.s.suspect_uid != uid or not g.s.room_pending_q:
+            raise RuleError("پرسشی در انتظار پاسخ تو نیست.")
+        return _ask_text(chat, uid, "reply")
+    return _ok(g.reply(uid, arg), ui.kb([[("📕 پایان گفتگو", "closeroom")],
+                                         [ui.BACK, ui.HOME]]), private=True)
+
+
+def h_closeroom(chat, uid, name, arg):
+    g = _g(chat)
+    msg = g.close_room(uid)
+    kbd = (ui.kb([[("🔦 سرنخ پایانی", "hints")], [ui.BACK, ui.HOME]])
+           if uid == g.s.officer_uid else ui.back_only())
+    return _ok(msg, kbd, private=True)
 
 
 # ================= هیئت منصفه =================
@@ -574,19 +611,10 @@ def h_jury(chat, uid, name, arg):
     if g.s.phase is Phase.JURY:            # باز است → مستقیم برگه‌ی رای
         return _ok("⚖️ *هیئت منصفه باز است* — رای بده.", ui.jury_kb(),
                    private=True)
-    try:
-        formed = g.request_jury(uid)
-    except RuleError as e:
-        # به‌جای یک ⛔ خشک، بگو چرا و چه چیزی لازم است
-        return _ok(f"⚖️ *هیئت منصفه*\n{ui.DIV}\n{e}\n\n➡️ {g.jury_state()}",
-                   ui.jury_wait_kb(g.s))
-    if not formed:
-        return _ok(f"📝 درخواست تو ثبت شد.\n➡️ {g.jury_state()}",
-                   ui.jury_wait_kb(g.s))
-    return _ok("⚖️ *هیئت منصفه تشکیل شد!* برگه‌ی رای به پیوی همه رفت.",
-               ui.kb([[("📊 نتیجه‌ی هیئت", "closejury")], [ui.BACK, ui.HOME]]),
-               dm=_broadcast(g, "⚖️ *هیئت منصفه* — متهم تبرئه شود یا بازجویی ادامه یابد؟",
-                             ui.jury_kb(), only_voters=True))
+    # v2: هیئت را بازجو تشکیل می‌دهد («⚖️ ارجاع به هیئت دو نفره»)،
+    # نه درخواستِ عمومیِ بازیکن‌ها.
+    return _ok(f"⚖️ *هیئت دو نفره*\n{ui.DIV}\n{g.jury_state()}",
+               ui.jury_wait_kb(g.s))
 
 
 def h_juryvote(chat, uid, name, arg):
@@ -1033,12 +1061,11 @@ def h_share_note(chat, uid, name, arg):
 
 # ================= بازجو: ارجاع به هیئت منصفه =================
 def h_refer(chat, uid, name, arg):
+    """R05.1: ربات خودش دو داورِ شهریِ تبدیل‌نشده را برمی‌دارد."""
     g = _g(chat)
-    msg = g.officer_refer_jury(uid)
-    res = _ok(msg, ui.back_only())
-    res["dm"] = _broadcast(g, "⚖️ *هیئت منصفه تشکیل شد* — رای بده.", ui.jury_kb(),
-                           only_voters=True)
-    return res
+    msg = g.refer_jury(uid)
+    dm = [(u, "⚖️ *برگه‌ی رای تو*", ui.jury_kb()) for u in g.s.jury_panel]
+    return _ok(msg, ui.back_only(), private=True, dm=dm)
 
 
 def h_archive(chat, uid, name, arg):
@@ -1152,6 +1179,7 @@ _ROUTES = {
     "killer": h_killer, "fakeclue": h_fakeclue, "recruit": h_recruit,
     "share_note": h_share_note, "refer": h_refer, "surrender": h_surrender,
     "archive": h_archive, "plate": h_plate, "manage": h_manage,
+    "reply": h_reply, "closeroom": h_closeroom, "closerelease": h_closerelease,
 }
 
 # دستورهایی که به BotFather معرفی می‌شوند (زیرمجموعه‌ی امن برای منوی دستورها)

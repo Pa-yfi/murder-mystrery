@@ -115,6 +115,7 @@ class GameState:
     log: List[str] = field(default_factory=list)
     night_actions: Dict[str, int] = field(default_factory=dict)
     winner: Optional[str] = None
+    winner_uids: List[int] = field(default_factory=list)   # برنده‌ها، صریح
     jury_requests: Dict[int, set] = field(default_factory=dict)
     deadline: Optional[float] = None            # ایده ۱: تایمر فاز
     night_event: str = ""                       # ایده ۴: رویداد شبانه
@@ -145,6 +146,17 @@ class GameState:
     plate_nights: List[int] = field(default_factory=list)    # شب‌هایی که استعلام خرج شد
     death_cause: Dict[int, str] = field(default_factory=dict)  # uid → علتِ واقعیِ مرگ
     last_report_night: int = 0            # آخرین شبی که واقعاً حل شد
+    # ── پرونده‌ی بازداشت (rules.md v2 — R07/R05) ──
+    episode: int = 0                      # شماره‌ی پرونده‌ی بازداشت جاری
+    room_qa: List[tuple] = field(default_factory=list)   # (پرسش، پاسخِ واقعیِ آدم)
+    room_pending_q: str = ""              # پرسشی که منتظر جواب آدم است
+    room_closed: bool = False             # گفتگو بسته شد
+    hint_ack: bool = False                # بازجو سرنخ پایانی را باز کرد
+    jury_panel: List[int] = field(default_factory=list)  # دقیقاً دو داور
+    jury_locked: bool = False             # ارجاع شد؛ بازجو دیگر برنمی‌گردد
+    # R07.4: رای‌گیری عمومیِ آزادی، وقتی متهمِ *تازه‌ای* وارد اتاق می‌شود
+    release_ballots: Dict[int, Dict[int, bool]] = field(default_factory=dict)
+    release_done: List[tuple] = field(default_factory=list)  # (اپیزود، زندانی)
     win_reason: str = ""                              # بهبود ۶: چرا این تیم برد
     paused: bool = False                        # بهبود ۷: بازی موقتاً متوقف
     paused_left: Optional[int] = None            # ثانیه‌های باقی‌ماندهی فاز هنگام توقف

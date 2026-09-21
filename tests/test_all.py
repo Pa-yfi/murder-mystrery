@@ -75,6 +75,14 @@ def test_dialogue_deterministic_and_no_llm():
     assert hints and not any("قاتل است" in h for h in hints)
 
 
+def _gate(g, suspect):
+    """rules.md v2 R07.1: گفتگوی واقعی → بستن اتاق → خواندن سرنخ پایانی."""
+    g.ask(_officer(g), "دیشب کجا بودی؟")
+    g.reply(suspect, "خانه بودم.")
+    g.close_room(_officer(g))
+    g.officer_hints(_officer(g))
+
+
 # ---------- حذف سه‌مرحله‌ای ----------
 def test_stage1_interrogation_one_night():
     g = _game(); g.start(3)
@@ -85,6 +93,9 @@ def test_stage1_interrogation_one_night():
             g.vote(p.uid, t)
     assert g.close_vote() == t
     assert g.s.players[t].custody is Custody.INTERROGATION
+    with pytest.raises(RuleError):      # سرنخ پیش از بسته‌شدن گفتگو نه
+        g.officer_hints(_officer(g))
+    _gate(g, t)
     assert len(g.officer_hints(_officer(g))) >= 3
     with pytest.raises(RuleError):
         g.officer_hints(t)
@@ -93,22 +104,25 @@ def test_stage1_interrogation_one_night():
 def test_stage2_temp_jail_needs_new_suspect():
     g = _game(); g.start(4); g.resolve_night()
     t = _first_free(g); g.send_to_interrogation(t)
-    with pytest.raises(RuleError):          # حکم قبل از گذشتن شب ممنوع
+    with pytest.raises(RuleError):          # حکم پیش از دروازه‌ی گفتگو ممنوع
         g.officer_verdict(_officer(g), True)
-    g.resolve_night()                       # متهم شب را در اتاق گذراند
+    _gate(g, t)
     g.officer_verdict(_officer(g), True)
     assert g.s.players[t].custody is Custody.TEMP_JAIL
-    with pytest.raises(RuleError):
-        g.clear_previous(_officer(g), t)
+    # R07.4: آزادی دیگر دستِ بازجو نیست؛ با ورود متهمِ تازه رای‌گیری باز می‌شود
+    assert not g.open_releases()
     t2 = _first_free(g, exclude=(t,)); g.send_to_interrogation(t2)
-    g.clear_previous(_officer(g), t)
+    assert t in g.open_releases()
+    for u in g.release_electorate():
+        g.release_vote(u, t, True)
+    g.close_release(t)
     assert g.s.players[t].custody is Custody.FREE and g.s.players[t].cleared
 
 
 def test_stage3_life_jail_no_reveal():
     g = _game(); g.start(5); g.resolve_night()
     t = _first_free(g); g.send_to_interrogation(t)
-    g.resolve_night()
+    _gate(g, t)
     g.officer_verdict(_officer(g), True)
     g.open_discussion(); g.open_vote(); g.close_vote()
     g.resolve_night()
@@ -125,7 +139,7 @@ def test_jailed_cannot_vote_or_act():
     t = _first_free(g); g.send_to_interrogation(t)
     with pytest.raises(RuleError):
         g.night_action(t, _officer(g))
-    g.resolve_night(); g.officer_verdict(_officer(g), True)
+    _gate(g, t); g.officer_verdict(_officer(g), True)
     g.open_discussion(); g.open_vote()
     with pytest.raises(RuleError):
         g.vote(t, _officer(g))
@@ -134,25 +148,29 @@ def test_jailed_cannot_vote_or_act():
 def test_officer_release_clears():
     g = _game(); g.start(7); g.resolve_night()
     t = _first_free(g); g.send_to_interrogation(t)
-    g.ask(_officer(g), "چرا دروغ گفتی؟")
-    g.resolve_night()
+    _gate(g, t)
     assert "آزاد" in g.officer_verdict(_officer(g), False)
     assert g.s.players[t].custody is Custody.FREE
 
 
-def test_jury_after_one_night_acquits():
+def test_two_person_jury_frees_unless_both_vote_jail():
+    """rules.md v2 R05.2: فقط «حبس + حبس» حبس می‌آورد."""
     g = _game(); g.start(8); g.resolve_night()
     t = _first_free(g); g.send_to_interrogation(t)
-    with pytest.raises(RuleError):
-        g.request_jury(_officer(g))
-    g.resolve_night()                       # شبِ بازجویی طی شد
-    assert g.s.players[t].custody_nights >= 1
-    voters = [p.uid for p in g.s.alive_players() if p.uid != t][:2]
-    assert g.request_jury(voters[0]) is False
-    assert g.request_jury(voters[1]) is True
-    for u in [p.uid for p in g.s.alive_players() if p.can_vote]:
-        g.jury_vote(u, True)
-    assert "تبرئه" in g.close_jury()
+    with pytest.raises(RuleError):          # پیش از دروازه، ارجاع ممنوع
+        g.refer_jury(_officer(g))
+    _gate(g, t)
+    g.refer_jury(_officer(g))
+    panel = list(g.s.jury_panel)
+    assert len(panel) == 2
+    for u in panel:                         # هر دو شهریِ تبدیل‌نشده‌اند
+        q = g.s.players[u]
+        assert q.align is Align.CITY and not q.recruited
+        assert u not in (t, _officer(g))
+    g.jury_vote(panel[0], False)            # حبس
+    g.jury_vote(panel[1], True)             # آزادی → رای مختلط
+    assert "آزاد" in g.close_jury()
+    assert g.s.players[t].custody is Custody.FREE
 
 
 def test_city_wins_when_all_killers_jailed():
@@ -321,12 +339,15 @@ def test_full_endpoint_playthrough():
             handle("castvote", chat, p.uid, arg=str(target))
     assert handle("closevote", chat)["ok"]
     assert g.s.players[target].custody is Custody.INTERROGATION
+    # v2: سرنخ پایانی فقط بعد از بسته‌شدن گفتگو
+    assert handle("hints", chat, off)["ok"] is False
+    assert handle("ask", chat, off, arg="کجا بودی؟")["ok"]
+    assert handle("reply", chat, target, arg="خانه بودم")["ok"]
+    assert handle("verdict", chat, off, arg="1")["ok"] is False   # هنوز دروازه بسته
+    assert handle("closeroom", chat, off)["ok"]
     assert handle("hints", chat, off)["private"]
     assert handle("hints", chat, target)["ok"] is False
-    assert "متهم" in handle("ask", chat, off, arg="کجا بودی؟")["text"]
     assert handle("end", chat)["ok"] is False        # قبل از پایان فاش نمی‌شود
-    assert handle("verdict", chat, off, arg="1")["ok"] is False   # هنوز شب نگذشته
-    assert handle("dawn", chat)["ok"]               # شبِ بازجویی
     assert handle("verdict", chat, off, arg="1")["ok"]
     assert g.s.players[target].custody is Custody.TEMP_JAIL
     assert handle("status", chat)["ok"]
@@ -477,7 +498,8 @@ def test_phase_timer_auto_advances():           # ایده ۱
 def test_blitz_halves_rules():                  # ایده ۳
     from karagah.engine import Game as G
     g = G(2, seed=2, owner=1, blitz=True)
-    assert g.temp_jail_nights == 1 and g.interrogation_nights >= 1
+    # R07.3: بلیتز مهلت‌ها را نصف می‌کند، ولی حکمِ دو شب را نه
+    assert g.temp_jail_nights == 2 and g.interrogation_nights >= 1
     r = handle("blitz", 810, 1, "Host")
     assert r["ok"] and "بلیتز" in r["text"] and GAMES[810].blitz
 
@@ -607,16 +629,18 @@ def test_detective_expose():                    # ایده ۱۲
         g.expose(other.uid, real)
 
 
-def test_contradiction_detector():              # ایده ۱۳
+def test_room_relays_the_humans_own_words():
+    """R08: ربات به‌جای متهم حرف نمی‌زند؛ عین متنِ خودش را می‌برد."""
     g = _game(); g.start(11); g.resolve_night()
     tgt = _first_free(g)
     g.send_to_interrogation(tgt)
-    sus = g.s.players[tgt]
-    sus.stress = 30                             # آرام
-    a1 = g.ask(_officer(g), "کجا بودی؟")
-    sus.stress = 90                             # پانیک → جواب عوض می‌شود
-    a2 = g.ask(_officer(g), "کجا بودی؟")
-    assert "تناقض" in a2
+    g.ask(_officer(g), "کجا بودی؟")
+    with pytest.raises(RuleError):              # پرسشِ دوم پیش از جواب
+        g.ask(_officer(g), "دوباره بگو")
+    g.reply(tgt, "کنار رودخانه بودم.")
+    assert g.s.room_qa == [("کجا بودی؟", "کنار رودخانه بودم.")]
+    with pytest.raises(RuleError):              # فقط خودِ متهم جواب می‌دهد
+        g.reply(_officer(g), "من جای او جواب می‌دهم")
 
 
 def test_defense_shown():                       # ایده ۲

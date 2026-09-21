@@ -42,7 +42,9 @@ GROUPS: List[Tuple[str, str, List[tuple]]] = [
         ("🔦 سرنخ‌ها", "hints"), ("💬 پرسش از متهم", "ask"),
         ("⚖️ حکم بازجو", "verdict"), ("⚖️ ارجاع به هیئت منصفه", "refer"),
         ("🕊️ آزادی زندانی قبلی", "clear"),
-        ("🛡️ دفاع من", "defense"), ("⚖️ هیئت منصفه", "jury"),
+        ("🗣️ پاسخ به بازجو", "reply"), ("📕 پایان گفتگو", "closeroom"),
+        ("🕊️ بازبینی آزادی", "closerelease"),
+        ("🛡️ دفاع من", "defense"), ("⚖️ هیئت دو نفره", "jury"),
         ("📊 نتیجه‌ی هیئت", "closejury"), ("🚨 رای اضطراری", "sos"),
     ]),
     ("clues", "🔎 مدارک و دفترچه", [
@@ -136,6 +138,9 @@ CAPABILITY = {
     "refer":      lambda g, p: p.uid == g.s.officer_uid,
     "clear":      lambda g, p: p.uid == g.s.officer_uid,
     "defense":    lambda g, p: g.s.suspect_uid == p.uid,
+    "reply":      lambda g, p: g.s.suspect_uid == p.uid,
+    "closeroom":  lambda g, p: p.uid in (g.s.officer_uid, g.s.suspect_uid),
+    "closerelease": lambda g, p: bool(g.s.release_ballots),
     "killer":     _is_killer_tool_user,
     "fakeclue":   _is_killer_tool_user,
     "recruit":    lambda g, p: g.s.recruit_offer == p.uid,
@@ -220,8 +225,9 @@ def roles_kb() -> Dict:
 
 
 def role_detail(name: str) -> str:
+    from .roles import title_of
     r = ROLES[name]
-    return (f"{r.emoji} *{r.name}*\n" + "─" * 18 +
+    return (f"{r.emoji} *{title_of(r.name)}*\n" + "─" * 18 +
             f"\n🎯 تیم: {r.align.value}"
             f"\n🌙 کار شبانه: {ABILITY_FA.get(r.ability, r.ability)}"
             f"\n📜 {r.desc}")
@@ -364,6 +370,9 @@ PROMPTS = {
     "will": ("📜 *وصیت‌نامه*", "متن وصیتت را بفرست؛ اگر کشته شوی صبح خوانده می‌شود."),
     "ask": ("💬 *پرسش از متهم*", "سؤالت را بفرست تا از متهم پرسیده شود."),
     "defense": ("🛡️ *دفاع تو*", "متن دفاعت را بفرست."),
+    "reply": ("🗣️ *پاسخ به بازجو*",
+              "جوابت را بنویس. عیناً همین متن به بازجو می‌رسد؛ "
+              "ربات به‌جای تو حرف نمی‌زند."),
     "fakeclue": ("🧾 *سرنخ جعلی*",
                  "متن سرنخی که می‌خواهی صبح در شهر بپیچد را بفرست.\n"
                  "کنار سرنخ‌های واقعی خوانده می‌شود و از آن‌ها جدا نیست."),

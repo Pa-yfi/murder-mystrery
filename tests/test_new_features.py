@@ -41,6 +41,15 @@ def _role(g, name):
     return next(p for p in g.s.players.values() if p.role == name)
 
 
+def _gate(g, suspect, chat=CHAT):
+    """rules.md v2 R07.1: گفتگوی واقعی → بستن اتاق → سرنخ پایانی."""
+    off = g.s.officer_uid
+    handle("ask", chat, off, arg="دیشب کجا بودی؟")
+    handle("reply", chat, suspect, arg="خانه بودم.")
+    handle("closeroom", chat, off)
+    handle("hints", chat, off)
+
+
 def _vote_out(g, chat=CHAT):
     handle("discuss", chat)
     handle("vote", chat)
@@ -79,14 +88,66 @@ def test_jury_button_always_answers_with_the_next_step():
     assert r["ok"] and r["keyboard"] and "رای‌گیری" in r["text"] + str(r["keyboard"])
 
 
-def test_officer_can_refer_to_jury_instead_of_ruling():
+def test_officer_can_refer_to_a_two_person_jury(): 
+    """R05.1: دقیقاً دو داورِ شهریِ تبدیل‌نشده، هر کدام در پیویِ خودش."""
     g = _started()
     handle("dawn", CHAT)
-    _vote_out(g)
-    handle("dawn", CHAT)                          # شبِ بازجویی گذشت
+    tgt = _vote_out(g)
+    assert handle("refer", CHAT, g.s.officer_uid)["ok"] is False   # پیش از دروازه
+    _gate(g, tgt)
     r = handle("refer", CHAT, g.s.officer_uid)
     assert r["ok"] and g.s.phase is Phase.JURY
-    assert _dm_to(r, 2)                           # برگه‌ی رای به پیوی رفت
+    panel = g.s.jury_panel
+    assert len(panel) == 2
+    # هر داور برگه‌ی خصوصی می‌گیرد؛ گروه فقط می‌فهمد هیئتی تشکیل شده
+    assert set(panel) <= {d for d, _t, _k in r["dm"]}
+    group_line = " ".join(t for d, t, _k in r["dm"] if d == CHAT)
+    for u in panel:
+        assert g.s.players[u].name not in group_line   # نام داور علنی نشود
+    for u in panel:
+        q = g.s.players[u]
+        assert q.align is Align.CITY and not q.recruited
+        assert u not in (tgt, g.s.officer_uid)
+
+
+def test_jury_result_matrix():
+    """R05.2: حبس+حبس → حبس؛ هر چیز دیگر آزادیِ تشریفاتی."""
+    for votes, jailed in (((False, False), True), ((True, True), False),
+                          ((False, True), False)):
+        chat = 4700 + hash(votes) % 50
+        g = _started(chat=chat)
+        handle("dawn", chat)
+        tgt = _vote_out(g, chat)
+        _gate(g, tgt, chat)
+        handle("refer", chat, g.s.officer_uid)
+        for u, acquit in zip(g.s.jury_panel, votes):
+            handle("juryvote", chat, u, arg="1" if acquit else "0")
+        handle("closejury", chat, g.s.officer_uid)
+        got = g.s.players[tgt].custody
+        assert (got is Custody.TEMP_JAIL) is jailed, (votes, got)
+
+
+def test_a_missing_juror_ballot_means_procedural_release():
+    g = _started()
+    handle("dawn", CHAT)
+    tgt = _vote_out(g)
+    _gate(g, tgt)
+    handle("refer", CHAT, g.s.officer_uid)
+    handle("juryvote", CHAT, g.s.jury_panel[0], arg="0")   # فقط یک رای
+    r = handle("closejury", CHAT, g.s.officer_uid)
+    assert g.s.players[tgt].custody is Custody.FREE
+    assert "تشریفاتی" in r["text"]
+
+
+def test_only_panel_members_can_vote_in_the_jury():
+    g = _started()
+    handle("dawn", CHAT)
+    tgt = _vote_out(g)
+    _gate(g, tgt)
+    handle("refer", CHAT, g.s.officer_uid)
+    outsider = next(p.uid for p in g.s.alive_players()
+                    if p.uid not in g.s.jury_panel and p.uid != tgt)
+    assert handle("juryvote", CHAT, outsider, arg="0")["ok"] is False
 
 
 # ---------- محرمانگیِ بازجو ----------
@@ -104,7 +165,8 @@ def test_officer_panel_never_lands_in_the_group():
 def test_officer_tools_are_private():
     g = _started()
     handle("dawn", CHAT)
-    _vote_out(g)
+    tgt = _vote_out(g)
+    _gate(g, tgt)
     r = handle("hints", CHAT, g.s.officer_uid)
     assert r["ok"] and r["private"]
     assert handle("hints", CHAT, 2)["ok"] is False        # دیگران دسترسی ندارند
@@ -220,7 +282,8 @@ def test_every_day_brings_a_new_case_specific_clue():
 def test_interrogation_hints_are_case_specific_and_shift_each_night():
     g = _started()
     handle("dawn", CHAT)
-    _vote_out(g)
+    tgt = _vote_out(g)
+    _gate(g, tgt)
     off = g.s.officer_uid
     first = handle("hints", CHAT, off)["text"]
     # در همان شب پایدارند — وگرنه بازجو آن‌قدر دکمه می‌زند تا سرنخِ دلخواهش بیاید
@@ -240,7 +303,7 @@ def test_shared_note_stays_hidden_until_temporary_jail():
     p = g.s.players[tgt]
     handle("share_note", CHAT, tgt, arg="من پزشکم، مرا نکشید")
     assert p.shared_notes and not p.notes_published
-    handle("dawn", CHAT)                                # شبِ بازجویی
+    _gate(g, tgt)
     r = handle("verdict", CHAT, g.s.officer_uid, arg="1")   # 🔒 حبس موقت
     assert p.custody is Custody.TEMP_JAIL and p.notes_published
     assert any("صندوق امانات" in t for _d, t, _k in r["dm"])
@@ -818,3 +881,179 @@ def test_the_simulated_plate_is_never_mistakable_for_a_real_one():
     g = _started()
     plate = g.s.case.vehicle["plate"]
     assert plate.startswith("SIM-") and "نمونه‌ی بازی" in plate
+
+
+# ---------- rules.md v2: زندانِ موقت و بازبینی آزادی ----------
+def test_blitz_does_not_shorten_the_two_night_sentence():
+    """R07.3: بلیتز مهلت‌های تعامل را نصف می‌کند، نه طولِ حکم را."""
+    from karagah.engine import Game
+    assert Game(1, seed=1, owner=1, blitz=True).temp_jail_nights == 2
+    assert Game(1, seed=1, owner=1, blitz=False).temp_jail_nights == 2
+
+
+def test_release_ballot_needs_more_than_half_of_the_whole_electorate():
+    """R07.4: بیش از نیمِ کلِ واجدان شرایط، نه نیمِ رای‌دهنده‌ها."""
+    g = _started()
+    handle("dawn", CHAT)
+    tgt = _vote_out(g)
+    _gate(g, tgt)
+    handle("verdict", CHAT, g.s.officer_uid, arg="1")
+    assert g.s.players[tgt].custody is Custody.TEMP_JAIL
+    other = next(p.uid for p in g.s.alive_players()
+                 if p.uid not in (tgt, g.s.officer_uid))
+    handle("discuss", CHAT); handle("vote", CHAT)
+    for p in g.s.alive_players():
+        if p.can_vote and p.uid != other:
+            handle("castvote", CHAT, p.uid, arg=str(other))
+    handle("closevote", CHAT)                      # متهم تازه → بازبینی باز شد
+    assert tgt in g.open_releases()
+    voters = g.release_electorate()
+    need = len(voters) // 2 + 1
+    for u in voters[:need - 1]:                    # یکی کمتر از حد نصاب
+        handle("clear", CHAT, u, arg=f"{tgt}:1")
+    handle("closerelease", CHAT, g.s.officer_uid)
+    assert g.s.players[tgt].custody is Custody.TEMP_JAIL, "نباید آزاد می‌شد"
+
+
+def test_release_ballot_frees_at_quorum_without_claiming_innocence():
+    g = _started()
+    handle("dawn", CHAT)
+    tgt = _vote_out(g)
+    _gate(g, tgt)
+    handle("verdict", CHAT, g.s.officer_uid, arg="1")
+    other = next(p.uid for p in g.s.alive_players()
+                 if p.uid not in (tgt, g.s.officer_uid))
+    g.send_to_interrogation(other)
+    for u in g.release_electorate():
+        handle("clear", CHAT, u, arg=f"{tgt}:1")
+    r = handle("closerelease", CHAT, g.s.officer_uid)
+    assert g.s.players[tgt].custody is Custody.FREE
+    assert "تشریفاتی" in r["text"]
+
+
+def test_the_officer_can_no_longer_release_a_prisoner_alone():
+    g = _started()
+    handle("dawn", CHAT)
+    tgt = _vote_out(g)
+    _gate(g, tgt)
+    handle("verdict", CHAT, g.s.officer_uid, arg="1")
+    assert handle("clear", CHAT, g.s.officer_uid)["ok"] is False
+
+
+def test_each_prisoner_gets_one_review_per_new_suspect_episode():
+    """R07.4: تکرارِ باز کردنِ صفحه، فرصتِ تازه نمی‌سازد."""
+    g = _started()
+    handle("dawn", CHAT)
+    tgt = _vote_out(g)
+    _gate(g, tgt)
+    handle("verdict", CHAT, g.s.officer_uid, arg="1")
+    other = next(p.uid for p in g.s.alive_players()
+                 if p.uid not in (tgt, g.s.officer_uid))
+    g.send_to_interrogation(other)
+    before = list(g.s.release_done)
+    g._open_release_votes()                        # دوباره — نباید اضافه شود
+    assert g.s.release_done == before
+
+
+# ---------- rules.md v2: دروازه‌ی گفتگو ----------
+def test_no_decision_before_a_real_exchange_and_an_opened_hint():
+    """CJV01: حکم پیش از پاسخِ واقعی/بستنِ اتاق/خواندنِ سرنخ رد می‌شود."""
+    g = _started()
+    handle("dawn", CHAT)
+    tgt = _vote_out(g)
+    off = g.s.officer_uid
+    for step in ("verdict", "refer"):
+        assert handle(step, CHAT, off, arg="1")["ok"] is False
+    handle("ask", CHAT, off, arg="کجا بودی؟")
+    assert handle("verdict", CHAT, off, arg="1")["ok"] is False   # هنوز جواب نیامده
+    handle("reply", CHAT, tgt, arg="خانه بودم.")
+    assert handle("verdict", CHAT, off, arg="1")["ok"] is False   # اتاق باز است
+    handle("closeroom", CHAT, off)
+    assert handle("verdict", CHAT, off, arg="1")["ok"] is False   # سرنخ خوانده نشده
+    handle("hints", CHAT, off)
+    assert handle("verdict", CHAT, off, arg="1")["ok"]
+    assert g.s.players[tgt].custody is Custody.TEMP_JAIL
+
+
+def test_an_incomplete_conversation_ends_in_procedural_release():
+    """CJV03: بدون پاسخِ واقعی، محکومیت ممکن نیست."""
+    g = _started()
+    handle("dawn", CHAT)
+    tgt = _vote_out(g)
+    off = g.s.officer_uid
+    handle("ask", CHAT, off, arg="کجا بودی؟")
+    handle("closeroom", CHAT, off)                 # متهم جواب نداد
+    assert g.incomplete_release()
+    assert handle("verdict", CHAT, off, arg="1")["ok"] is False
+    r = handle("verdict", CHAT, off, arg="0")
+    assert r["ok"] and "تشریفاتی" in r["text"]
+    assert g.s.players[tgt].custody is Custody.FREE
+
+
+def test_the_bot_never_answers_on_the_suspects_behalf():
+    """R08: هیچ جوابی ساخته نمی‌شود؛ عینِ متنِ آدم می‌رود."""
+    g = _started()
+    handle("dawn", CHAT)
+    tgt = _vote_out(g)
+    off = g.s.officer_uid
+    r = handle("ask", CHAT, off, arg="دیشب کجا بودی؟")
+    assert "منتظر" in r["text"]
+    assert not g.s.room_qa                          # هنوز هیچ جوابی نیست
+    said = "روی پشت‌بام بودم"
+    rep = handle("reply", CHAT, tgt, arg=said)
+    assert rep["ok"] and g.s.room_qa[-1][1] == said
+    assert any(said in t for _d, t, _k in rep["dm"])
+
+
+def test_a_jailed_officer_cannot_referee_their_own_episode():
+    g = _started()
+    handle("dawn", CHAT)
+    tgt = _vote_out(g)
+    _gate(g, tgt)
+    handle("refer", CHAT, g.s.officer_uid)
+    # پس از ارجاع، بازجو نمی‌تواند حکم جداگانه بدهد (R05.2)
+    assert handle("verdict", CHAT, g.s.officer_uid, arg="1")["ok"] is False
+
+
+# ---------- role-names.md + R10: نام نمایشی و برنده‌ی صریح ----------
+def test_display_names_cover_every_role_and_are_unique():
+    from karagah.roles import DISPLAY_FA, title_of
+    assert set(DISPLAY_FA) == set(ROLES)
+    assert len(set(DISPLAY_FA.values())) == len(ROLES)
+    assert title_of("کارآگاه") == "ردبین — کارآگاه"
+
+
+def test_role_card_shows_both_names():
+    g = _started()
+    p = g.s.players[2]
+    txt = handle("myrole", CHAT, 2)["text"]
+    from karagah.roles import DISPLAY_FA
+    assert DISPLAY_FA[p.role] in txt and p.role in txt
+
+
+def test_rewards_come_from_explicit_winner_ids_not_string_prefixes():
+    """R10: نتیجه و پاداش نباید به پیشوندِ رشته‌ی ترجمه‌شده وابسته باشد."""
+    g = _started()
+    for p in g.s.players.values():
+        if p.align is Align.KILLER:
+            p.alive = False
+    g._check_win()
+    assert g.s.winner_uids, "برنده‌ها باید صریح ثبت شوند"
+    winners = set(g.s.winner_uids)
+    assert winners == {p.uid for p in g.s.players.values() if p.align is Align.CITY}
+    for p in g.s.players.values():
+        assert (p.coins >= 60) == (p.uid in winners)
+
+
+def test_a_renamed_winner_string_cannot_change_payouts():
+    g = _started()
+    for p in g.s.players.values():
+        if p.align is Align.KILLER:
+            p.alive = False
+    g._check_win()
+    paid = {u: g.s.players[u].coins for u in g.s.players}
+    g.s.winner = "یک نام کاملاً متفاوت"      # فقط رشته‌ی نمایشی
+    g.s.finalized = False
+    g._payout()
+    for u, c in paid.items():                  # همان برنده‌ها، دوباره
+        assert (g.s.players[u].coins - c >= 60) == (u in set(g.s.winner_uids))
