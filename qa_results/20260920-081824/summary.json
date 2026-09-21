@@ -1,0 +1,387 @@
+{
+  "revision": "0e0dace680b484f3275a46352aa4859207df3094",
+  "python": "3.13.7 (tags/v3.13.7:bcee1c3, Aug 14 2025, 14:15:11) [MSC v.1944 64 bit (AMD64)]",
+  "packages": {
+    "pytest": "9.1.1",
+    "python-telegram-bot": "22.8",
+    "Pillow": "12.3.0",
+    "APScheduler": "NOT INSTALLED"
+  },
+  "sha256": {
+    "karagah/__init__.py": "cf952bc283d6f3fd9039584b1c93d5c64d3fc253efbf720678cfaa060dd116f2",
+    "karagah/bot.py": "46f608b2f6fb81cf2c8ed5cd4dcec132c568737953c76ef99e834906fe0ae985",
+    "karagah/cards.py": "f86e2eb00700eecf0d3ace68f9607d388cf5ad583f9d28476bac7a9667ba358b",
+    "karagah/cases.py": "f3bb50140b9162e37cb570f371cd359076d685643bf53321ffe3384a4b55f659",
+    "karagah/config.py": "77efbc188d6913e3567ff67a770edcc9cab3e55c0abfde5dd23f1ef76c7542f7",
+    "karagah/db.py": "c847dd4e9128265133b63919855229adcd96660b0ebc351ddb80829e3e7ccc51",
+    "karagah/dialogue.py": "4054c31f5386380848f83e8b85d2088786903e686b90ffe281229da472abf182",
+    "karagah/engine.py": "d21b6fd54154ea6a2000b9d4c4fe52a92abd4aad04e9ae2b9865eb77ada9b5da",
+    "karagah/models.py": "a161668136d07dd75afa395b853d1273d3a8089438c7dff3b53babde7a67f9e9",
+    "karagah/roles.py": "fc05a647aa34ecaf5269bd5b9733edf527b9bfac8181a60a4a0c20230cb6b79a",
+    "karagah/strings.py": "81d7cf0843ebe8f82a7f64e3962c2ba95a9fb8821b5856828946e5e9dd9a83d5",
+    "karagah/telegram_app.py": "39985b17b06749df71a2e5d332e0c85e93817140cecf3616c9111c6dd2acc4c9",
+    "karagah/ui.py": "8eb903295765a8a00c5ccec96aa1335e034e86f40cbc2eb7ea78cd9a09e5da5d",
+    "pytest.ini": "82fd55d62e39ad5dc83c58bd005c337e4e9810ef96f7356c370d7069de775a16",
+    "requirements.txt": "26f106adeb504d5d14ba8153eed3dba5e053d2ba2dc260f2cf28f819cc23789f",
+    "run.py": "47544e4c57c3ebb83aa990c1887a57a5ff56883330e9bd4f384b1e2534414bff",
+    "tests/quality/__init__.py": "a565c2e244ab96862e14e8cec45acf6b0640e7bd434119ed5b88d31b5a514c16",
+    "tests/quality/conftest.py": "e53fe90c8573f27914d495759d8440569726b532746b41df0347ad51bda10935",
+    "tests/quality/helpers.py": "31599dcb88826d4fce605227e01fb94bccf38bcc3d2e6626c35042fb5c89aba8",
+    "tests/quality/test_edge_cases.py": "44b3ab27719c43848eea2c81cdfd4a5041675b591ff8ec21c22970818a82274d",
+    "tests/quality/test_evidence_contracts.py": "26cd3a4182c1aeda10ba2989f9d8decf850f5cce430855c55d5eb4cdbc8f0738",
+    "tests/quality/test_functional_privacy.py": "b66b42211a2d91c3549bd0ff813d73319fd5a6b4f515115fd3807346d1582f34",
+    "tests/quality/test_gameplay_acceptance.py": "4d9f4944409c59d233da39286590bdb50a660bba6319cc0fc2382fada6367b6c",
+    "tests/quality/test_regression_contracts.py": "78fd557acc1d483fddcdbcb08366202d40b0a1dbf5c1bdb3b92dbd60f0fca6be",
+    "tests/quality/test_rule_boundaries.py": "515ef1f8e1cbd76823382e578ddbc53f8f711bda1ab9c3d8c4a58bc1beaa1fe2",
+    "tests/quality/test_unit_permissions.py": "5d757311577a30ed0fa4a588afae5e51067b69e4eade73da2e1467b3cd4a54f0",
+    "tests/test_action_panel.py": "061a94aaadf71a7191be4f889561fa531da5b69e3b64e9a0b63c47d70acd23df",
+    "tests/test_all.py": "0d8300ca19e1c27438ee8d368bd24f1fb48f9f5640c8f28616ecc043834ebf83",
+    "tests/test_balance_stats.py": "a9caf5947cc533b184e5ec6e91720a6f7e0d1c88c6aa7de6839a507bebeaad98",
+    "tests/test_custody_timeline.py": "4b0ee52dcf9485d56fbc9eae736978c8fcecfcf0472d1ead0487367a97c56595",
+    "tests/test_env_loading.py": "82a15f5439d1659ae9ecc69763a50940af0ba70c518800f8cd8a49ed5ce69777",
+    "tests/test_evidence_and_ending.py": "3e418800024bcc8046a7d96b6d351a551af7787f4467115e811b29b2bd2e6a40",
+    "tests/test_full_matches.py": "333cd2368fae08b0a55b858788d64f4d2c24fdd02efc27a75fa17602f2f7d9d5",
+    "tests/test_night_abilities.py": "aab9de95703ea8c4636b4368d6b3956e532f6c99df76cf3d5b7a0be06f3e1fe3",
+    "tests/test_private_routing.py": "ddae0a461d3faae870f84c79c3a65d13b9351cf69ec2e8e441e7cf86a2f3b763",
+    "tests/test_readiness_and_absence.py": "3bc8d1a90a7c852110abd06fbcbb1b85ee5479ab9ecd59aad51ced3e2e0e297b",
+    "tests/test_run_import.py": "afa1970e770102eb95e701fe0616898e364585f8a0149aaebfe996d7e358aa42",
+    "tests/test_security_fixes.py": "7c4407c9666938af6a4cee72f5db2c3fef0672e34a21a7d7b8cc2dff0801551a",
+    "tests/test_timer_persistence.py": "d11310aefdc3eda6b183e529171d20fe159dfb49d549870e9f66b0a8b2f6df2a"
+  },
+  "scope": "offline; mocked Telegram; no real credentials/database",
+  "suites": {
+    "existing": {
+      "exit_code": 0,
+      "passed": 184,
+      "failed": 0,
+      "errors": 0,
+      "skipped": 1,
+      "failures": []
+    },
+    "quality": {
+      "exit_code": 1,
+      "passed": 1262,
+      "failed": 63,
+      "errors": 0,
+      "skipped": 0,
+      "failures": [
+        {
+          "test": "test_invalid_case_does_not_start_or_index_from_end[-1]",
+          "class": "tests.quality.test_edge_cases",
+          "message": "assert not True"
+        },
+        {
+          "test": "test_invalid_case_does_not_start_or_index_from_end[41]",
+          "class": "tests.quality.test_edge_cases",
+          "message": "AssertionError: assert 'خطای داخلی' not in '⛔ خطای داخل... /start بزن.'\n  \n  'خطای داخلی' is contained here:\n    ⛔ خطای داخلی هنگام اجرای «startgame». دوباره /start بزن.\n  ?   ++++++++++"
+        },
+        {
+          "test": "test_invalid_case_does_not_start_or_index_from_end[1208925819614629174706176]",
+          "class": "tests.quality.test_edge_cases",
+          "message": "AssertionError: assert 'خطای داخلی' not in '⛔ خطای داخل... /start بزن.'\n  \n  'خطای داخلی' is contained here:\n    ⛔ خطای داخلی هنگام اجرای «startgame». دوباره /start بزن.\n  ?   ++++++++++"
+        },
+        {
+          "test": "test_integer_overflow_is_controlled_at_entry[9223372036854775808]",
+          "class": "tests.quality.test_edge_cases",
+          "message": "OverflowError: Python int too large to convert to SQLite INTEGER"
+        },
+        {
+          "test": "test_integer_overflow_is_controlled_at_entry[-9223372036854775809]",
+          "class": "tests.quality.test_edge_cases",
+          "message": "OverflowError: Python int too large to convert to SQLite INTEGER"
+        },
+        {
+          "test": "test_notes_have_bounded_total_storage_and_output",
+          "class": "tests.quality.test_edge_cases",
+          "message": "AssertionError: No total note quota\nassert 101 <= 100\n +  where 101 = len(['0:xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx...xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx', ...])\n +    where ['0:xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx...xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx', ...] = Player(uid=1, name='Player 1', role='شهروند', align=<Align.CITY: 'شهر'>, alive=True, custody=<Custody.FREE: 'آزاد'>, c...xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx'], qa={}, hunter_target=None, role_assigned='شهروند', ready=True, missed=0).private_notes"
+        },
+        {
+          "test": "test_notes_output_is_bounded_independently_of_storage_quota",
+          "class": "tests.quality.test_edge_cases",
+          "message": "AssertionError: assert 6217 <= 3500\n +  where 6217 = len('🔎 *یافته\\u200cهای نقش تو:*\\n  — هنوز چیزی نرسیده —\\n\\n📝 *یادداشت\\u200cهای خودت:*\\n  • xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx...xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx')"
+        },
+        {
+          "test": "test_repeated_questions_have_a_bounded_transcript",
+          "class": "tests.quality.test_edge_cases",
+          "message": "AssertionError: assert 101 <= 100\n +  where 101 = len({'question-0': 'من مقتول را دوست داشتم. دنبال قاتل بگردید، نه من.', 'question-1': 'من مقتول را دوست داشتم. دنبال قاتل ...': 'بله دیدمش، ولی فقط یک لحظه. همین.', 'question-3': 'چرا همه\\u200cی سؤال\\u200cها از من است؟ از بقیه هم بپرسید.', ...})\n +    where {'question-0': 'من مقتول را دوست داشتم. دنبال قاتل بگردید، نه من.', 'question-1': 'من مقتول را دوست داشتم. دنبال قاتل ...': 'بله دیدمش، ولی فقط یک لحظه. همین.', 'question-3': 'چرا همه\\u200cی سؤال\\u200cها از من است؟ از بقیه هم بپرسید.', ...} = Player(uid=4, name='Player 4', role='شهروند', align=<Align.CITY: 'شهر'>, alive=True, custody=<Custody.INTERROGATION: '... ندارد. (زیر لب: «راز: وصیت\\u200cنامه دو نسخه داشت»)'}, hunter_target=None, role_assigned='پزشک', ready=True, missed=0).qa"
+        },
+        {
+          "test": "test_duplicate_command_does_not_grow_ballot_history_without_bound",
+          "class": "tests.quality.test_edge_cases",
+          "message": "AssertionError: assert 100 == 1\n +  where 100 = len([(1, 1, 3), (1, 1, 3), (1, 1, 3), (1, 1, 3), (1, 1, 3), (1, 1, 3), ...])\n +    where [(1, 1, 3), (1, 1, 3), (1, 1, 3), (1, 1, 3), (1, 1, 3), (1, 1, 3), ...] = GameState(chat_id=-700001, phase=<Phase.VOTE: 'رای\\u200cگیری'>, day=1, case=Case(cid=1, title='شب بارانی عمارت لواسان'...ramed={}, hidden=[], traces=[], win_reason='', paused=False, paused_left=None, phase_before_jury=None, finalized=False).vote_history\n +      where GameState(chat_id=-700001, phase=<Phase.VOTE: 'رای\\u200cگیری'>, day=1, case=Case(cid=1, title='شب بارانی عمارت لواسان'...ramed={}, hidden=[], traces=[], win_reason='', paused=False, paused_left=None, phase_before_jury=None, finalized=False) = <karagah.engine.Game object at 0x0000027EC782BE10>.s"
+        },
+        {
+          "test": "test_evidence_authenticity_not_predictable_by_deck_position",
+          "class": "tests.quality.test_evidence_contracts",
+          "message": "AssertionError: Every case exposes the same authenticity mask, bypassing investigation\nassert 1 > 1\n +  where 1 = len({(False, True, False, False, True, False)})"
+        },
+        {
+          "test": "test_revealed_evidence_not_duplicated_after_deck_exhaustion",
+          "class": "tests.quality.test_evidence_contracts",
+          "message": "AssertionError: assert 9 == 6\n +  where 9 = len(['E1', 'E2', 'E3', 'E4', 'E5', 'E6', ...])\n +    where ['E1', 'E2', 'E3', 'E4', 'E5', 'E6', ...] = GameState(chat_id=-700001, phase=<Phase.NIGHT: 'شب'>, day=9, case=Case(cid=1, title='شب بارانی عمارت لواسان', victim='...ramed={}, hidden=[], traces=[], win_reason='', paused=False, paused_left=None, phase_before_jury=None, finalized=False).revealed_evidence\n +      where GameState(chat_id=-700001, phase=<Phase.NIGHT: 'شب'>, day=9, case=Case(cid=1, title='شب بارانی عمارت لواسان', victim='...ramed={}, hidden=[], traces=[], win_reason='', paused=False, paused_left=None, phase_before_jury=None, finalized=False) = <karagah.engine.Game object at 0x0000027EC7A6EA50>.s\n +  and   6 = len({'E1', 'E2', 'E3', 'E4', 'E5', 'E6'})\n +    where {'E1', 'E2', 'E3', 'E4', 'E5', 'E6'} = set(['E1', 'E2', 'E3', 'E4', 'E5', 'E6', ...])\n +      where ['E1', 'E2', 'E3', 'E4', 'E5', 'E6', ...] = GameState(chat_id=-700001, phase=<Phase.NIGHT: 'شب'>, day=9, case=Case(cid=1, title='شب بارانی عمارت لواسان', victim='...ramed={}, hidden=[], traces=[], win_reason='', paused=False, paused_left=None, phase_before_jury=None, finalized=False).revealed_evidence\n +        where GameState(chat_id=-700001, phase=<Phase.NIGHT: 'شب'>, day=9, case=Case(cid=1, title='شب بارانی عمارت لواسان', victim='...ramed={}, hidden=[], traces=[], win_reason='', paused=False, paused_left=None, phase_before_jury=None, finalized=False) = <karagah.engine.Game object at 0x0000027EC7A6EA50>.s"
+        },
+        {
+          "test": "test_laboratory_result_contains_actionable_case_specific_information",
+          "class": "tests.quality.test_evidence_contracts",
+          "message": "AssertionError: Generic 'narrow interpretations' message supplies no result\nassert False\n +  where False = any(<generator object test_laboratory_result_contains_actionable_case_specific_information.<locals>.<genexpr> at 0x0000027EC7A87AE0>)"
+        },
+        {
+          "test": "test_spy_distinguishes_questioning_from_public_nomination",
+          "class": "tests.quality.test_evidence_contracts",
+          "message": "AssertionError: Spy only reports the public nomination, regardless of actual questioning\nassert ['📞 شب 2: بازجو سراغ Player 4 رفته بود.'] != ['📞 شب 2: بازجو سراغ Player 4 رفته بود.']"
+        },
+        {
+          "test": "test_grocer_gets_new_daily_rumor",
+          "class": "tests.quality.test_evidence_contracts",
+          "message": "assert 0 > 0"
+        },
+        {
+          "test": "test_trace_does_not_claim_direct_killer_for_indirect_death",
+          "class": "tests.quality.test_evidence_contracts",
+          "message": "AssertionError: A visitor is falsely guaranteed to be the killer\nassert False\n +  where False = all(<generator object test_trace_does_not_claim_direct_killer_for_indirect_death.<locals>.<genexpr> at 0x0000027EC7A8F850>)"
+        },
+        {
+          "test": "test_human_officer_question_reaches_suspect_via_bot",
+          "class": "tests.quality.test_functional_privacy",
+          "message": "AssertionError: No human question relayed to actual suspect\nassert False\n +  where False = any(<generator object test_human_officer_question_reaches_suspect_via_bot.<locals>.<genexpr> at 0x0000027EC7A85620>)"
+        },
+        {
+          "test": "test_interrogation_content_not_public",
+          "class": "tests.quality.test_functional_privacy",
+          "message": "AssertionError: Interrogation response is addressed to the group\nassert False\n +  where False = <built-in method get of dict object at 0x0000027EC8B75F80>('private')\n +    where <built-in method get of dict object at 0x0000027EC8B75F80> = {'ok': True, 'text': '🗣️ متهم: «من مقتول را دوست داشتم. دنبال قاتل بگردید، نه من.»', 'keyboard': {'inline_keyboard': [...ext': '🔒 حبس موقت', 'callback_data': 'ver:4:1'}, {'text': '🔓 آزادی', 'callback_data': 'ver:4:0'}]]}, 'anim': None, ...}.get"
+        },
+        {
+          "test": "test_private_note_not_copied_to_general_audit_history",
+          "class": "tests.quality.test_functional_privacy",
+          "message": "assert False\n +  where False = all(<generator object test_private_note_not_copied_to_general_audit_history.<locals>.<genexpr> at 0x0000027EC7A84120>)"
+        },
+        {
+          "test": "test_group_ready_does_not_claim_private_delivery",
+          "class": "tests.quality.test_functional_privacy",
+          "message": "AssertionError: assert not True\n +  where True = Player(uid=1, name='کارآگاه 1', role='', align=<Align.CITY: 'شهر'>, alive=True, custody=<Custody.FREE: 'آزاد'>, custod... notes=[], xp=0, coins=0, will='', private_notes=[], qa={}, hunter_target=None, role_assigned='', ready=True, missed=0).ready"
+        },
+        {
+          "test": "test_deep_link_join_is_persisted_in_target_game",
+          "class": "tests.quality.test_functional_privacy",
+          "message": "AssertionError: assert 2 in {1: Player(uid=1, name='کارآگاه 1', role='', align=<Align.CITY: 'شهر'>, alive=True, custody=<Custody.FREE: 'آزاد'>, cu...otes=[], xp=0, coins=0, will='', private_notes=[], qa={}, hunter_target=None, role_assigned='', ready=False, missed=0)}\n +  where {1: Player(uid=1, name='کارآگاه 1', role='', align=<Align.CITY: 'شهر'>, alive=True, custody=<Custody.FREE: 'آزاد'>, cu...otes=[], xp=0, coins=0, will='', private_notes=[], qa={}, hunter_target=None, role_assigned='', ready=False, missed=0)} = GameState(chat_id=-700001, phase=<Phase.LOBBY: 'لابی'>, day=0, case=None, players={1: Player(uid=1, name='کارآگاه 1', ...ramed={}, hidden=[], traces=[], win_reason='', paused=False, paused_left=None, phase_before_jury=None, finalized=False).players\n +    where GameState(chat_id=-700001, phase=<Phase.LOBBY: 'لابی'>, day=0, case=None, players={1: Player(uid=1, name='کارآگاه 1', ...ramed={}, hidden=[], traces=[], win_reason='', paused=False, paused_left=None, phase_before_jury=None, finalized=False) = <karagah.engine.Game object at 0x0000027EC79F1B50>.s"
+        },
+        {
+          "test": "test_old_callback_is_not_redirected_by_table_selection",
+          "class": "tests.quality.test_functional_privacy",
+          "message": "AssertionError: Unversioned old button acted on newly selected game\nassert not {'kill:1': 4}\n +  where {'kill:1': 4} = GameState(chat_id=-700002, phase=<Phase.NIGHT: 'شب'>, day=1, case=Case(cid=1, title='شب بارانی عمارت لواسان', victim='...ramed={}, hidden=[], traces=[], win_reason='', paused=False, paused_left=None, phase_before_jury=None, finalized=False).night_actions\n +    where GameState(chat_id=-700002, phase=<Phase.NIGHT: 'شب'>, day=1, case=Case(cid=1, title='شب بارانی عمارت لواسان', victim='...ramed={}, hidden=[], traces=[], win_reason='', paused=False, paused_left=None, phase_before_jury=None, finalized=False) = <karagah.engine.Game object at 0x0000027EC79F12D0>.s"
+        },
+        {
+          "test": "test_public_progress_does_not_disclose_secret_action_count",
+          "class": "tests.quality.test_functional_privacy",
+          "message": "AssertionError: Public count changes when the only secret actor commits\nassert '⏰ *یادآوری* ... «🌙 پایان شب»' == '⏰ *یادآوری* ... «🌙 پایان شب»'\n  \n  Skipping 94 identical trailing characters in diff, use -v to show\n  - ⏰ *یادآوری* — 1 نفر هنوز\n  ?               ^\n  + ⏰ *یادآوری* — 2 نفر هنوز\n  ?               ^"
+        },
+        {
+          "test": "test_doctor_edit_cannot_bypass_previous_target_rule",
+          "class": "tests.quality.test_regression_contracts",
+          "message": "Failed: DID NOT RAISE RuleError"
+        },
+        {
+          "test": "test_detective_previous_target_survives_dawn",
+          "class": "tests.quality.test_regression_contracts",
+          "message": "Failed: DID NOT RAISE RuleError"
+        },
+        {
+          "test": "test_serial_killer_prevents_premature_city_victory",
+          "class": "tests.quality.test_regression_contracts",
+          "message": "AssertionError: assert 'شهر 🕵️' is None\n +  where 'شهر 🕵️' = _check_win()\n +    where _check_win = <karagah.engine.Game object at 0x0000027EC79F27D0>._check_win"
+        },
+        {
+          "test": "test_serial_killer_receives_winner_rewards",
+          "class": "tests.quality.test_regression_contracts",
+          "message": "AssertionError: assert (40 == 120)\n +  where 40 = Player(uid=1, name='Player 1', role='جانی سریالی', align=<Align.NEUTRAL: 'خنثی'>, alive=True, custody=<Custody.FREE: '...], xp=40, coins=20, will='', private_notes=[], qa={}, hunter_target=None, role_assigned='شهروند', ready=True, missed=0).xp"
+        },
+        {
+          "test": "test_hunter_last_shot_on_life_imprisonment",
+          "class": "tests.quality.test_regression_contracts",
+          "message": "AssertionError: assert not True\n +  where True = Player(uid=4, name='Player 4', role='شهروند', align=<Align.CITY: 'شهر'>, alive=True, custody=<Custody.FREE: 'آزاد'>, c...es=[], xp=0, coins=0, will='', private_notes=[], qa={}, hunter_target=None, role_assigned='پزشک', ready=True, missed=0).alive"
+        },
+        {
+          "test": "test_pause_at_zero_does_not_remove_timer",
+          "class": "tests.quality.test_regression_contracts",
+          "message": "AssertionError: assert None == 1000\n +  where None = GameState(chat_id=-700001, phase=<Phase.NIGHT: 'شب'>, day=1, case=Case(cid=1, title='شب بارانی عمارت لواسان', victim='...ramed={}, hidden=[], traces=[], win_reason='', paused=False, paused_left=None, phase_before_jury=None, finalized=False).deadline\n +    where GameState(chat_id=-700001, phase=<Phase.NIGHT: 'شب'>, day=1, case=Case(cid=1, title='شب بارانی عمارت لواسان', victim='...ramed={}, hidden=[], traces=[], win_reason='', paused=False, paused_left=None, phase_before_jury=None, finalized=False) = <karagah.engine.Game object at 0x0000027EC8BB1C50>.s"
+        },
+        {
+          "test": "test_paused_game_rejects_night_action",
+          "class": "tests.quality.test_regression_contracts",
+          "message": "Failed: DID NOT RAISE RuleError"
+        },
+        {
+          "test": "test_outsider_cannot_control_phases[startgame]",
+          "class": "tests.quality.test_regression_contracts",
+          "message": "assert not True"
+        },
+        {
+          "test": "test_outsider_cannot_control_phases[dawn]",
+          "class": "tests.quality.test_regression_contracts",
+          "message": "assert not True"
+        },
+        {
+          "test": "test_outsider_cannot_control_phases[discuss]",
+          "class": "tests.quality.test_regression_contracts",
+          "message": "assert not True"
+        },
+        {
+          "test": "test_outsider_cannot_control_phases[vote]",
+          "class": "tests.quality.test_regression_contracts",
+          "message": "assert not True"
+        },
+        {
+          "test": "test_outsider_cannot_control_phases[closevote]",
+          "class": "tests.quality.test_regression_contracts",
+          "message": "assert not True"
+        },
+        {
+          "test": "test_start_twice_rejected",
+          "class": "tests.quality.test_regression_contracts",
+          "message": "Failed: DID NOT RAISE RuleError"
+        },
+        {
+          "test": "test_dead_player_cannot_petition_jury",
+          "class": "tests.quality.test_regression_contracts",
+          "message": "Failed: DID NOT RAISE RuleError"
+        },
+        {
+          "test": "test_outsider_petition_does_not_mutate_requests",
+          "class": "tests.quality.test_regression_contracts",
+          "message": "assert {4: {999}} == {}\n  \n  Left contains 1 more item:\n  {4: {999}}\n  Use -v to get more diff"
+        },
+        {
+          "test": "test_verdict_cannot_corrupt_active_jury",
+          "class": "tests.quality.test_regression_contracts",
+          "message": "Failed: DID NOT RAISE RuleError"
+        },
+        {
+          "test": "test_repeated_ballot_does_not_farm_xp",
+          "class": "tests.quality.test_regression_contracts",
+          "message": "AssertionError: assert 270 == (120 + 15)\n +  where 270 = Player(uid=1, name='Player 1', role='شهروند', align=<Align.CITY: 'شهر'>, alive=True, custody=<Custody.FREE: 'آزاد'>, c..., xp=270, coins=60, will='', private_notes=[], qa={}, hunter_target=None, role_assigned='شهروند', ready=True, missed=0).xp"
+        },
+        {
+          "test": "test_banned_user_cannot_join",
+          "class": "tests.quality.test_regression_contracts",
+          "message": "assert not True"
+        },
+        {
+          "test": "test_advertised_role_reachable_in_a_supported_composition[role-6]",
+          "class": "tests.quality.test_regression_contracts",
+          "message": "AssertionError: Advertised but not assignable in a standard game\nassert False\n +  where False = any(<generator object test_advertised_role_reachable_in_a_supported_composition.<locals>.<genexpr> at 0x0000027EC8B9E9B0>)"
+        },
+        {
+          "test": "test_advertised_role_reachable_in_a_supported_composition[role-7]",
+          "class": "tests.quality.test_regression_contracts",
+          "message": "AssertionError: Advertised but not assignable in a standard game\nassert False\n +  where False = any(<generator object test_advertised_role_reachable_in_a_supported_composition.<locals>.<genexpr> at 0x0000027EC8B9FD30>)"
+        },
+        {
+          "test": "test_advertised_role_reachable_in_a_supported_composition[role-17]",
+          "class": "tests.quality.test_regression_contracts",
+          "message": "AssertionError: Advertised but not assignable in a standard game\nassert False\n +  where False = any(<generator object test_advertised_role_reachable_in_a_supported_composition.<locals>.<genexpr> at 0x0000027EC8C6DF20>)"
+        },
+        {
+          "test": "test_advertised_role_reachable_in_a_supported_composition[role-18]",
+          "class": "tests.quality.test_regression_contracts",
+          "message": "AssertionError: Advertised but not assignable in a standard game\nassert False\n +  where False = any(<generator object test_advertised_role_reachable_in_a_supported_composition.<locals>.<genexpr> at 0x0000027EC8C6E8E0>)"
+        },
+        {
+          "test": "test_finalization_retries_after_write_failure",
+          "class": "tests.quality.test_regression_contracts",
+          "message": "assert 0 == 1"
+        },
+        {
+          "test": "test_ended_result_available_after_restart",
+          "class": "tests.quality.test_regression_contracts",
+          "message": "assert False"
+        },
+        {
+          "test": "test_one_vote_cannot_acquit_without_quorum",
+          "class": "tests.quality.test_rule_boundaries",
+          "message": "AssertionError: assert <Custody.FREE: 'آزاد'> is not <Custody.FREE: 'آزاد'>\n +  where <Custody.FREE: 'آزاد'> = Player(uid=4, name='Player 4', role='شهروند', align=<Align.CITY: 'شهر'>, alive=True, custody=<Custody.FREE: 'آزاد'>, c...es=[], xp=0, coins=0, will='', private_notes=[], qa={}, hunter_target=None, role_assigned='پزشک', ready=True, missed=0).custody\n +  and   <Custody.FREE: 'آزاد'> = Custody.FREE"
+        },
+        {
+          "test": "test_officer_cannot_acquit_self",
+          "class": "tests.quality.test_rule_boundaries",
+          "message": "Failed: DID NOT RAISE RuleError"
+        },
+        {
+          "test": "test_empty_survivor_set_is_draw_not_city_win",
+          "class": "tests.quality.test_rule_boundaries",
+          "message": "AssertionError: assert not True\n +  where True = <built-in method startswith of str object at 0x0000027EC6CD1D70>('شهر')\n +    where <built-in method startswith of str object at 0x0000027EC6CD1D70> = ('شهر 🕵️').startswith\n +      where 'شهر 🕵️' = GameState(chat_id=-700001, phase=<Phase.END: 'پایان'>, day=1, case=Case(cid=1, title='شب بارانی عمارت لواسان', victim=...اند (کشته یا حبس ابد) — شهر همه را پیدا کرد.', paused=False, paused_left=None, phase_before_jury=None, finalized=False).winner\n +        where GameState(chat_id=-700001, phase=<Phase.END: 'پایان'>, day=1, case=Case(cid=1, title='شب بارانی عمارت لواسان', victim=...اند (کشته یا حبس ابد) — شهر همه را پیدا کرد.', paused=False, paused_left=None, phase_before_jury=None, finalized=False) = <karagah.engine.Game object at 0x0000027EC8BB2450>.s"
+        },
+        {
+          "test": "test_suspect_death_closes_interrogation_state",
+          "class": "tests.quality.test_rule_boundaries",
+          "message": "AssertionError: assert 4 is None\n +  where 4 = GameState(chat_id=-700001, phase=<Phase.MORNING: 'صبح'>, day=2, case=Case(cid=1, title='شب بارانی عمارت لواسان', victi... نگهبان هم سر می\\u200cزنند).'], win_reason='', paused=False, paused_left=None, phase_before_jury=None, finalized=False).suspect_uid\n +    where GameState(chat_id=-700001, phase=<Phase.MORNING: 'صبح'>, day=2, case=Case(cid=1, title='شب بارانی عمارت لواسان', victi... نگهبان هم سر می\\u200cزنند).'], win_reason='', paused=False, paused_left=None, phase_before_jury=None, finalized=False) = <karagah.engine.Game object at 0x0000027EC8BA0B50>.s"
+        },
+        {
+          "test": "test_evidence_interpretation_requires_membership",
+          "class": "tests.quality.test_rule_boundaries",
+          "message": "assert not True"
+        },
+        {
+          "test": "test_lab_requires_membership",
+          "class": "tests.quality.test_rule_boundaries",
+          "message": "assert not True"
+        },
+        {
+          "test": "test_completed_game_rejects_emergency_detention",
+          "class": "tests.quality.test_rule_boundaries",
+          "message": "Failed: DID NOT RAISE RuleError"
+        },
+        {
+          "test": "test_ineligible_roles_lose_special_powers[interrogation-\\u06a9\\u0627\\u0631\\u0622\\u06af\\u0627\\u0647-expose]",
+          "class": "tests.quality.test_unit_permissions",
+          "message": "Failed: DID NOT RAISE RuleError"
+        },
+        {
+          "test": "test_ineligible_roles_lose_special_powers[interrogation-\\u0634\\u06a9\\u0627\\u0631\\u0686\\u06cc-hunter]",
+          "class": "tests.quality.test_unit_permissions",
+          "message": "Failed: DID NOT RAISE RuleError"
+        },
+        {
+          "test": "test_ineligible_roles_lose_special_powers[interrogation-\\u0628\\u0627\\u0632\\u062c\\u0648-hints]",
+          "class": "tests.quality.test_unit_permissions",
+          "message": "Failed: DID NOT RAISE RuleError"
+        },
+        {
+          "test": "test_ineligible_roles_lose_special_powers[temporary-\\u06a9\\u0627\\u0631\\u0622\\u06af\\u0627\\u0647-expose]",
+          "class": "tests.quality.test_unit_permissions",
+          "message": "Failed: DID NOT RAISE RuleError"
+        },
+        {
+          "test": "test_ineligible_roles_lose_special_powers[temporary-\\u0634\\u06a9\\u0627\\u0631\\u0686\\u06cc-hunter]",
+          "class": "tests.quality.test_unit_permissions",
+          "message": "Failed: DID NOT RAISE RuleError"
+        },
+        {
+          "test": "test_ineligible_roles_lose_special_powers[temporary-\\u0628\\u0627\\u0632\\u062c\\u0648-hints]",
+          "class": "tests.quality.test_unit_permissions",
+          "message": "Failed: DID NOT RAISE RuleError"
+        },
+        {
+          "test": "test_ineligible_roles_lose_special_powers[life-\\u0634\\u06a9\\u0627\\u0631\\u0686\\u06cc-hunter]",
+          "class": "tests.quality.test_unit_permissions",
+          "message": "Failed: DID NOT RAISE RuleError"
+        },
+        {
+          "test": "test_ineligible_roles_lose_special_powers[life-\\u0628\\u0627\\u0632\\u062c\\u0648-hints]",
+          "class": "tests.quality.test_unit_permissions",
+          "message": "Failed: DID NOT RAISE RuleError"
+        },
+        {
+          "test": "test_ineligible_roles_lose_special_powers[dead-\\u0634\\u06a9\\u0627\\u0631\\u0686\\u06cc-hunter]",
+          "class": "tests.quality.test_unit_permissions",
+          "message": "Failed: DID NOT RAISE RuleError"
+        },
+        {
+          "test": "test_ineligible_roles_lose_special_powers[dead-\\u0628\\u0627\\u0632\\u062c\\u0648-hints]",
+          "class": "tests.quality.test_unit_permissions",
+          "message": "Failed: DID NOT RAISE RuleError"
+        }
+      ]
+    }
+  },
+  "source_changed_during_run": []
+}

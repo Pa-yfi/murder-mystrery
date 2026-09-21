@@ -1,0 +1,486 @@
+........FFFFFFFF.FFFFFFF.......FFFFFF.F................................. [  5%]
+........................................................................ [ 10%]
+........................................................................ [ 16%]
+........................................................................ [ 21%]
+........................................................................ [ 27%]
+..FFFFF.FFFFFFFFFFFFF.....FF.........FFFF.....FFFFFFF................... [ 32%]
+........................................................................ [ 38%]
+........................................................................ [ 43%]
+........................................................................ [ 48%]
+........................................................................ [ 54%]
+........................................................................ [ 59%]
+........................................................................ [ 65%]
+........................................................................ [ 70%]
+........................................................................ [ 76%]
+........................................................................ [ 81%]
+........................................................................ [ 86%]
+........................................................................ [ 92%]
+........................................................................ [ 97%]
+.................FFFFFF.FF.FF                                            [100%]
+================================== FAILURES ===================================
+___________ test_invalid_case_does_not_start_or_index_from_end[-1] ____________
+tests\quality\test_edge_cases.py:22: in test_invalid_case_does_not_start_or_index_from_end
+    assert not response["ok"]
+E   assert not True
+___________ test_invalid_case_does_not_start_or_index_from_end[41] ____________
+tests\quality\test_edge_cases.py:23: in test_invalid_case_does_not_start_or_index_from_end
+    assert "خطای داخلی" not in response["text"]
+E   AssertionError: assert 'خطای داخلی' not in '⛔ خطای داخل... /start بزن.'
+E     
+E     'خطای داخلی' is contained here:
+E       ⛔ خطای داخلی هنگام اجرای «startgame». دوباره /start بزن.
+E     ?   ++++++++++
+------------------------------ Captured log call ------------------------------
+ERROR    karagah.bot:bot.py:188 handler startgame failed
+Traceback (most recent call last):
+  File "C:\Users\seyfi\AppData\Local\Temp\karagah-audit-19iehh9o\karagah\bot.py", line 167, in handle
+    res = _ROUTES[cmd](chat, uid, name, arg)
+  File "C:\Users\seyfi\AppData\Local\Temp\karagah-audit-19iehh9o\karagah\bot.py", line 263, in h_startgame
+    g.start(int(case) if case else None, force=asked or not REQUIRE_READY)
+    ~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\seyfi\AppData\Local\Temp\karagah-audit-19iehh9o\karagah\engine.py", line 150, in start
+    self.s.case = CASES[(case_id - 1) if case_id else self.rng.randrange(len(CASES))]
+                  ~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+IndexError: list index out of range
+_ test_invalid_case_does_not_start_or_index_from_end[1208925819614629174706176] _
+tests\quality\test_edge_cases.py:23: in test_invalid_case_does_not_start_or_index_from_end
+    assert "خطای داخلی" not in response["text"]
+E   AssertionError: assert 'خطای داخلی' not in '⛔ خطای داخل... /start بزن.'
+E     
+E     'خطای داخلی' is contained here:
+E       ⛔ خطای داخلی هنگام اجرای «startgame». دوباره /start بزن.
+E     ?   ++++++++++
+------------------------------ Captured log call ------------------------------
+ERROR    karagah.bot:bot.py:188 handler startgame failed
+Traceback (most recent call last):
+  File "C:\Users\seyfi\AppData\Local\Temp\karagah-audit-19iehh9o\karagah\bot.py", line 167, in handle
+    res = _ROUTES[cmd](chat, uid, name, arg)
+  File "C:\Users\seyfi\AppData\Local\Temp\karagah-audit-19iehh9o\karagah\bot.py", line 263, in h_startgame
+    g.start(int(case) if case else None, force=asked or not REQUIRE_READY)
+    ~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\seyfi\AppData\Local\Temp\karagah-audit-19iehh9o\karagah\engine.py", line 150, in start
+    self.s.case = CASES[(case_id - 1) if case_id else self.rng.randrange(len(CASES))]
+                  ~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+IndexError: cannot fit 'int' into an index-sized integer
+______ test_integer_overflow_is_controlled_at_entry[9223372036854775808] ______
+tests\quality\test_edge_cases.py:28: in test_integer_overflow_is_controlled_at_entry
+    response = bot.handle("help", GROUP, uid, "Oversize")
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+karagah\bot.py:154: in handle
+    db.touch_user(uid, _sanitize(name))
+karagah\db.py:124: in touch_user
+    conn().execute(
+E   OverflowError: Python int too large to convert to SQLite INTEGER
+_____ test_integer_overflow_is_controlled_at_entry[-9223372036854775809] ______
+tests\quality\test_edge_cases.py:28: in test_integer_overflow_is_controlled_at_entry
+    response = bot.handle("help", GROUP, uid, "Oversize")
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+karagah\bot.py:154: in handle
+    db.touch_user(uid, _sanitize(name))
+karagah\db.py:124: in touch_user
+    conn().execute(
+E   OverflowError: Python int too large to convert to SQLite INTEGER
+______________ test_notes_have_bounded_total_storage_and_output _______________
+tests\quality\test_edge_cases.py:36: in test_notes_have_bounded_total_storage_and_output
+    assert len(g.s.players[1].private_notes) <= 100, "No total note quota"
+E   AssertionError: No total note quota
+E   assert 101 <= 100
+E    +  where 101 = len(['0:xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx...xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx', ...])
+E    +    where ['0:xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx...xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx', ...] = Player(uid=1, name='Player 1', role='شهروند', align=<Align.CITY: 'شهر'>, alive=True, custody=<Custody.FREE: 'آزاد'>, c...xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx'], qa={}, hunter_target=None, role_assigned='شهروند', ready=True, missed=0).private_notes
+_________ test_notes_output_is_bounded_independently_of_storage_quota _________
+tests\quality\test_edge_cases.py:45: in test_notes_output_is_bounded_independently_of_storage_quota
+    assert len(bot.handle("notes", GROUP, 1)["text"]) <= 3500
+E   AssertionError: assert 6217 <= 3500
+E    +  where 6217 = len('🔎 *یافته\u200cهای نقش تو:*\n  — هنوز چیزی نرسیده —\n\n📝 *یادداشت\u200cهای خودت:*\n  • xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx...xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx')
+______________ test_repeated_questions_have_a_bounded_transcript ______________
+tests\quality\test_edge_cases.py:54: in test_repeated_questions_have_a_bounded_transcript
+    assert len(g.s.players[4].qa) <= 100
+E   AssertionError: assert 101 <= 100
+E    +  where 101 = len({'question-0': 'من مقتول را دوست داشتم. دنبال قاتل بگردید، نه من.', 'question-1': 'من مقتول را دوست داشتم. دنبال قاتل ...': 'بله دیدمش، ولی فقط یک لحظه. همین.', 'question-3': 'چرا همه\u200cی سؤال\u200cها از من است؟ از بقیه هم بپرسید.', ...})
+E    +    where {'question-0': 'من مقتول را دوست داشتم. دنبال قاتل بگردید، نه من.', 'question-1': 'من مقتول را دوست داشتم. دنبال قاتل ...': 'بله دیدمش، ولی فقط یک لحظه. همین.', 'question-3': 'چرا همه\u200cی سؤال\u200cها از من است؟ از بقیه هم بپرسید.', ...} = Player(uid=4, name='Player 4', role='شهروند', align=<Align.CITY: 'شهر'>, alive=True, custody=<Custody.INTERROGATION: '... ندارد. (زیر لب: «راز: وصیت\u200cنامه دو نسخه داشت»)'}, hunter_target=None, role_assigned='پزشک', ready=True, missed=0).qa
+______ test_duplicate_command_does_not_grow_ballot_history_without_bound ______
+tests\quality\test_edge_cases.py:69: in test_duplicate_command_does_not_grow_ballot_history_without_bound
+    assert len(g.s.vote_history) == 1
+E   AssertionError: assert 100 == 1
+E    +  where 100 = len([(1, 1, 3), (1, 1, 3), (1, 1, 3), (1, 1, 3), (1, 1, 3), (1, 1, 3), ...])
+E    +    where [(1, 1, 3), (1, 1, 3), (1, 1, 3), (1, 1, 3), (1, 1, 3), (1, 1, 3), ...] = GameState(chat_id=-700001, phase=<Phase.VOTE: 'رای\u200cگیری'>, day=1, case=Case(cid=1, title='شب بارانی عمارت لواسان'...ramed={}, hidden=[], traces=[], win_reason='', paused=False, paused_left=None, phase_before_jury=None, finalized=False).vote_history
+E    +      where GameState(chat_id=-700001, phase=<Phase.VOTE: 'رای\u200cگیری'>, day=1, case=Case(cid=1, title='شب بارانی عمارت لواسان'...ramed={}, hidden=[], traces=[], win_reason='', paused=False, paused_left=None, phase_before_jury=None, finalized=False) = <karagah.engine.Game object at 0x0000027EC782BE10>.s
+_________ test_evidence_authenticity_not_predictable_by_deck_position _________
+tests\quality\test_evidence_contracts.py:9: in test_evidence_authenticity_not_predictable_by_deck_position
+    assert len(masks) > 1, "Every case exposes the same authenticity mask, bypassing investigation"
+E   AssertionError: Every case exposes the same authenticity mask, bypassing investigation
+E   assert 1 > 1
+E    +  where 1 = len({(False, True, False, False, True, False)})
+_________ test_revealed_evidence_not_duplicated_after_deck_exhaustion _________
+tests\quality\test_evidence_contracts.py:16: in test_revealed_evidence_not_duplicated_after_deck_exhaustion
+    assert len(g.s.revealed_evidence) == len(set(g.s.revealed_evidence))
+E   AssertionError: assert 9 == 6
+E    +  where 9 = len(['E1', 'E2', 'E3', 'E4', 'E5', 'E6', ...])
+E    +    where ['E1', 'E2', 'E3', 'E4', 'E5', 'E6', ...] = GameState(chat_id=-700001, phase=<Phase.NIGHT: 'شب'>, day=9, case=Case(cid=1, title='شب بارانی عمارت لواسان', victim='...ramed={}, hidden=[], traces=[], win_reason='', paused=False, paused_left=None, phase_before_jury=None, finalized=False).revealed_evidence
+E    +      where GameState(chat_id=-700001, phase=<Phase.NIGHT: 'شب'>, day=9, case=Case(cid=1, title='شب بارانی عمارت لواسان', victim='...ramed={}, hidden=[], traces=[], win_reason='', paused=False, paused_left=None, phase_before_jury=None, finalized=False) = <karagah.engine.Game object at 0x0000027EC7A6EA50>.s
+E    +  and   6 = len({'E1', 'E2', 'E3', 'E4', 'E5', 'E6'})
+E    +    where {'E1', 'E2', 'E3', 'E4', 'E5', 'E6'} = set(['E1', 'E2', 'E3', 'E4', 'E5', 'E6', ...])
+E    +      where ['E1', 'E2', 'E3', 'E4', 'E5', 'E6', ...] = GameState(chat_id=-700001, phase=<Phase.NIGHT: 'شب'>, day=9, case=Case(cid=1, title='شب بارانی عمارت لواسان', victim='...ramed={}, hidden=[], traces=[], win_reason='', paused=False, paused_left=None, phase_before_jury=None, finalized=False).revealed_evidence
+E    +        where GameState(chat_id=-700001, phase=<Phase.NIGHT: 'شب'>, day=9, case=Case(cid=1, title='شب بارانی عمارت لواسان', victim='...ramed={}, hidden=[], traces=[], win_reason='', paused=False, paused_left=None, phase_before_jury=None, finalized=False) = <karagah.engine.Game object at 0x0000027EC7A6EA50>.s
+____ test_laboratory_result_contains_actionable_case_specific_information _____
+tests\quality\test_evidence_contracts.py:28: in test_laboratory_result_contains_actionable_case_specific_information
+    assert any(term in results[0] for term in meaningful), "Generic 'narrow interpretations' message supplies no result"
+E   AssertionError: Generic 'narrow interpretations' message supplies no result
+E   assert False
+E    +  where False = any(<generator object test_laboratory_result_contains_actionable_case_specific_information.<locals>.<genexpr> at 0x0000027EC7A87AE0>)
+__________ test_spy_distinguishes_questioning_from_public_nomination __________
+tests\quality\test_evidence_contracts.py:43: in test_spy_distinguishes_questioning_from_public_nomination
+    assert findings[0] != findings[1], "Spy only reports the public nomination, regardless of actual questioning"
+E   AssertionError: Spy only reports the public nomination, regardless of actual questioning
+E   assert ['📞 شب 2: بازجو سراغ Player 4 رفته بود.'] != ['📞 شب 2: بازجو سراغ Player 4 رفته بود.']
+______________________ test_grocer_gets_new_daily_rumor _______________________
+tests\quality\test_evidence_contracts.py:51: in test_grocer_gets_new_daily_rumor
+    assert after > before
+E   assert 0 > 0
+_________ test_trace_does_not_claim_direct_killer_for_indirect_death __________
+tests\quality\test_evidence_contracts.py:58: in test_trace_does_not_claim_direct_killer_for_indirect_death
+    assert all("قاتل بین آن‌هاست" not in line for line in g.s.traces), "A visitor is falsely guaranteed to be the killer"
+E   AssertionError: A visitor is falsely guaranteed to be the killer
+E   assert False
+E    +  where False = all(<generator object test_trace_does_not_claim_direct_killer_for_indirect_death.<locals>.<genexpr> at 0x0000027EC7A8F850>)
+_____________ test_human_officer_question_reaches_suspect_via_bot _____________
+tests\quality\test_functional_privacy.py:44: in test_human_officer_question_reaches_suspect_via_bot
+    assert any(c.args[0] == 4 and question in c.args[1] for c in transport.send_message.call_args_list), "No human question relayed to actual suspect"
+E   AssertionError: No human question relayed to actual suspect
+E   assert False
+E    +  where False = any(<generator object test_human_officer_question_reaches_suspect_via_bot.<locals>.<genexpr> at 0x0000027EC7A85620>)
+____________________ test_interrogation_content_not_public ____________________
+tests\quality\test_functional_privacy.py:50: in test_interrogation_content_not_public
+    assert response.get("private"), "Interrogation response is addressed to the group"
+E   AssertionError: Interrogation response is addressed to the group
+E   assert False
+E    +  where False = <built-in method get of dict object at 0x0000027EC8B75F80>('private')
+E    +    where <built-in method get of dict object at 0x0000027EC8B75F80> = {'ok': True, 'text': '🗣️ متهم: «من مقتول را دوست داشتم. دنبال قاتل بگردید، نه من.»', 'keyboard': {'inline_keyboard': [...ext': '🔒 حبس موقت', 'callback_data': 'ver:4:1'}, {'text': '🔓 آزادی', 'callback_data': 'ver:4:0'}]]}, 'anim': None, ...}.get
+____________ test_private_note_not_copied_to_general_audit_history ____________
+tests\quality\test_functional_privacy.py:57: in test_private_note_not_copied_to_general_audit_history
+    assert all(secret not in row["detail"] for row in db.q_user_events(1))
+E   assert False
+E    +  where False = all(<generator object test_private_note_not_copied_to_general_audit_history.<locals>.<genexpr> at 0x0000027EC7A84120>)
+______________ test_group_ready_does_not_claim_private_delivery _______________
+tests\quality\test_functional_privacy.py:64: in test_group_ready_does_not_claim_private_delivery
+    assert not bot.GAMES[GROUP].s.players[1].ready
+E   AssertionError: assert not True
+E    +  where True = Player(uid=1, name='کارآگاه 1', role='', align=<Align.CITY: 'شهر'>, alive=True, custody=<Custody.FREE: 'آزاد'>, custod... notes=[], xp=0, coins=0, will='', private_notes=[], qa={}, hunter_target=None, role_assigned='', ready=True, missed=0).ready
+_______________ test_deep_link_join_is_persisted_in_target_game _______________
+tests\quality\test_functional_privacy.py:71: in test_deep_link_join_is_persisted_in_target_game
+    assert 2 in bot.GAMES[GROUP].s.players
+E   AssertionError: assert 2 in {1: Player(uid=1, name='کارآگاه 1', role='', align=<Align.CITY: 'شهر'>, alive=True, custody=<Custody.FREE: 'آزاد'>, cu...otes=[], xp=0, coins=0, will='', private_notes=[], qa={}, hunter_target=None, role_assigned='', ready=False, missed=0)}
+E    +  where {1: Player(uid=1, name='کارآگاه 1', role='', align=<Align.CITY: 'شهر'>, alive=True, custody=<Custody.FREE: 'آزاد'>, cu...otes=[], xp=0, coins=0, will='', private_notes=[], qa={}, hunter_target=None, role_assigned='', ready=False, missed=0)} = GameState(chat_id=-700001, phase=<Phase.LOBBY: 'لابی'>, day=0, case=None, players={1: Player(uid=1, name='کارآگاه 1', ...ramed={}, hidden=[], traces=[], win_reason='', paused=False, paused_left=None, phase_before_jury=None, finalized=False).players
+E    +    where GameState(chat_id=-700001, phase=<Phase.LOBBY: 'لابی'>, day=0, case=None, players={1: Player(uid=1, name='کارآگاه 1', ...ramed={}, hidden=[], traces=[], win_reason='', paused=False, paused_left=None, phase_before_jury=None, finalized=False) = <karagah.engine.Game object at 0x0000027EC79F1B50>.s
+___________ test_old_callback_is_not_redirected_by_table_selection ____________
+tests\quality\test_functional_privacy.py:84: in test_old_callback_is_not_redirected_by_table_selection
+    assert not second.s.night_actions, "Unversioned old button acted on newly selected game"
+E   AssertionError: Unversioned old button acted on newly selected game
+E   assert not {'kill:1': 4}
+E    +  where {'kill:1': 4} = GameState(chat_id=-700002, phase=<Phase.NIGHT: 'شب'>, day=1, case=Case(cid=1, title='شب بارانی عمارت لواسان', victim='...ramed={}, hidden=[], traces=[], win_reason='', paused=False, paused_left=None, phase_before_jury=None, finalized=False).night_actions
+E    +    where GameState(chat_id=-700002, phase=<Phase.NIGHT: 'شب'>, day=1, case=Case(cid=1, title='شب بارانی عمارت لواسان', victim='...ramed={}, hidden=[], traces=[], win_reason='', paused=False, paused_left=None, phase_before_jury=None, finalized=False) = <karagah.engine.Game object at 0x0000027EC79F12D0>.s
+_________ test_public_progress_does_not_disclose_secret_action_count __________
+tests\quality\test_functional_privacy.py:101: in test_public_progress_does_not_disclose_secret_action_count
+    assert before == after, "Public count changes when the only secret actor commits"
+E   AssertionError: Public count changes when the only secret actor commits
+E   assert '⏰ *یادآوری* ... «🌙 پایان شب»' == '⏰ *یادآوری* ... «🌙 پایان شب»'
+E     
+E     Skipping 94 identical trailing characters in diff, use -v to show
+E     - ⏰ *یادآوری* — 1 نفر هنوز
+E     ?               ^
+E     + ⏰ *یادآوری* — 2 نفر هنوز
+E     ?               ^
+_____________ test_doctor_edit_cannot_bypass_previous_target_rule _____________
+tests\quality\test_regression_contracts.py:15: in test_doctor_edit_cannot_bypass_previous_target_rule
+    with pytest.raises(RuleError):
+         ^^^^^^^^^^^^^^^^^^^^^^^^
+E   Failed: DID NOT RAISE RuleError
+________________ test_detective_previous_target_survives_dawn _________________
+tests\quality\test_regression_contracts.py:23: in test_detective_previous_target_survives_dawn
+    with pytest.raises(RuleError):
+         ^^^^^^^^^^^^^^^^^^^^^^^^
+E   Failed: DID NOT RAISE RuleError
+_____________ test_serial_killer_prevents_premature_city_victory ______________
+tests\quality\test_regression_contracts.py:30: in test_serial_killer_prevents_premature_city_victory
+    assert g._check_win() is None
+E   AssertionError: assert 'شهر 🕵️' is None
+E    +  where 'شهر 🕵️' = _check_win()
+E    +    where _check_win = <karagah.engine.Game object at 0x0000027EC79F27D0>._check_win
+_________________ test_serial_killer_receives_winner_rewards __________________
+tests\quality\test_regression_contracts.py:39: in test_serial_killer_receives_winner_rewards
+    assert g.s.players[1].xp == 120 and g.s.players[1].coins == 60
+E   AssertionError: assert (40 == 120)
+E    +  where 40 = Player(uid=1, name='Player 1', role='جانی سریالی', align=<Align.NEUTRAL: 'خنثی'>, alive=True, custody=<Custody.FREE: '...], xp=40, coins=20, will='', private_notes=[], qa={}, hunter_target=None, role_assigned='شهروند', ready=True, missed=0).xp
+_________________ test_hunter_last_shot_on_life_imprisonment __________________
+tests\quality\test_regression_contracts.py:50: in test_hunter_last_shot_on_life_imprisonment
+    assert not g.s.players[4].alive
+E   AssertionError: assert not True
+E    +  where True = Player(uid=4, name='Player 4', role='شهروند', align=<Align.CITY: 'شهر'>, alive=True, custody=<Custody.FREE: 'آزاد'>, c...es=[], xp=0, coins=0, will='', private_notes=[], qa={}, hunter_target=None, role_assigned='پزشک', ready=True, missed=0).alive
+__________________ test_pause_at_zero_does_not_remove_timer ___________________
+tests\quality\test_regression_contracts.py:69: in test_pause_at_zero_does_not_remove_timer
+    assert g.s.deadline == 1000
+E   AssertionError: assert None == 1000
+E    +  where None = GameState(chat_id=-700001, phase=<Phase.NIGHT: 'شب'>, day=1, case=Case(cid=1, title='شب بارانی عمارت لواسان', victim='...ramed={}, hidden=[], traces=[], win_reason='', paused=False, paused_left=None, phase_before_jury=None, finalized=False).deadline
+E    +    where GameState(chat_id=-700001, phase=<Phase.NIGHT: 'شب'>, day=1, case=Case(cid=1, title='شب بارانی عمارت لواسان', victim='...ramed={}, hidden=[], traces=[], win_reason='', paused=False, paused_left=None, phase_before_jury=None, finalized=False) = <karagah.engine.Game object at 0x0000027EC8BB1C50>.s
+____________________ test_paused_game_rejects_night_action ____________________
+tests\quality\test_regression_contracts.py:75: in test_paused_game_rejects_night_action
+    with pytest.raises(RuleError):
+         ^^^^^^^^^^^^^^^^^^^^^^^^
+E   Failed: DID NOT RAISE RuleError
+_______________ test_outsider_cannot_control_phases[startgame] ________________
+tests\quality\test_regression_contracts.py:90: in test_outsider_cannot_control_phases
+    assert not response["ok"]
+E   assert not True
+__________________ test_outsider_cannot_control_phases[dawn] __________________
+tests\quality\test_regression_contracts.py:90: in test_outsider_cannot_control_phases
+    assert not response["ok"]
+E   assert not True
+________________ test_outsider_cannot_control_phases[discuss] _________________
+tests\quality\test_regression_contracts.py:90: in test_outsider_cannot_control_phases
+    assert not response["ok"]
+E   assert not True
+__________________ test_outsider_cannot_control_phases[vote] __________________
+tests\quality\test_regression_contracts.py:90: in test_outsider_cannot_control_phases
+    assert not response["ok"]
+E   assert not True
+_______________ test_outsider_cannot_control_phases[closevote] ________________
+tests\quality\test_regression_contracts.py:90: in test_outsider_cannot_control_phases
+    assert not response["ok"]
+E   assert not True
+__________________________ test_start_twice_rejected __________________________
+tests\quality\test_regression_contracts.py:96: in test_start_twice_rejected
+    with pytest.raises(RuleError):
+         ^^^^^^^^^^^^^^^^^^^^^^^^
+E   Failed: DID NOT RAISE RuleError
+____________________ test_dead_player_cannot_petition_jury ____________________
+tests\quality\test_regression_contracts.py:104: in test_dead_player_cannot_petition_jury
+    with pytest.raises(RuleError):
+         ^^^^^^^^^^^^^^^^^^^^^^^^
+E   Failed: DID NOT RAISE RuleError
+_______________ test_outsider_petition_does_not_mutate_requests _______________
+tests\quality\test_regression_contracts.py:114: in test_outsider_petition_does_not_mutate_requests
+    assert g.s.jury_requests == before
+E   assert {4: {999}} == {}
+E     
+E     Left contains 1 more item:
+E     {4: {999}}
+E     Use -v to get more diff
+------------------------------ Captured log call ------------------------------
+ERROR    karagah.bot:bot.py:188 handler jury failed
+Traceback (most recent call last):
+  File "C:\Users\seyfi\AppData\Local\Temp\karagah-audit-19iehh9o\karagah\bot.py", line 167, in handle
+    res = _ROUTES[cmd](chat, uid, name, arg)
+  File "C:\Users\seyfi\AppData\Local\Temp\karagah-audit-19iehh9o\karagah\bot.py", line 386, in h_jury
+    formed = g.request_jury(uid)
+  File "C:\Users\seyfi\AppData\Local\Temp\karagah-audit-19iehh9o\karagah\engine.py", line 661, in request_jury
+    need = 1 if self.s.players[uid].role == "وکیل" else JURY_MIN_REQUESTS
+                ~~~~~~~~~~~~~~^^^^^
+KeyError: 999
+___________________ test_verdict_cannot_corrupt_active_jury ___________________
+tests\quality\test_regression_contracts.py:122: in test_verdict_cannot_corrupt_active_jury
+    with pytest.raises(RuleError):
+         ^^^^^^^^^^^^^^^^^^^^^^^^
+E   Failed: DID NOT RAISE RuleError
+____________________ test_repeated_ballot_does_not_farm_xp ____________________
+tests\quality\test_regression_contracts.py:133: in test_repeated_ballot_does_not_farm_xp
+    assert g.s.players[1].xp == 120 + 15
+E   AssertionError: assert 270 == (120 + 15)
+E    +  where 270 = Player(uid=1, name='Player 1', role='شهروند', align=<Align.CITY: 'شهر'>, alive=True, custody=<Custody.FREE: 'آزاد'>, c..., xp=270, coins=60, will='', private_notes=[], qa={}, hunter_target=None, role_assigned='شهروند', ready=True, missed=0).xp
+________________________ test_banned_user_cannot_join _________________________
+tests\quality\test_regression_contracts.py:139: in test_banned_user_cannot_join
+    assert not bot.handle("join", GROUP, 2)["ok"]
+E   assert not True
+______ test_advertised_role_reachable_in_a_supported_composition[role-6] ______
+tests\quality\test_regression_contracts.py:145: in test_advertised_role_reachable_in_a_supported_composition
+    assert any(role in composition for composition in COMPOSITIONS.values()), "Advertised but not assignable in a standard game"
+E   AssertionError: Advertised but not assignable in a standard game
+E   assert False
+E    +  where False = any(<generator object test_advertised_role_reachable_in_a_supported_composition.<locals>.<genexpr> at 0x0000027EC8B9E9B0>)
+______ test_advertised_role_reachable_in_a_supported_composition[role-7] ______
+tests\quality\test_regression_contracts.py:145: in test_advertised_role_reachable_in_a_supported_composition
+    assert any(role in composition for composition in COMPOSITIONS.values()), "Advertised but not assignable in a standard game"
+E   AssertionError: Advertised but not assignable in a standard game
+E   assert False
+E    +  where False = any(<generator object test_advertised_role_reachable_in_a_supported_composition.<locals>.<genexpr> at 0x0000027EC8B9FD30>)
+_____ test_advertised_role_reachable_in_a_supported_composition[role-17] ______
+tests\quality\test_regression_contracts.py:145: in test_advertised_role_reachable_in_a_supported_composition
+    assert any(role in composition for composition in COMPOSITIONS.values()), "Advertised but not assignable in a standard game"
+E   AssertionError: Advertised but not assignable in a standard game
+E   assert False
+E    +  where False = any(<generator object test_advertised_role_reachable_in_a_supported_composition.<locals>.<genexpr> at 0x0000027EC8C6DF20>)
+_____ test_advertised_role_reachable_in_a_supported_composition[role-18] ______
+tests\quality\test_regression_contracts.py:145: in test_advertised_role_reachable_in_a_supported_composition
+    assert any(role in composition for composition in COMPOSITIONS.values()), "Advertised but not assignable in a standard game"
+E   AssertionError: Advertised but not assignable in a standard game
+E   assert False
+E    +  where False = any(<generator object test_advertised_role_reachable_in_a_supported_composition.<locals>.<genexpr> at 0x0000027EC8C6E8E0>)
+________________ test_finalization_retries_after_write_failure ________________
+tests\quality\test_regression_contracts.py:160: in test_finalization_retries_after_write_failure
+    assert db.q_user(1)["games"] == 1
+E   assert 0 == 1
+------------------------------ Captured log call ------------------------------
+ERROR    karagah.bot:bot.py:188 handler dawn failed
+Traceback (most recent call last):
+  File "C:\Users\seyfi\AppData\Local\Temp\karagah-audit-19iehh9o\karagah\bot.py", line 177, in handle
+    db.record_results(g)
+    ~~~~~~~~~~~~~~~~~^^^
+  File "C:\Users\seyfi\AppData\Local\Temp\karagah-audit-19iehh9o\tests\quality\test_regression_contracts.py", line 155, in unavailable
+    raise RuntimeError("simulated temporary DB failure")
+RuntimeError: simulated temporary DB failure
+__________________ test_ended_result_available_after_restart __________________
+tests\quality\test_regression_contracts.py:170: in test_ended_result_available_after_restart
+    assert bot.handle("end", GROUP, 1)["ok"]
+E   assert False
+_________________ test_one_vote_cannot_acquit_without_quorum __________________
+tests\quality\test_rule_boundaries.py:31: in test_one_vote_cannot_acquit_without_quorum
+    assert g.s.players[4].custody is not Custody.FREE
+E   AssertionError: assert <Custody.FREE: 'آزاد'> is not <Custody.FREE: 'آزاد'>
+E    +  where <Custody.FREE: 'آزاد'> = Player(uid=4, name='Player 4', role='شهروند', align=<Align.CITY: 'شهر'>, alive=True, custody=<Custody.FREE: 'آزاد'>, c...es=[], xp=0, coins=0, will='', private_notes=[], qa={}, hunter_target=None, role_assigned='پزشک', ready=True, missed=0).custody
+E    +  and   <Custody.FREE: 'آزاد'> = Custody.FREE
+_______________________ test_officer_cannot_acquit_self _______________________
+tests\quality\test_rule_boundaries.py:37: in test_officer_cannot_acquit_self
+    with pytest.raises(RuleError):
+         ^^^^^^^^^^^^^^^^^^^^^^^^
+E   Failed: DID NOT RAISE RuleError
+________________ test_empty_survivor_set_is_draw_not_city_win _________________
+tests\quality\test_rule_boundaries.py:46: in test_empty_survivor_set_is_draw_not_city_win
+    assert not (g.s.winner or "").startswith("شهر")
+E   AssertionError: assert not True
+E    +  where True = <built-in method startswith of str object at 0x0000027EC6CD1D70>('شهر')
+E    +    where <built-in method startswith of str object at 0x0000027EC6CD1D70> = ('شهر 🕵️').startswith
+E    +      where 'شهر 🕵️' = GameState(chat_id=-700001, phase=<Phase.END: 'پایان'>, day=1, case=Case(cid=1, title='شب بارانی عمارت لواسان', victim=...اند (کشته یا حبس ابد) — شهر همه را پیدا کرد.', paused=False, paused_left=None, phase_before_jury=None, finalized=False).winner
+E    +        where GameState(chat_id=-700001, phase=<Phase.END: 'پایان'>, day=1, case=Case(cid=1, title='شب بارانی عمارت لواسان', victim=...اند (کشته یا حبس ابد) — شهر همه را پیدا کرد.', paused=False, paused_left=None, phase_before_jury=None, finalized=False) = <karagah.engine.Game object at 0x0000027EC8BB2450>.s
+________________ test_suspect_death_closes_interrogation_state ________________
+tests\quality\test_rule_boundaries.py:58: in test_suspect_death_closes_interrogation_state
+    assert g.s.suspect_uid is None
+E   AssertionError: assert 4 is None
+E    +  where 4 = GameState(chat_id=-700001, phase=<Phase.MORNING: 'صبح'>, day=2, case=Case(cid=1, title='شب بارانی عمارت لواسان', victi... نگهبان هم سر می\u200cزنند).'], win_reason='', paused=False, paused_left=None, phase_before_jury=None, finalized=False).suspect_uid
+E    +    where GameState(chat_id=-700001, phase=<Phase.MORNING: 'صبح'>, day=2, case=Case(cid=1, title='شب بارانی عمارت لواسان', victi... نگهبان هم سر می\u200cزنند).'], win_reason='', paused=False, paused_left=None, phase_before_jury=None, finalized=False) = <karagah.engine.Game object at 0x0000027EC8BA0B50>.s
+______________ test_evidence_interpretation_requires_membership _______________
+tests\quality\test_rule_boundaries.py:65: in test_evidence_interpretation_requires_membership
+    assert not result["ok"]
+E   assert not True
+________________________ test_lab_requires_membership _________________________
+tests\quality\test_rule_boundaries.py:72: in test_lab_requires_membership
+    assert not result["ok"]
+E   assert not True
+_______________ test_completed_game_rejects_emergency_detention _______________
+tests\quality\test_rule_boundaries.py:80: in test_completed_game_rejects_emergency_detention
+    with pytest.raises(RuleError):
+         ^^^^^^^^^^^^^^^^^^^^^^^^
+E   Failed: DID NOT RAISE RuleError
+_ test_ineligible_roles_lose_special_powers[interrogation-\u06a9\u0627\u0631\u0622\u06af\u0627\u0647-expose] _
+tests\quality\test_unit_permissions.py:67: in test_ineligible_roles_lose_special_powers
+    with pytest.raises(RuleError):
+         ^^^^^^^^^^^^^^^^^^^^^^^^
+E   Failed: DID NOT RAISE RuleError
+_ test_ineligible_roles_lose_special_powers[interrogation-\u0634\u06a9\u0627\u0631\u0686\u06cc-hunter] _
+tests\quality\test_unit_permissions.py:67: in test_ineligible_roles_lose_special_powers
+    with pytest.raises(RuleError):
+         ^^^^^^^^^^^^^^^^^^^^^^^^
+E   Failed: DID NOT RAISE RuleError
+_ test_ineligible_roles_lose_special_powers[interrogation-\u0628\u0627\u0632\u062c\u0648-hints] _
+tests\quality\test_unit_permissions.py:67: in test_ineligible_roles_lose_special_powers
+    with pytest.raises(RuleError):
+         ^^^^^^^^^^^^^^^^^^^^^^^^
+E   Failed: DID NOT RAISE RuleError
+_ test_ineligible_roles_lose_special_powers[temporary-\u06a9\u0627\u0631\u0622\u06af\u0627\u0647-expose] _
+tests\quality\test_unit_permissions.py:67: in test_ineligible_roles_lose_special_powers
+    with pytest.raises(RuleError):
+         ^^^^^^^^^^^^^^^^^^^^^^^^
+E   Failed: DID NOT RAISE RuleError
+_ test_ineligible_roles_lose_special_powers[temporary-\u0634\u06a9\u0627\u0631\u0686\u06cc-hunter] _
+tests\quality\test_unit_permissions.py:67: in test_ineligible_roles_lose_special_powers
+    with pytest.raises(RuleError):
+         ^^^^^^^^^^^^^^^^^^^^^^^^
+E   Failed: DID NOT RAISE RuleError
+_ test_ineligible_roles_lose_special_powers[temporary-\u0628\u0627\u0632\u062c\u0648-hints] _
+tests\quality\test_unit_permissions.py:67: in test_ineligible_roles_lose_special_powers
+    with pytest.raises(RuleError):
+         ^^^^^^^^^^^^^^^^^^^^^^^^
+E   Failed: DID NOT RAISE RuleError
+_ test_ineligible_roles_lose_special_powers[life-\u0634\u06a9\u0627\u0631\u0686\u06cc-hunter] _
+tests\quality\test_unit_permissions.py:67: in test_ineligible_roles_lose_special_powers
+    with pytest.raises(RuleError):
+         ^^^^^^^^^^^^^^^^^^^^^^^^
+E   Failed: DID NOT RAISE RuleError
+_ test_ineligible_roles_lose_special_powers[life-\u0628\u0627\u0632\u062c\u0648-hints] _
+tests\quality\test_unit_permissions.py:67: in test_ineligible_roles_lose_special_powers
+    with pytest.raises(RuleError):
+         ^^^^^^^^^^^^^^^^^^^^^^^^
+E   Failed: DID NOT RAISE RuleError
+_ test_ineligible_roles_lose_special_powers[dead-\u0634\u06a9\u0627\u0631\u0686\u06cc-hunter] _
+tests\quality\test_unit_permissions.py:67: in test_ineligible_roles_lose_special_powers
+    with pytest.raises(RuleError):
+         ^^^^^^^^^^^^^^^^^^^^^^^^
+E   Failed: DID NOT RAISE RuleError
+_ test_ineligible_roles_lose_special_powers[dead-\u0628\u0627\u0632\u062c\u0648-hints] _
+tests\quality\test_unit_permissions.py:67: in test_ineligible_roles_lose_special_powers
+    with pytest.raises(RuleError):
+         ^^^^^^^^^^^^^^^^^^^^^^^^
+E   Failed: DID NOT RAISE RuleError
+=========================== short test summary info ===========================
+FAILED tests/quality/test_edge_cases.py::test_invalid_case_does_not_start_or_index_from_end[-1]
+FAILED tests/quality/test_edge_cases.py::test_invalid_case_does_not_start_or_index_from_end[41]
+FAILED tests/quality/test_edge_cases.py::test_invalid_case_does_not_start_or_index_from_end[1208925819614629174706176]
+FAILED tests/quality/test_edge_cases.py::test_integer_overflow_is_controlled_at_entry[9223372036854775808]
+FAILED tests/quality/test_edge_cases.py::test_integer_overflow_is_controlled_at_entry[-9223372036854775809]
+FAILED tests/quality/test_edge_cases.py::test_notes_have_bounded_total_storage_and_output
+FAILED tests/quality/test_edge_cases.py::test_notes_output_is_bounded_independently_of_storage_quota
+FAILED tests/quality/test_edge_cases.py::test_repeated_questions_have_a_bounded_transcript
+FAILED tests/quality/test_edge_cases.py::test_duplicate_command_does_not_grow_ballot_history_without_bound
+FAILED tests/quality/test_evidence_contracts.py::test_evidence_authenticity_not_predictable_by_deck_position
+FAILED tests/quality/test_evidence_contracts.py::test_revealed_evidence_not_duplicated_after_deck_exhaustion
+FAILED tests/quality/test_evidence_contracts.py::test_laboratory_result_contains_actionable_case_specific_information
+FAILED tests/quality/test_evidence_contracts.py::test_spy_distinguishes_questioning_from_public_nomination
+FAILED tests/quality/test_evidence_contracts.py::test_grocer_gets_new_daily_rumor
+FAILED tests/quality/test_evidence_contracts.py::test_trace_does_not_claim_direct_killer_for_indirect_death
+FAILED tests/quality/test_functional_privacy.py::test_human_officer_question_reaches_suspect_via_bot
+FAILED tests/quality/test_functional_privacy.py::test_interrogation_content_not_public
+FAILED tests/quality/test_functional_privacy.py::test_private_note_not_copied_to_general_audit_history
+FAILED tests/quality/test_functional_privacy.py::test_group_ready_does_not_claim_private_delivery
+FAILED tests/quality/test_functional_privacy.py::test_deep_link_join_is_persisted_in_target_game
+FAILED tests/quality/test_functional_privacy.py::test_old_callback_is_not_redirected_by_table_selection
+FAILED tests/quality/test_functional_privacy.py::test_public_progress_does_not_disclose_secret_action_count
+FAILED tests/quality/test_regression_contracts.py::test_doctor_edit_cannot_bypass_previous_target_rule
+FAILED tests/quality/test_regression_contracts.py::test_detective_previous_target_survives_dawn
+FAILED tests/quality/test_regression_contracts.py::test_serial_killer_prevents_premature_city_victory
+FAILED tests/quality/test_regression_contracts.py::test_serial_killer_receives_winner_rewards
+FAILED tests/quality/test_regression_contracts.py::test_hunter_last_shot_on_life_imprisonment
+FAILED tests/quality/test_regression_contracts.py::test_pause_at_zero_does_not_remove_timer
+FAILED tests/quality/test_regression_contracts.py::test_paused_game_rejects_night_action
+FAILED tests/quality/test_regression_contracts.py::test_outsider_cannot_control_phases[startgame]
+FAILED tests/quality/test_regression_contracts.py::test_outsider_cannot_control_phases[dawn]
+FAILED tests/quality/test_regression_contracts.py::test_outsider_cannot_control_phases[discuss]
+FAILED tests/quality/test_regression_contracts.py::test_outsider_cannot_control_phases[vote]
+FAILED tests/quality/test_regression_contracts.py::test_outsider_cannot_control_phases[closevote]
+FAILED tests/quality/test_regression_contracts.py::test_start_twice_rejected
+FAILED tests/quality/test_regression_contracts.py::test_dead_player_cannot_petition_jury
+FAILED tests/quality/test_regression_contracts.py::test_outsider_petition_does_not_mutate_requests
+FAILED tests/quality/test_regression_contracts.py::test_verdict_cannot_corrupt_active_jury
+FAILED tests/quality/test_regression_contracts.py::test_repeated_ballot_does_not_farm_xp
+FAILED tests/quality/test_regression_contracts.py::test_banned_user_cannot_join
+FAILED tests/quality/test_regression_contracts.py::test_advertised_role_reachable_in_a_supported_composition[role-6]
+FAILED tests/quality/test_regression_contracts.py::test_advertised_role_reachable_in_a_supported_composition[role-7]
+FAILED tests/quality/test_regression_contracts.py::test_advertised_role_reachable_in_a_supported_composition[role-17]
+FAILED tests/quality/test_regression_contracts.py::test_advertised_role_reachable_in_a_supported_composition[role-18]
+FAILED tests/quality/test_regression_contracts.py::test_finalization_retries_after_write_failure
+FAILED tests/quality/test_regression_contracts.py::test_ended_result_available_after_restart
+FAILED tests/quality/test_rule_boundaries.py::test_one_vote_cannot_acquit_without_quorum
+FAILED tests/quality/test_rule_boundaries.py::test_officer_cannot_acquit_self
+FAILED tests/quality/test_rule_boundaries.py::test_empty_survivor_set_is_draw_not_city_win
+FAILED tests/quality/test_rule_boundaries.py::test_suspect_death_closes_interrogation_state
+FAILED tests/quality/test_rule_boundaries.py::test_evidence_interpretation_requires_membership
+FAILED tests/quality/test_rule_boundaries.py::test_lab_requires_membership - ...
+FAILED tests/quality/test_rule_boundaries.py::test_completed_game_rejects_emergency_detention
+FAILED tests/quality/test_unit_permissions.py::test_ineligible_roles_lose_special_powers[interrogation-\u06a9\u0627\u0631\u0622\u06af\u0627\u0647-expose]
+FAILED tests/quality/test_unit_permissions.py::test_ineligible_roles_lose_special_powers[interrogation-\u0634\u06a9\u0627\u0631\u0686\u06cc-hunter]
+FAILED tests/quality/test_unit_permissions.py::test_ineligible_roles_lose_special_powers[interrogation-\u0628\u0627\u0632\u062c\u0648-hints]
+FAILED tests/quality/test_unit_permissions.py::test_ineligible_roles_lose_special_powers[temporary-\u06a9\u0627\u0631\u0622\u06af\u0627\u0647-expose]
+FAILED tests/quality/test_unit_permissions.py::test_ineligible_roles_lose_special_powers[temporary-\u0634\u06a9\u0627\u0631\u0686\u06cc-hunter]
+FAILED tests/quality/test_unit_permissions.py::test_ineligible_roles_lose_special_powers[temporary-\u0628\u0627\u0632\u062c\u0648-hints]
+FAILED tests/quality/test_unit_permissions.py::test_ineligible_roles_lose_special_powers[life-\u0634\u06a9\u0627\u0631\u0686\u06cc-hunter]
+FAILED tests/quality/test_unit_permissions.py::test_ineligible_roles_lose_special_powers[life-\u0628\u0627\u0632\u062c\u0648-hints]
+FAILED tests/quality/test_unit_permissions.py::test_ineligible_roles_lose_special_powers[dead-\u0634\u06a9\u0627\u0631\u0686\u06cc-hunter]
+FAILED tests/quality/test_unit_permissions.py::test_ineligible_roles_lose_special_powers[dead-\u0628\u0627\u0632\u062c\u0648-hints]
+63 failed, 1262 passed in 4.60s

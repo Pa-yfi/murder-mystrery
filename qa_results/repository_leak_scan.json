@@ -1,0 +1,8 @@
+{
+  "head": "0e0dace680b484f3275a46352aa4859207df3094",
+  "tracked_paths": 35,
+  "history_text_blobs_scanned": 82,
+  "tracked_sensitive_file_paths": [],
+  "matches": [],
+  "limits": "Signature scan only; excludes untracked .env, live DB, remote-only history, binaries, and blobs above 2 MB."
+}

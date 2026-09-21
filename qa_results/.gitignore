@@ -1,0 +1,3 @@
+# Keep the reviewed snapshot; later local audit runs need deliberate selection.
+20*/
+!20260920-081824/
