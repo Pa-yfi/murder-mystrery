@@ -53,7 +53,28 @@ def back_only() -> Dict:
     return kb([[BACK, HOME]])
 
 
-def main_menu() -> Dict:
+# منوی وسطِ بازی: دیگر «شروع بازی» و «بلیتز» ندارد — آن دو بازیِ در جریان را
+# دور می‌انداختند و باعث می‌شدند منو انگار به قبل از بازی برگردد.
+IN_GAME_MENU = [
+    [("🎛️ همه‌ی دکمه‌ها", "commands")],
+    [("🎯 توانایی‌های من", "abilities"), ("📋 داشبورد", "dashboard")],
+    [("🌙 اکشن شبانه", "act"), ("📓 دفترچه‌ی من", "notes")],
+    [("🏙️ وضعیت شهر", "status"), ("🔐 نقش من", "myrole")],
+    [("🗂️ بایگانی نقش من", "archive"), ("🎭 نقش‌ها", "roles")],
+    [("📖 قوانین", "help"), ("🏳️ تسلیم می‌شوم", "surrender")],
+]
+
+
+def main_menu(state: GameState | None = None) -> Dict:
+    """منو با فاز بازی عوض می‌شود.
+
+    وقتی بازی در گروه شروع شده، «🎮 شروع بازی همین‌جا» نباید آنجا باشد:
+    زدنش بازیِ در جریان را دور می‌انداخت و به نظر می‌رسید منو به قبل از
+    بازی برگشته است.
+    """
+    from .models import Phase as _P
+    if state is not None and state.phase not in (_P.LOBBY, _P.END):
+        return kb(IN_GAME_MENU)
     return kb(MENU)
 
 
@@ -65,7 +86,10 @@ def first_screen() -> str:
             "برای شروع، ربات را به گروه اضافه کن یا دوستانت را دعوت کن:")
 
 
-def first_kb(chat_id: int) -> Dict:
+def first_kb(chat_id: int, state: GameState | None = None) -> Dict:
+    from .models import Phase as _P
+    if state is not None and state.phase not in (_P.LOBBY, _P.END):
+        return main_menu(state)          # بازی در جریان است؛ منوی داخلِ بازی
     l = share_links(chat_id)
     rows = [
         [{"text": "👥 افزودن به گروه", "url": l["group"]}],
@@ -94,9 +118,9 @@ def owner_panel(s: GameState) -> str:
 def owner_kb(chat_id: int) -> Dict:
     l = share_links(chat_id)
     return {"inline_keyboard": [
-        [{"text": "🙋 منم بازی می‌کنم!", "callback_data": "join"}],
-        [{"text": "✅ آماده‌ام (در پیوی)", "url": l["ready"]}],
-        [{"text": "🎬 شروع بازی", "callback_data": "startgame"}],
+        [{"text": "1️⃣ 🙋 منم بازی می‌کنم!", "callback_data": "join"}],
+        [{"text": "2️⃣ ✅ آماده‌ام (پیوی باز شود)", "url": l["ready"]}],
+        [{"text": "3️⃣ 🎬 شروع بازی", "callback_data": "startgame"}],
         [{"text": "📨 دعوت دوست", "url": l["share"]},
          {"text": "👥 افزودن به گروه", "url": l["group"]}],
         [{"text": "📋 وضعیت", "callback_data": "status"},
@@ -105,14 +129,19 @@ def owner_kb(chat_id: int) -> Dict:
 
 
 def lobby_kb(chat_id: int) -> Dict:
-    """کیبورد لابی — هر کسی در گروه فوراً با یک تپ وارد می‌شود."""
+    """کیبورد لابی — دکمه‌ها به ترتیبِ همان سه قدمِ روی صفحه.
+
+    «آماده‌ام» یک لینکِ پیوی است، نه callback: باید در پیوی باز شود وگرنه
+    ربات نمی‌تواند نقش محرمانه را بفرستد. خودِ همان لینک عضو هم می‌کند،
+    پس ترتیبِ «ورود» و «آماده‌ام» دیگر فرقی نمی‌کند.
+    """
     l = share_links(chat_id)
     return {"inline_keyboard": [
-        [{"text": "🙋 منم بازی می‌کنم!", "callback_data": "join"}],
-        [{"text": "✅ آماده‌ام (در پیوی)", "url": l["ready"]}],
-        [{"text": "🎬 شروع بازی", "callback_data": "startgame"},
-         {"text": "🚪 خروج از لابی", "callback_data": "leave"}],
-        [{"text": "📨 دعوت دوست", "url": l["share"]}],
+        [{"text": "1️⃣ 🙋 منم بازی می‌کنم!", "callback_data": "join"}],
+        [{"text": "2️⃣ ✅ آماده‌ام (پیوی باز شود)", "url": l["ready"]}],
+        [{"text": "3️⃣ 🎬 شروع بازی", "callback_data": "startgame"}],
+        [{"text": "🚪 خروج از لابی", "callback_data": "leave"},
+         {"text": "📨 دعوت دوست", "url": l["share"]}],
         [{"text": BACK[0], "callback_data": BACK[1]}, {"text": HOME[0], "callback_data": HOME[1]}],
     ]}
 
@@ -120,10 +149,18 @@ def lobby_kb(chat_id: int) -> Dict:
 def lobby_screen(s: GameState) -> str:
     names = "\n".join(f"  {i+1}. {'✅' if p.ready else '⏳'} {p.name}"
                       for i, p in enumerate(s.players.values())) or "  — هنوز کسی نیست —"
+    n, waiting = len(s.players), [p.name for p in s.players.values() if not p.ready]
+    if n < MIN_PLAYERS:
+        step = f"🧍 قدم ۱: هنوز {_fa(MIN_PLAYERS - n)} نفر کم داریم — «🙋 منم بازی می‌کنم!»"
+    elif waiting:
+        step = ("✅ قدم ۲: این‌ها هنوز «آماده‌ام» نزده‌اند: " + "، ".join(waiting) +
+                "\n(تا پیویشان باز نشود، نقش محرمانه به دستشان نمی‌رسد.)")
+    else:
+        step = "🎬 قدم ۳: همه آماده‌اند — میزبان «🎬 شروع بازی» را بزند."
     return (f"🏛️ *لابی کارآگاه*\n{DIV}\n{names}\n{DIV}\n"
-            f"👥 {_fa(len(s.players))}/{_fa(MAX_PLAYERS)} (حداقل {_fa(MIN_PLAYERS)} نفر)\n"
-            "✅ = پیویِ ربات را باز کرده (نقش محرمانه آنجا می‌رود)\n"
-            "🎬 «🎬 شروع بازی» را بزن.")
+            f"👥 {_fa(n)}/{_fa(MAX_PLAYERS)} (حداقل {_fa(MIN_PLAYERS)} نفر)\n"
+            "⏳ = هنوز آماده نیست | ✅ = پیویش باز است\n"
+            f"{DIV}\n➡️ {step}")
 
 
 def role_card(role: str, knows: List[str]) -> str:
@@ -165,18 +202,107 @@ def vote_kb(s: GameState) -> Dict:
     return kb(rows)
 
 
+def vote_board(s: GameState) -> str:
+    """تابلوی زنده‌ی رای‌گیری در گروه: چه کسی رای داده، نه اینکه به چه کسی.
+
+    ساعت‌شنی کنار هر اسم با هر رای به ✅ تبدیل می‌شود، پس همه می‌بینند
+    منتظر چه کسی‌اند بی‌آنکه محتوای رای لو برود.
+    """
+    rows = []
+    for p in s.players.values():
+        if not p.can_vote:
+            rows.append(f"➖ {p.name}" + ("" if p.alive else " 💀"))
+        else:
+            rows.append(f"{'✅' if p.uid in s.votes else '⏳'} {p.name}")
+    voted, total = len(s.votes), len([p for p in s.alive_players() if p.can_vote])
+    return (f"🗳️ *رای‌گیری — روز {_fa(s.day)}*\n{DIV}\n" + "\n".join(rows) +
+            f"\n{DIV}\n📊 {_fa(voted)}/{_fa(total)} رای ثبت شد."
+            "\nبرگه‌ی رای در پیویِ خودت است؛ اینجا فقط پیشرفت را می‌بینی.")
+
+
+def vote_board_kb() -> Dict:
+    return kb([[("🗳️ برگه‌ی رای من", "castvote")],
+               [("📊 بستن رای‌گیری", "closevote")], [BACK, HOME]])
+
+
+def officer_panel(s: GameState) -> str:
+    """متنِ خصوصیِ بازجو. هرگز در گروه فرستاده نمی‌شود."""
+    sus = s.players[s.suspect_uid].name if s.suspect_uid else "—"
+    return (f"🔦 *اتاق بازجویی — فقط تو این را می‌بینی*\n{DIV}\n"
+            f"🪑 متهم: *{sus}*\n\n"
+            "۱) «🔦 سرنخ‌ها» — نشانه‌های امشب (هر شب فرق می‌کند).\n"
+            "۲) «💬 پرسش» — سؤالت را بفرست، جوابش فقط به تو می‌رسد.\n"
+            "۳) بعد یکی از این دو را انتخاب کن:\n"
+            "   🔒 *حبس موقت* — خودت حکم بده.\n"
+            "   ⚖️ *هیئت منصفه* — تصمیم را به شهر بسپار.\n"
+            "   🔓 یا بی‌گناهی‌اش را تایید کن.\n\n"
+            "⚠️ این پنل را به هیچ‌کس نشان نده؛ نقشت لو می‌رود.")
+
+
 def officer_kb(uid: int) -> Dict:
     # «پرسش» بدون آرگومان می‌رود تا ربات متنِ سؤال را بپرسد؛
     # قبلاً آیدیِ متهم به‌جای متنِ سؤال فرستاده می‌شد.
     return kb([[("🔦 سرنخ‌ها", "hints"), ("💬 پرسش", "ask")],
                [("🔒 حبس موقت", f"ver:{uid}:1")],
+               [("⚖️ ارجاع به هیئت منصفه", "refer")],
                [("🔓 تایید بی‌گناهی و آزادی", f"ver:{uid}:0")],
-               [("🌙 پایان شب", "dawn"), ("🎛️ همه‌ی دکمه‌ها", "commands")]])
+               [("🌅 پایان شب", "dawn"), ("🎛️ همه‌ی دکمه‌ها", "commands")]])
 
 
 def jury_kb() -> Dict:
     return kb([[("🕊️ تبرئه", "jury:1"), ("⚖️ ادامه‌ی بازجویی", "jury:0")],
-               [("📊 نتیجه", "closejury")]])
+               [("📊 نتیجه", "closejury")], [BACK, HOME]])
+
+
+def jury_wait_kb(s: GameState) -> Dict:
+    """وقتی هیئت هنوز تشکیل نشده: راهِ پیشِ رو را نشان بده، نه بن‌بست."""
+    rows = [[("⚖️ من هم درخواست می‌دهم", "jury")]]
+    if s.suspect_uid is None:
+        rows = [[("🗳️ رای‌گیری", "vote")]]
+    return kb(rows + [[("📋 داشبورد", "dashboard")], [BACK, HOME]])
+
+
+# ── جعبه‌ابزار شبانه‌ی قاتل — فقط در پیوی ──
+def killer_panel(s: GameState, p) -> str:
+    mates = "، ".join(q.name for q in s.players.values()
+                      if q.align is p.align and q.uid != p.uid) or "کسی نیست"
+    return (f"🔪 *شب {_fa(s.day)} — جعبه‌ابزار تو*\n{DIV}\n"
+            f"🤝 هم‌تیمی: {mates}\n\n"
+            "🔪 *قتل* — یک نفر را امشب بردار.\n"
+            "🚫 *امشب نمی‌کشم* — بی‌جسد، بی‌رد. گاهی بهترین حرکت.\n"
+            "🖐️ *اثر انگشت جعلی* — مدرک فردا به کسِ دیگری اشاره می‌کند.\n"
+            "🧾 *سرنخ جعلی* — متنی که صبح کنار سرنخ‌های واقعی خوانده می‌شود.\n"
+            "😈 *تهدید* — یک نفر پیام بی‌امضا می‌گیرد.\n"
+            "🤝 *دعوت به همکاری* — فقط شهروندِ بی‌نقش می‌تواند بپذیرد؛ "
+            "بقیه پیام را می‌بینند ولی نمی‌توانند بپیوندند.\n\n"
+            "⚠️ هر کدام را بزنی، همین‌جا در پیوی انجام می‌شود.")
+
+
+def killer_kb(s: GameState, p) -> Dict:
+    rows = [[("🔪 قتل", "act"), ("🚫 امشب نمی‌کشم", "killer:skip")],
+            [("🖐️ اثر انگشت جعلی", "killer:plant")],
+            [("🧾 سرنخ جعلی", "killer:clue")],
+            [("😈 تهدید", "killer:threat"),
+             ("🤝 دعوت به همکاری", "killer:recruit")]]
+    if not s.plate_swapped:        # جعل سند خودرو، یک بار در کل بازی
+        rows.append([("🚗 جعل سند خودرو", "killer:plate")])
+    rows.append([("🗂️ پرونده‌ی تیم", "archive"), ("📓 دفترچه", "notes")])
+    rows.append([BACK, HOME])
+    return kb(rows)
+
+
+def archive_kb(s: GameState, p) -> Dict:
+    """بایگانی هر نقش؛ برای پلیس یک دکمه‌ی استعلام پلاک هم دارد."""
+    rows = []
+    if ROLES[p.role].info == "police_files":
+        rows.append([("🚗 استعلام مالک پلاک", "plate")])
+    rows.append([("🎯 توانایی‌های من", "abilities"), ("📓 دفترچه", "notes")])
+    rows.append([BACK, HOME])
+    return kb(rows)
+
+
+def recruit_kb() -> Dict:
+    return kb([[("🔪 می‌پذیرم", "recruit:1"), ("🚪 رد می‌کنم", "recruit:0")]])
 
 
 def help_text() -> str:

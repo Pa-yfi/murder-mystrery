@@ -128,12 +128,18 @@ def test_bad_role_index_shows_the_catalog():
 
 
 def test_my_abilities_is_private_and_offers_the_action_button():
+    """قاتل جعبه‌ابزار می‌گیرد؛ بقیه‌ی نقش‌های شب‌کار، پنل اکشن."""
     g = _started()
     killer = next(p for p in g.s.players.values() if p.role == "قاتل")
     r = handle("abilities", CHAT, killer.uid)
     assert r["ok"] and r["private"]
-    assert "اکشن شبانه" in r["text"]
-    assert "act" in _cbs(r["keyboard"])
+    assert "جعبه‌ابزار" in r["text"]
+    assert "killer" in _cbs(r["keyboard"])
+
+    doc = next(p for p in g.s.players.values() if ROLES[p.role].ability == "protect")
+    r2 = handle("abilities", CHAT, doc.uid)
+    assert "اکشن شبانه" in r2["text"]
+    assert "act" in _cbs(r2["keyboard"])
 
 
 def test_abilities_changes_with_the_phase():

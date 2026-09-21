@@ -45,8 +45,11 @@ def test_jury_reachable_through_normal_play():
     assert g.s.players[target].custody is Custody.INTERROGATION
     assert g.s.phase is Phase.INTERROGATION
 
-    # هنوز شب نگذشته: نه حکم، نه هیئت منصفه
-    assert handle("jury", chat, 2)["ok"] is False
+    # هنوز شب نگذشته: هیئت تشکیل نمی‌شود — ولی دکمه هم بی‌جواب نمی‌ماند،
+    # می‌گوید چه چیزی لازم است.
+    r = handle("jury", chat, 2)
+    assert g.s.phase is Phase.INTERROGATION
+    assert "پایان شب" in r["text"]
     assert handle("verdict", chat, g.s.officer_uid, arg="1")["ok"] is False
 
     assert handle("dawn", chat)["ok"]              # شبِ بازجویی طی شد

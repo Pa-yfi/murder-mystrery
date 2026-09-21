@@ -28,6 +28,10 @@ except ImportError:
 
 logging.basicConfig(level=logging.INFO,
                     format="%(asctime)s %(levelname)s %(name)s: %(message)s")
+# httpx هر درخواست را با URL کامل لاگ می‌کند و توکن داخل همان URL است؛
+# در سطح INFO یعنی توکن در کنسول و فایل لاگ می‌نشیند.
+for _noisy in ("httpx", "httpcore", "telegram.request", "apscheduler"):
+    logging.getLogger(_noisy).setLevel(logging.WARNING)
 log = logging.getLogger("karagah.telegram")
 
 TOKEN = CONFIG_BOT_TOKEN
@@ -91,20 +95,23 @@ async def _reply(update: Update, res: dict):
         for pm in ("Markdown", None):
             try:
                 await q.edit_message_text(res["text"], parse_mode=pm, reply_markup=kb)
-                return
+                return getattr(q.message, "message_id", None)
             except Exception as e:
                 if "not modified" in str(e).lower():
-                    return                      # همان محتوا؛ ویرایش لازم نیست
+                    return getattr(q.message, "message_id", None)
         # اگر ویرایش نشد (پیام پاک شده و ...) → به ارسال عادی برگرد
     private = bool(res.get("private"))
     dest = update.effective_user.id if private else update.effective_chat.id
     for attempt in ("md", "plain"):
         try:
             if attempt == "md":
-                await bot.send_message(dest, res["text"], parse_mode="Markdown", reply_markup=kb)
+                m = await bot.send_message(dest, res["text"],
+                                           parse_mode="Markdown", reply_markup=kb)
             else:
-                await bot.send_message(dest, res["text"], reply_markup=kb)
-            return
+                m = await bot.send_message(dest, res["text"], reply_markup=kb)
+            # پیام رفت. آیدی فقط برای تابلوی زنده لازم است؛ اگر نبود هم
+            # ارسال موفق بوده و نباید دوباره بفرستیم.
+            return getattr(m, "message_id", None)
         except Exception as e:
             log.warning("send failed (%s): %s", attempt, e)
     # پیوی شکست خورد. متن محرمانه (نقش/سرنخ) هرگز نباید در گروه بیفتد —
@@ -116,8 +123,75 @@ async def _reply(update: Update, res: dict):
                 "⚠️ نتوانستم پیام خصوصی‌ات را بفرستم. اول در پیوی ربات را /start کن، بعد دوباره امتحان کن.")
         except Exception as e:
             log.warning("private notice failed: %s", e)
-        return
+        return None
     log.error("delivery failed for chat %s", update.effective_chat.id)
+    return None
+
+
+# chat_id بازی → message_id تابلوی زنده‌ی همان گروه (لابی / رای‌گیری)
+BOARDS: dict = {}
+
+
+async def _sync_board(update: Update, res: dict, game_chat: int, sent_id=None):
+    """تابلوی زنده را به‌روز نگه می‌دارد.
+
+    board=True  → همین پیامی که تازه فرستادیم تابلوست؛ آیدی‌اش را یادداشت کن.
+    refresh     → (متن، کیبورد) تازه آمده؛ همان پیام قبلی را ویرایش کن. این
+                  حالت برای «آماده‌ام» و «رای» لازم است: هر دو از پیوی زده
+                  می‌شوند، پس پیامی که باید عوض شود اصلاً پیامِ این آپدیت نیست.
+    """
+    bot = update.get_bot()
+    if res.get("board"):
+        if sent_id and not res.get("private"):
+            BOARDS[game_chat] = sent_id
+        return
+    fresh = res.get("refresh")
+    if not fresh or game_chat not in BOARDS:
+        return
+    text, keyboard = fresh
+    for pm in ("Markdown", None):
+        try:
+            await bot.edit_message_text(text, chat_id=game_chat,
+                                        message_id=BOARDS[game_chat],
+                                        parse_mode=pm, reply_markup=_kb(keyboard))
+            return
+        except Exception as e:
+            if "not modified" in str(e).lower():
+                return
+            if pm is None:
+                log.warning("board refresh failed for %s: %s", game_chat, e)
+
+
+async def _send_dms(update: Update, res: dict):
+    """پیام‌های خصوصیِ جداگانه‌ی یک فرمان را می‌فرستد.
+
+    (uid=0 یعنی همان گروه.) اگر بازیکنی پیوی ربات را باز نکرده باشد،
+    متنِ محرمانه‌اش هرگز در گروه نمی‌افتد؛ فقط یک تذکرِ بی‌محتوا می‌رود.
+    """
+    items = res.get("dm") or []
+    if not items:
+        return
+    bot = update.get_bot()
+    group = update.effective_chat.id
+    missing = []
+    for dest, text, keyboard in items:      # dest همیشه chat_id واقعی است
+        for pm in ("Markdown", None):
+            try:
+                await bot.send_message(dest, text, parse_mode=pm,
+                                       reply_markup=_kb(keyboard))
+                break
+            except Exception as e:
+                if pm is None:
+                    log.warning("dm to %s failed: %s", dest, e)
+                    if dest != group:
+                        missing.append(dest)
+    if missing:
+        try:
+            await bot.send_message(
+                group, f"⚠️ {len(missing)} نفر پیوی ربات را باز نکرده‌اند و "
+                       "پیام خصوصی‌شان نرسید. هر کدام یک‌بار ربات را /start کنند.")
+        except Exception as e:
+            log.warning("dm notice failed: %s", e)
 
 
 AMBIGUOUS = ("🎲 در چند بازی هستی. اول با /table میز فعالت را انتخاب کن.")
@@ -131,15 +205,19 @@ def _dispatch(update: Update, cmd: str, arg: str) -> dict:
     target = route_chat(cmd, chat, uid, private)
     if not target:
         return {"ok": False, "text": AMBIGUOUS, "keyboard": None,
-                "private": True, "edit": False}
-    return handle(cmd, target, uid, update.effective_user.first_name or "", arg)
+                "private": True, "edit": False, "game_chat": chat}
+    res = handle(cmd, target, uid, update.effective_user.first_name or "", arg)
+    res["game_chat"] = target
+    return res
 
 
 def make_cmd(name: str):
     async def h(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
         arg = " ".join(ctx.args) if ctx.args else ""
         res = _dispatch(update, name, arg)
-        await _reply(update, res)
+        sent = await _reply(update, res)
+        await _sync_board(update, res, res.get("game_chat"), sent)
+        await _send_dms(update, res)
         await _send_photo_or_voice(update, res)
     return h
 
@@ -161,7 +239,9 @@ async def on_callback(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
     else:                                 # دکمه‌ی ساده = نام اندپوینت (بدون نگاشت)
         cmd = data
     res = _dispatch(update, cmd, arg)
-    await _reply(update, res)
+    sent = await _reply(update, res)
+    await _sync_board(update, res, res.get("game_chat"), sent)
+    await _send_dms(update, res)
     await _send_photo_or_voice(update, res)
 
 
@@ -174,9 +254,12 @@ async def on_text(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
     if pending and text:
         chat, cmd = pending
         res = handle(cmd, chat, uid, update.effective_user.first_name or "", text)
+        res["game_chat"] = chat
     else:
         res = _dispatch(update, "commands", "")
-    await _reply(update, res)
+    sent = await _reply(update, res)
+    await _sync_board(update, res, res.get("game_chat"), sent)
+    await _send_dms(update, res)
 
 
 async def on_unknown(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
@@ -205,6 +288,11 @@ async def _timer_job(ctx: ContextTypes.DEFAULT_TYPE):
             res = handle("tick", chat)
             if res.get("advanced"):
                 await ctx.bot.send_message(chat, res["text"])
+            for dest, text, kbd in (res.get("dm") or []):
+                try:
+                    await ctx.bot.send_message(dest, text, reply_markup=_kb(kbd))
+                except Exception as e:
+                    log.warning("timer dm %s: %s", dest, e)
         except Exception as e:
             log.warning("timer tick %s: %s", chat, e)
 

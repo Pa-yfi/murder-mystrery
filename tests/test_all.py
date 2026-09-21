@@ -751,13 +751,18 @@ def test_mafia_parity_win():                     # ایده ۴
     assert g.s.winner.startswith("قاتل")
 
 
-def test_doctor_no_self_heal_no_repeat():        # ایده ۱۱
+def test_doctor_self_heal_once_then_no_repeat():
+    """پزشک: نجاتِ خود یک بار در کل بازی، نجات دیگران بی‌سقف."""
     g = _game(6); g.start(4)
     doc = next((p for p in g.s.players.values() if p.role == "پزشک"), None)
     if not doc:
         return
+    g.night_action(doc.uid, doc.uid)              # بارِ اول: مجاز
+    g.resolve_night()
+    assert doc.self_save_used
+    g.s.phase = Phase.NIGHT
     with pytest.raises(RuleError):
-        g.night_action(doc.uid, doc.uid)          # خودنجاتی ممنوع
+        g.night_action(doc.uid, doc.uid)          # بارِ دوم: ممنوع
     a = next(p.uid for p in g.s.alive_players() if p.uid != doc.uid)
     g.night_action(doc.uid, a)
     g.night_action(doc.uid, a)                    # ویرایش روی همان هدف در همان شب مجاز

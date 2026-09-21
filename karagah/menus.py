@@ -40,15 +40,22 @@ GROUPS: List[Tuple[str, str, List[tuple]]] = [
     ]),
     ("interro", "🔦 بازجویی و دادگاه", [
         ("🔦 سرنخ‌ها", "hints"), ("💬 پرسش از متهم", "ask"),
-        ("⚖️ حکم بازجو", "verdict"), ("🕊️ آزادی زندانی قبلی", "clear"),
+        ("⚖️ حکم بازجو", "verdict"), ("⚖️ ارجاع به هیئت منصفه", "refer"),
+        ("🕊️ آزادی زندانی قبلی", "clear"),
         ("🛡️ دفاع من", "defense"), ("⚖️ هیئت منصفه", "jury"),
         ("📊 نتیجه‌ی هیئت", "closejury"), ("🚨 رای اضطراری", "sos"),
     ]),
     ("clues", "🔎 مدارک و دفترچه", [
+        ("🗂️ بایگانی نقش من", "archive"), ("🚗 استعلام مالک پلاک", "plate"),
         ("🧪 آزمایشگاه", "lab"), ("🧠 تفسیر مدرک", "interp"),
         ("🔍 راستی‌آزمایی مدرک", "expose"), ("📝 یادداشت تازه", "note"),
+        ("📥 سپردن یادداشت به گروه", "share_note"),
         ("📓 دفترچه‌ی من", "notes"), ("📜 وصیت‌نامه", "will"),
         ("🏹 هدف شلیک آخر", "hunter"),
+    ]),
+    ("dark", "🔪 کارهای شبانه‌ی قاتل", [
+        ("🔪 جعبه‌ابزار قاتل", "killer"), ("🧾 سرنخ جعلی", "fakeclue"),
+        ("🤝 جواب به دعوت", "recruit"),
     ]),
     ("progress", "🏆 پیشرفت", [
         ("📊 پروفایل", "profile"), ("🏆 برترین‌ها", "top"),
@@ -60,6 +67,7 @@ GROUPS: List[Tuple[str, str, List[tuple]]] = [
         ("📺 تماشاچی", "spectate"), ("🕶️ ناشناس/علنی", "voteanon"),
         ("🔁 دور دوباره", "rematch"), ("⏰ یادآوری", "remind"),
         ("⏸️ توقف بازی", "pause"), ("▶️ ادامه‌ی بازی", "resume"),
+        ("🏳️ تسلیم می‌شوم", "surrender"),
         ("👑 انتقال میزبانی", "host"), ("⏳ بررسی تایمر", "tick"),
     ]),
     ("guide", "📚 راهنما", [
@@ -92,8 +100,35 @@ def all_buttons() -> List[str]:
     return [cb for _k, _t, items in GROUPS for _label, cb in items]
 
 
-def commands_menu() -> Dict:
-    rows = [[(title, f"group:{key}")] for key, title, _items in GROUPS]
+# وسط بازی فقط این دسته‌ها دیده می‌شوند. «پیشرفت»، «میز و میزبانی» و
+# «راهنما» بیرون می‌مانند چون یا ربطی به دور جاری ندارند یا دکمه‌هایی
+# دارند که بازیِ در جریان را دور می‌اندازند.
+IN_GAME_GROUPS = {"play", "interro", "clues", "dark"}
+
+# دکمه‌هایی که وسط بازی نباید جایی دیده شوند: هر کدام یا لابیِ تازه می‌سازند
+# یا بازیکن را از دور جاری بیرون می‌برند.
+PREGAME_ONLY = {"new", "blitz", "newtable", "join", "leave", "startgame",
+                "ready", "rematch", "table", "spectate"}
+
+
+def visible_groups(state=None) -> List[Tuple[str, str, List[tuple]]]:
+    """دسته‌های دیدنی در این لحظه — و داخل هر دسته، دکمه‌های دیدنی."""
+    from .models import Phase as _P
+    live = state is not None and state.phase not in (_P.LOBBY, _P.END)
+    if not live:
+        return GROUPS
+    out = []
+    for key, title, items in GROUPS:
+        if key not in IN_GAME_GROUPS:
+            continue
+        keep = [(lbl, cb) for lbl, cb in items if cb not in PREGAME_ONLY]
+        if keep:
+            out.append((key, title, keep))
+    return out
+
+
+def commands_menu(state=None) -> Dict:
+    rows = [[(title, f"group:{key}")] for key, title, _items in visible_groups(state)]
     return kb(rows + [[HOME]])
 
 
@@ -103,8 +138,11 @@ def commands_screen() -> str:
             "\nهر دکمه‌ای که ورودی بخواهد، خودش فهرست انتخاب‌ها را نشان می‌دهد.")
 
 
-def group_kb(key: str) -> Dict:
-    items = next(items for k, _t, items in GROUPS if k == key)
+def group_kb(key: str, state=None) -> Dict:
+    groups = visible_groups(state)
+    items = next((items for k, _t, items in groups if k == key), None)
+    if items is None:                    # دسته‌ای که وسط بازی پنهان است
+        return commands_menu(state)
     return kb(_pairs(items) + [[BACK, HOME]])
 
 
@@ -167,14 +205,21 @@ def abilities_text(g, p) -> str:
         return "\n".join(lines)
 
     now: List[str] = []
+    killer = p.align.value == "قاتل‌ها"
     if s.phase in (Phase.NIGHT, Phase.INTERROGATION):
         if p.custody is Custody.INTERROGATION:
             now.append("🔦 امشب در اتاق بازجویی‌ای — اکشن شبانه نداری.")
             now.append("🛡️ می‌توانی «دفاع من» را بفرستی.")
+        elif killer:
+            now.append("🔪 «جعبه‌ابزار قاتل» را باز کن: قتل، نکشتن، اثر انگشت جعلی،")
+            now.append("   سرنخ جعلی، تهدید، یا دعوت به همکاری.")
         elif r.ability and r.ability != "hunter":
             now.append("🌙 «اکشن شبانه» را بزن و هدفت را انتخاب کن.")
         else:
             now.append("😴 امشب کاری از تو برنمی‌آید؛ صبح بحث کن.")
+        if p.role == "پزشک":
+            now.append("💉 یک بار در کل بازی می‌توانی خودت را هم نجات دهی"
+                       + (" — استفاده شده ✔️" if p.self_save_used else " — هنوز دستِ نخورده."))
         if r.ability == "hunter":
             now.append("🏹 «هدف شلیک آخر» را از قبل مشخص کن.")
         if p.role == "کارآگاه":
@@ -209,10 +254,15 @@ def abilities_text(g, p) -> str:
 def abilities_kb(g, p) -> Dict:
     rows: List[List[tuple]] = []
     r = ROLES[p.role] if p.role else None
-    if r and r.ability and r.ability != "hunter":
+    if p.align.value == "قاتل‌ها":
+        rows.append([("🔪 جعبه‌ابزار قاتل", "killer")])
+    elif r and r.ability and r.ability != "hunter":
         rows.append([("🌙 اکشن شبانه", "act")])
     if r and r.ability == "hunter":
         rows.append([("🏹 هدف شلیک آخر", "hunter")])
+    if p.uid == g.s.officer_uid and g.s.suspect_uid:
+        rows.append([("🔦 سرنخ‌ها", "hints"), ("💬 پرسش", "ask")])
+        rows.append([("⚖️ حکم بازجو", "verdict")])
     rows.append([("📓 دفترچه", "notes"), ("🔐 نقش من", "myrole")])
     rows.append([("🎛️ همه‌ی دکمه‌ها", "commands"), HOME])
     return kb(rows)
@@ -269,6 +319,12 @@ PROMPTS = {
     "will": ("📜 *وصیت‌نامه*", "متن وصیتت را بفرست؛ اگر کشته شوی صبح خوانده می‌شود."),
     "ask": ("💬 *پرسش از متهم*", "سؤالت را بفرست تا از متهم پرسیده شود."),
     "defense": ("🛡️ *دفاع تو*", "متن دفاعت را بفرست."),
+    "fakeclue": ("🧾 *سرنخ جعلی*",
+                 "متن سرنخی که می‌خواهی صبح در شهر بپیچد را بفرست.\n"
+                 "کنار سرنخ‌های واقعی خوانده می‌شود و از آن‌ها جدا نیست."),
+    "share_note": ("📥 *سپردن یادداشت به گروه*",
+                   "متنش را بفرست. تا وقتی آزادی کسی آن را نمی‌بیند؛\n"
+                   "همان لحظه‌ای که به حبس موقت بروی، در گروه خوانده می‌شود."),
 }
 
 

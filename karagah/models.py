@@ -56,6 +56,10 @@ class Player:
     role_assigned: str = ""
     ready: bool = False            # بهبود ۲: پیویِ ربات را باز کرده و آماده است
     missed: int = 0                # بهبود ۷: شب‌هایی که هیچ اکشنی نداده
+    self_save_used: bool = False   # پزشک: نجاتِ خود فقط یک بار در کل بازی
+    shared_notes: List[str] = field(default_factory=list)  # یادداشتِ سپرده به گروه
+    notes_published: bool = False  # بعد از حبس موقت، سپرده‌ها علنی شدند
+    recruited: bool = False        # شهروندِ بی‌نقش که دعوت قاتل را پذیرفت
 
     @property
     def in_game(self) -> bool:
@@ -92,6 +96,7 @@ class Case:
     evidence: List[Dict]
     twist: str
     difficulty: int
+    vehicle: Dict = field(default_factory=dict)   # خودروی دیده‌شده نزدیک صحنه
 
 
 @dataclass
@@ -128,6 +133,16 @@ class GameState:
     framed: Dict[int, int] = field(default_factory=dict)         # uid → روزِ پاپوش‌دوزی
     hidden: List[int] = field(default_factory=list)              # مخفی‌شده‌های قاچاقچی
     traces: List[str] = field(default_factory=list)   # بهبود ۵: ردِ برخاسته از اکشنِ واقعی
+    outbox: List[tuple] = field(default_factory=list)  # (uid, متن) — uid=0 یعنی گروه
+    fake_clues: List[str] = field(default_factory=list)     # سرنخ‌های کاشته‌ی قاتل
+    day_hints: List[str] = field(default_factory=list)      # سرنخ تازه‌ی هر روز
+    hints_from: int = 0                                     # سرنخ‌های همین صبح از این ایندکس
+    recruit_offer: Optional[int] = None                     # کسی که دعوت قاتل را گرفته
+    plate_owner: Optional[int] = None    # پلاک به نام چه کسی است (قابل جعل)
+    plate_swapped: bool = False          # قاتل یک بار می‌تواند پلاک را عوض کند
+    plate_lookups: List[int] = field(default_factory=list)   # چه کسانی استعلام گرفتند
+    plate_query: Optional[int] = None        # استعلامِ در جریان (نتیجه سحر)
+    plate_nights: List[int] = field(default_factory=list)    # شب‌هایی که استعلام خرج شد
     win_reason: str = ""                              # بهبود ۶: چرا این تیم برد
     paused: bool = False                        # بهبود ۷: بازی موقتاً متوقف
     paused_left: Optional[int] = None            # ثانیه‌های باقی‌ماندهی فاز هنگام توقف
