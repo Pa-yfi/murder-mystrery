@@ -60,6 +60,8 @@ class Player:
     shared_notes: List[str] = field(default_factory=list)  # یادداشتِ سپرده به گروه
     notes_published: bool = False  # بعد از حبس موقت، سپرده‌ها علنی شدند
     recruited: bool = False        # شهروندِ بی‌نقش که دعوت قاتل را پذیرفت
+    appearance: Dict[str, str] = field(default_factory=dict)  # قد، هیکل، مو، نشانه، لباس
+    stance: str = ""               # ژستِ نمایشیِ انتخابیِ خودش در اتاق بازجویی
 
     @property
     def in_game(self) -> bool:
@@ -142,8 +144,10 @@ class GameState:
     plate_owner: Optional[int] = None    # پلاک به نام چه کسی است (قابل جعل)
     plate_swapped: bool = False          # قاتل یک بار می‌تواند پلاک را عوض کند
     plate_lookups: List[int] = field(default_factory=list)   # چه کسانی استعلام گرفتند
-    plate_query: Optional[int] = None        # استعلامِ در جریان (نتیجه سحر)
-    plate_nights: List[int] = field(default_factory=list)    # شب‌هایی که استعلام خرج شد
+    plate_queries: Dict[int, int] = field(default_factory=dict)  # uid → شبِ استعلام
+    plate_nights: List[tuple] = field(default_factory=list)  # (uid، شب) سهمیه‌ی استعلام
+    inspect_days: List[tuple] = field(default_factory=list)  # (uid، روز) استعلام ظاهر
+    witness_of: Optional[int] = None    # شاهدِ دیشب چه کسی را دیده (مخفی)
     death_cause: Dict[int, str] = field(default_factory=dict)  # uid → علتِ واقعیِ مرگ
     last_report_night: int = 0            # آخرین شبی که واقعاً حل شد
     # ── پرونده‌ی بازداشت (rules.md v2 — R07/R05) ──

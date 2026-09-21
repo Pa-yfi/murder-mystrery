@@ -6,6 +6,8 @@ Date: 2026-09-21
 
 **Latest custody decision:** R04, R05, R07 and R08 now define human interrogation → officer-only closing hint → direct temporary detention or a private two-person jury. Jurors are unconverted city-aligned players. Temporary detention lasts **two complete subsequent nights in every mode**, with a release-vote opportunity when a different suspect enters interrogation. These rules replace the earlier whole-town jury, 60% acquittal threshold, automatic officer appeal override and one-night Blitz detention. They are requirements for implementation, not a claim the current bot already follows them.
 
+**Implementation status (2026-09-21):** R04/R05/R07/R08 custody v2 and R14 are now implemented: real two-human interrogation relay, closing-hint gate, private two-person jury, two-night detention in every mode, public release ballot, character appearances, witness testimony, and the detective's daily person search alongside shared plate lookup. Remaining gaps are listed in R13.
+
 **Status:** These are the intended rules for the next quality release, established for implementation and testing. They are not a claim that the current bot enforces every rule. Existing behavior differs in several places; see [improvement.md](improvement.md), [audit-results.md](audit-results.md), and [evidence-and-roles.md](evidence-and-roles.md). Proposed choices in the earlier scenario document are resolved here for this target ruleset; any future change must update both rules and tests.
 
 ## R01. Match setup and identity
@@ -385,6 +387,7 @@ These rules cover normal flow, role/state permissions, simultaneous effects, cus
 | R09 | NGT-21–25, evidence direction | Six evidence/usefulness contracts; content review of all case generators/types |
 | R10 | END, DB | Serial winner, payout retry, ending restart, repeated-result contracts |
 | R11 | TIM, DB, OPS | Timer persistence, pause boundaries, file DB restart integration |
+| R14 | Appearance, witness, lookups | HT63–HT70; implemented with custody v2 in this release |
 | R12 | SEC, OPS, edge cases | Integer bounds, oversize note output, quotas, repeated input, SQL parameter handling, redacted repository signature scan |
 
 The latest recorded results and untested boundaries are in [audit-results.md](audit-results.md). Any rule change must update this applicability mapping, acceptance expectations, and regression contracts before release.
@@ -411,3 +414,68 @@ The latest recorded results and untested boundaries are in [audit-results.md](au
 | CJV16 | Last killer detained then permanently jailed, another hostile still active, or no players remain | Temporary jail alone does not win; apply R10 after full batch |
 
 **Documentation synchronization:** the previous jury electorate/threshold and jail-duration wording in `report.md`, `hints.md`, `improvement.md` and existing tests is historical wherever it conflicts with this v2. Claude must update implementation, help/buttons and tests to this explicit flow. The two-person jury and the public release ballot are distinct proceedings with distinct eligibility; never reuse one electorate for the other.
+
+## R14. Physical descriptions, witness testimony, and person/plate lookups
+
+Date added: 2026-09-21. Requested by the owner: clues may describe a car's colour, model and plate, and may describe a person's build and distinguishing features; the detective gains a daily person-detail search; plate lookups belong to the detective as well as the officer. **Implemented** in this release alongside R05/R07 custody v2.
+
+### R14.1 Every character has a fixed appearance
+
+At role assignment each player receives an immutable appearance record: **height, build, hair, distinguishing mark, and that night's outer clothing**. It is independent of role, alignment, and win condition. It never changes during the match and is never derived from `align`.
+
+Attribute pools are deliberately **narrow**, so several players share values. A city of ten draws from two heights and three coats. This is a balance requirement, not a shortcut: if "tall, dark coat" matched exactly one player, the first witness line would end the match. Validate that no single attribute pair is unique to one player at match start where seat count allows.
+
+Appearance is **not** published in the group, not shown on the public board, and not attached to a player's name in any public report.
+
+### R14.2 Witness testimony as a public clue
+
+When at least one player actually visited another that night, the dawn report may include one witness line describing **an actual mover**, chosen from the real action ledger — never invented, never chosen because of guilt.
+
+- The line states **one or two** visible attributes plus an honest hedge: «چهره‌اش را ندیدم»، «هوا تاریک بود؛ مطمئن نیستم».
+- It never names a player, never states a role, and never asserts the subject is the killer.
+- Doctors, watchers and smugglers move too. A witness line is evidence that *someone was out*, not that the subject attacked anyone.
+- A concealed target (smuggler) is excluded from witness selection that night; report the absence as no observation, never as "nobody moved".
+- Remote actions (investigation, evidence authentication, watching) create no witness line; they are not physical visits.
+
+The public vehicle clue follows the same rule: **colour and model are public at observed precision; the simulated plate is never public** (R14.4).
+
+### R14.3 Detective's daily person-detail search
+
+| Property | Rule |
+|---|---|
+| Who | Detective only (`sightings` data category) |
+| Quota | **One person per day**, separate from the nightly alignment/authenticity choice — it does not consume the night action |
+| Result | That person's full appearance record, delivered privately and stored in the detective's notebook |
+| Cross-reference | The result states which attributes match any already-published witness testimony, and which do not |
+| Limit text | Every result repeats that shared attributes are normal and a match is not proof |
+| Lifecycle | Suspended in custody, revoked on death/life jail/surrender, frozen while paused (R07/§12.3) |
+
+The search returns appearance only. It never returns alignment, role, night actions, health records or police files. A detective who matches a witness line to a player has a **lead to test**, not a conviction: the same attributes will usually fit two or three living players, and the person seen may have been the doctor.
+
+### R14.4 Plate lookup: officer and detective
+
+Both the officer (`police_files`) and the detective (`sightings`) may run the registry lookup. Each holds an **independent nightly quota**; one spending theirs does not consume the other's. Both results are delivered privately at dawn and are individually withheld if that requester is no longer in the match.
+
+The full simulated plate remains confined to those two private channels. It never appears in a public report, group keyboard, callback payload, log line or jury packet. The identifier is deliberately non-realistic (`SIM-###`) so no output resembles a query against a real registry.
+
+Registered ownership is a lead, not a verdict: the killer may forge the registration once per match, and the registered owner is not necessarily the driver. Any recipient of an earlier lookup receives a correction notice when the record changes.
+
+### R14.5 Fairness boundaries
+
+- Descriptions must not encode guilt. Do not bias marks, clothing or build toward any alignment, and do not let the witness generator prefer criminal-team movers.
+- No description may rely on protected characteristics as a suspicion cue. Height, build, hair, an accessory and a coat are in scope; ethnicity, religion, disability and gender identity are not, and are not represented in the pools.
+- A player may not be convicted on a witness line alone. Every witness clue must leave at least one other living player consistent with it, or the report must state that the observation is too weak to narrow.
+- The detective's search and the plate lookup are both **narrowing tools**. Acceptance tests must confirm that neither, alone or combined, produces a unique certain identification of the killer before any evidence-based verification step.
+
+### R14.6 Acceptance checks — HT63–HT70
+
+| ID | Scenario | Required result |
+|---|---|---|
+| HT63 | Start every supported seat count; inspect appearance records | All fields present; no attribute pair unique to one player where seats allow; no correlation with alignment |
+| HT64 | Night with attack, protection, watch and concealment | Witness line names an actual mover; concealed target excluded; remote actions create none |
+| HT65 | Night with no visits at all | No witness line invented; dawn says no observation |
+| HT66 | Detective searches twice in one day, then next day | Second same-day search refused without consuming quota; next day allowed |
+| HT67 | Non-detective roles call the person search | Generic permission error before any record read |
+| HT68 | Detective jailed, killed or surrendered; paused game | New searches suspended/revoked; previously delivered records stay readable |
+| HT69 | Officer and detective both query the plate the same night | Two independent quotas; both results delivered privately at dawn; neither appears publicly |
+| HT70 | Killer forges the registration after both have queried | Both earlier requesters receive a correction; no retroactive erasure of their original result |

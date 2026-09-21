@@ -594,19 +594,22 @@ def test_plate_number_is_police_only_while_colour_and_model_are_public():
             assert plate not in handle("archive", CHAT, p.uid)["text"]
 
 
-def test_only_police_can_look_up_the_plate_owner():
-    """استعلام ثبت می‌شود؛ نتیجه سحر می‌رسد و فقط به خودِ پلیس."""
+def test_plate_lookup_is_limited_to_the_officer_and_the_detective():
+    """مالکِ بازی: کارآگاه هم کنارِ بازجو پلاک می‌گیرد؛ بقیه نه."""
     g = _started()
+    det = _role(g, "کارآگاه")
+    allowed = {g.s.officer_uid, det.uid}
+    owner = g.s.players[g.s.plate_owner].name
     r = handle("plate", CHAT, g.s.officer_uid)
     assert r["ok"] and r["private"]
-    assert g.s.players[g.s.plate_owner].name not in r["text"]   # هنوز نه
-    owner = g.s.players[g.s.plate_owner].name
+    assert owner not in r["text"]                     # نتیجه سحر می‌رسد
+    assert handle("plate", CHAT, det.uid)["ok"]       # سهمیه‌ی جدا
     d = handle("dawn", CHAT)
-    got = _dm_to(d, g.s.officer_uid)
-    assert got and owner in got[0]
-    assert all(owner not in t for uid, t, _k in d["dm"] if uid != g.s.officer_uid)
+    for u in allowed:
+        assert any(owner in t for t in _dm_to(d, u))
+    assert all(owner not in t for uid, t, _k in d["dm"] if uid not in allowed)
     for p in g.s.players.values():
-        if p.uid != g.s.officer_uid:
+        if p.uid not in allowed:
             assert handle("plate", CHAT, p.uid)["ok"] is False
 
 
@@ -1057,3 +1060,139 @@ def test_a_renamed_winner_string_cannot_change_payouts():
     g._payout()
     for u, c in paid.items():                  # همان برنده‌ها، دوباره
         assert (g.s.players[u].coins - c >= 60) == (u in set(g.s.winner_uids))
+
+
+# ---------- مشخصات ظاهری، شهادت شاهد، و استعلام کارآگاه ----------
+def test_every_player_gets_an_appearance_with_deliberate_overlap():
+    """ویژگی‌ها باید بین چند نفر مشترک باشند، وگرنه شهادت = شناسایی قطعی."""
+    g = _started()
+    apps = [p.appearance for p in g.s.players.values()]
+    assert all(a and set(a) >= {"height", "build", "hair", "mark", "coat"} for a in apps)
+    heights = {a["height"] for a in apps}
+    assert len(heights) < len(apps), "قدها باید هم‌پوشانی داشته باشند"
+
+
+def test_the_witness_clue_describes_someone_who_actually_moved():
+    g = _started()
+    k = _role(g, "قاتل")
+    victim = next(iter(g.legal_targets(k.uid)))
+    handle("act", CHAT, k.uid, arg=str(victim))
+    handle("dawn", CHAT)
+    line = next((h for h in g.today_hints() if h.startswith("👁️")), None)
+    assert line, "شهادتی ثبت نشد"
+    seen = g.s.witness_of
+    assert seen is not None
+    from karagah import people
+    assert people.matches(g.s.players[seen].appearance, line)
+    assert g.s.players[seen].name not in line, "شاهد نام نمی‌برد"
+
+
+def test_the_detective_can_look_up_one_persons_details_per_day():
+    g = _started()
+    det = _role(g, "کارآگاه")
+    other = next(p.uid for p in g.s.alive_players() if p.uid != det.uid)
+    r = handle("inspect", CHAT, det.uid, arg=str(other))
+    assert r["ok"] and r["private"]
+    for k in ("قد", "هیکل", "مو", "نشانه", "لباس آن شب"):
+        assert k in r["text"]
+    third = next(p.uid for p in g.s.alive_players()
+                 if p.uid not in (det.uid, other))
+    assert handle("inspect", CHAT, det.uid, arg=str(third))["ok"] is False
+    g.s.day += 1                                   # فردا دوباره
+    assert handle("inspect", CHAT, det.uid, arg=str(third))["ok"]
+
+
+def test_person_lookup_is_detective_only():
+    g = _started()
+    for p in g.s.players.values():
+        if ROLES[p.role].info != "sightings":
+            assert handle("inspect", CHAT, p.uid, arg="2")["ok"] is False
+
+
+def test_person_lookup_is_suspended_in_custody():
+    g = _started()
+    det = _role(g, "کارآگاه")
+    det.custody = Custody.TEMP_JAIL
+    assert handle("inspect", CHAT, det.uid, arg="2")["ok"] is False
+
+
+def test_the_lookup_flags_a_match_with_published_testimony():
+    g = _started()
+    k = _role(g, "قاتل")
+    handle("act", CHAT, k.uid, arg=str(next(iter(g.legal_targets(k.uid)))))
+    handle("dawn", CHAT)
+    det = _role(g, "کارآگاه")
+    seen = g.s.witness_of
+    if seen is None or seen == det.uid:
+        pytest.skip("شاهد کسی را ندید یا خودِ کارآگاه بود")
+    txt = handle("inspect", CHAT, det.uid, arg=str(seen))["text"]
+    assert "هم‌خوانی دارد" in txt
+    assert "اثبات نیست" in txt
+
+
+# ---------- سرنخ پایانی: R07.2 ----------
+def test_the_closing_hint_never_claims_to_observe_the_body():
+    """R07.2: ربات عرق و لرزش دست را نمی‌بیند."""
+    g = _started()
+    handle("dawn", CHAT)
+    tgt = _vote_out(g)
+    off = g.s.officer_uid
+    handle("ask", CHAT, off, arg="کجا بودی؟")
+    handle("reply", CHAT, tgt, arg="خانه بودم.")
+    handle("closeroom", CHAT, off)
+    txt = handle("hints", CHAT, off)["text"]
+    assert "روایت صحنه" not in txt          # ژستی انتخاب نشده بود
+    assert "نشانهٔ رفتاری قابل اتکایی ثبت نشد" in txt or "گفته‌اش" in txt
+
+
+def test_scene_cues_come_from_the_suspects_own_choice():
+    g = _started()
+    handle("dawn", CHAT)
+    tgt = _vote_out(g)
+    off = g.s.officer_uid
+    assert handle("stance", CHAT, tgt, arg="nervous")["ok"]
+    handle("ask", CHAT, off, arg="کجا بودی؟")
+    handle("reply", CHAT, tgt, arg="خانه بودم.")
+    handle("closeroom", CHAT, off)
+    txt = handle("hints", CHAT, off)["text"]
+    assert "روایت صحنه" in txt and "می‌لرزید" in txt
+    assert "توصیف نمایشی" in txt             # صریح می‌گوید مشاهده نیست
+    other = next(p.uid for p in g.s.alive_players() if p.uid != tgt)
+    assert handle("stance", CHAT, other, arg="calm")["ok"] is False
+
+
+def test_a_lawyer_request_is_reported_only_when_actually_made():
+    g = _started()
+    handle("dawn", CHAT)
+    tgt = _vote_out(g)
+    off = g.s.officer_uid
+    handle("ask", CHAT, off, arg="کجا بودی؟")
+    handle("reply", CHAT, tgt, arg="وکیل می‌خواهم")
+    handle("closeroom", CHAT, off)
+    txt = handle("hints", CHAT, off)["text"]
+    assert "درخواست وکیل کرد" in txt and "دلالتی بر گناه ندارد" in txt
+
+
+def test_the_closing_hint_is_not_derived_from_alignment():
+    """R07.2: شدتِ نشانه نباید از تیمِ بازیکن ساخته شود."""
+    seen = {}
+    for chat, want_killer in ((4810, True), (4811, False)):
+        g = _started(chat=chat)
+        handle("dawn", chat)
+        off = g.s.officer_uid
+        handle("discuss", chat); handle("vote", chat)
+        tgt = next(p.uid for p in g.s.alive_players()
+                   if p.can_vote and p.uid != off
+                   and (p.align is Align.KILLER) == want_killer)
+        for p in g.s.alive_players():
+            if p.can_vote and p.uid != tgt:
+                handle("castvote", chat, p.uid, arg=str(tgt))
+        handle("closevote", chat)
+        handle("ask", chat, off, arg="کجا بودی؟")
+        handle("reply", chat, tgt, arg="خانه بودم.")
+        handle("closeroom", chat, off)
+        seen[want_killer] = handle("hints", chat, off)["text"]
+    # متن هر دو باید از یک الگو بیاید؛ هیچ «سطح تنش» یا نشانه‌ی تیمی نماند
+    for txt in seen.values():
+        assert "سطح تنش" not in txt
+    assert seen[True].replace("خانه بودم.", "") == seen[False].replace("خانه بودم.", "")

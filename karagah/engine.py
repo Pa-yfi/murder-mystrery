@@ -173,6 +173,10 @@ class Game:
                 p.knows = [f"شایعه: سلاح احتمالاً «{self.s.case.weapon}» بوده."]
             else:
                 p.knows = []
+        # ظاهرِ شخصیت‌ها — با برخوردِ عمدی، تا شهادتِ شاهد هیچ‌وقت یک‌نفره نباشد
+        from . import people
+        for u, app in people.assign(list(self.s.players), self.rng).items():
+            self.s.players[u].appearance = app
         self.s.officer_uid = next(p.uid for p in self.s.players.values() if p.role == "بازجو")
         # مالک پلاک: نیمی از مواقع یکی از قاتل‌ها، نیمی از مواقع یک بی‌گناه.
         # اگر همیشه قاتل بود، استعلام پلاک بازی را یک‌شبه تمام می‌کرد.
@@ -625,7 +629,10 @@ class Game:
     def officer_hints(self, officer_uid: int) -> List[str]:
         """سرنخِ پایانی — فقط بعد از بسته‌شدن گفتگو (R07.1/R07.2).
 
-        خواندنش دروازه‌ی تصمیم را باز می‌کند، ولی خودش حکم نیست.
+        خواندنش دروازه‌ی تصمیم را باز می‌کند، ولی خودش حکم نیست. محتوا فقط
+        از آنچه واقعاً در اتاق گذشت ساخته می‌شود: ژستی که خودِ متهم انتخاب
+        کرده، متنی که خودش نوشته، و ترتیبِ ثبت‌شده‌ی پاسخ‌ها. هیچ نشانه‌ای
+        از روی نقش یا تیمِ او ساخته نمی‌شود.
         """
         if officer_uid != self.s.officer_uid:
             raise RuleError("فقط بازجو دسترسی دارد.")
@@ -635,24 +642,7 @@ class Game:
             raise RuleError("سرنخ پایانی بعد از «📕 پایان گفتگو» می‌آید.")
         sus = self.s.players[self.s.suspect_uid]
         self.s.hint_ack = True            # دروازه باز شد
-        ev = (self.s.night_event or "").split()
-        facts = {
-            "visited": any(n.startswith(f"👥 شب {self.s.day - 1}") or
-                           n.startswith(f"👥 شب {self.s.day}") for n in sus.notes),
-            "was_visited": any(sus.name in tr for tr in self.s.traces),
-            "framed": self.s.framed.get(sus.uid, 0) >= self.s.day,
-            "blackout": bool(ev) and ev[0] == "قطعی",
-            "storm": bool(ev) and ev[0] == "طوفان",
-            "threatened": sus.stress >= 40,
-        }
-        out = dialogue.interrogation_hints(sus, self.s.day, self.s.case, facts)
-        # R07.2: آنچه واقعاً در اتاق گفته شد، نه یک تشخیصِ ساختگی
-        if self.s.room_qa:
-            q, a = self.s.room_qa[-1]
-            out.insert(0, f"آخرین گفته‌ی خودش: «{a[:90]}» (در پاسخ «{q[:60]}»)")
-        if len(self.s.room_qa) >= 2:
-            out.insert(1, "دو پاسخش را کنار هم بگذار؛ ترتیبشان ثبت شده است.")
-        return out
+        return dialogue.closing_hint(sus, self.s.room_qa, self.s.case)
 
     def _detain(self, p: Player, why: str) -> str:
         """حبس موقت: دو شبِ کاملِ بعدی (R07.3)."""
@@ -742,6 +732,22 @@ class Game:
                   f"🗣️ *پاسخ {self.s.players[uid].name}:*\n«{a}»\n"
                   f"_(پرسش: «{q}»)_")
         return "✅ پاسخت عیناً به بازجو رسید."
+
+    def set_stance(self, uid: int, stance: str) -> str:
+        """R07.2: نشانه‌های صحنه‌ای را *خودِ بازیکن* انتخاب می‌کند.
+
+        ربات نمی‌تواند لرزش دست یا عرق را ببیند؛ پس یا بازیکن نقش‌بازی
+        می‌کند و آن را اعلام می‌کند، یا هیچ نشانه‌ای ثبت نمی‌شود.
+        """
+        from .dialogue import STANCE_FA
+        if uid != self.s.suspect_uid:
+            raise RuleError("فقط متهمِ داخل اتاق ژست انتخاب می‌کند.")
+        if self.s.room_closed:
+            raise RuleError("گفتگو بسته شده است.")
+        if stance not in STANCE_FA:
+            raise RuleError("این ژست را نمی‌شناسم.")
+        self.s.players[uid].stance = stance
+        return "🎭 ژستِ شخصیتت ثبت شد؛ بازجو آن را به‌عنوان «روایت صحنه» می‌بیند."
 
     def exchange_done(self) -> bool:
         """R07.1: دست‌کم یک پرسشِ واقعی و یک پاسخِ واقعی."""
@@ -1150,6 +1156,9 @@ class Game:
         }
         self.s.hints_from = len(self.s.day_hints)     # سرنخ‌های همین صبح از اینجا
         self.s.day_hints.append(day_clue(self.s.case, self.s.day, facts))
+        w = self._witness_clue(acts)
+        if w:
+            self.s.day_hints.append(w)
         if self.s.day == 1 and self.s.case.vehicle:
             # رنگ و مدل برای همه؛ پلاک فقط در پرونده‌ی پلیس می‌ماند.
             from .cases import vehicle_clue
@@ -1355,20 +1364,76 @@ class Game:
         # نشده و ROLES[""] با KeyError کل فرمان را می‌ترکاند.
         self._may_query(uid)
         p = self.s.players[uid]
-        if not p.role or ROLES[p.role].info != "police_files":
-            raise RuleError("استعلام پلاک فقط از پرونده‌ی پلیس ممکن است.")
+        # مالکِ بازی: پلاک را کارآگاه هم می‌گیرد، کنارِ بازجو. سهمیه جداست،
+        # پس یکی سهمِ دیگری را خرج نمی‌کند.
+        if not p.role or ROLES[p.role].info not in ("police_files", "sightings"):
+            raise RuleError("استعلام پلاک فقط از پرونده‌ی پلیس یا دفتر کارآگاه ممکن است.")
         if self.s.plate_owner is None:
             raise RuleError("هنوز پلاکی ثبت نشده است.")
-        if self.s.plate_query is not None:
-            raise RuleError("یک استعلام در جریان است؛ نتیجه‌اش سحر می‌رسد.")
-        if self.s.day in self.s.plate_nights:
+        if uid in self.s.plate_queries:
+            raise RuleError("استعلامت ثبت شده؛ نتیجه‌اش سحر می‌رسد.")
+        if (uid, self.s.day) in self.s.plate_nights:
             raise RuleError("امشب استعلامت را خرج کرده‌ای؛ شب بعد دوباره.")
-        self.s.plate_query = uid
-        self.s.plate_nights.append(self.s.day)
+        self.s.plate_queries[uid] = self.s.day
+        self.s.plate_nights.append((uid, self.s.day))
         if uid not in self.s.plate_lookups:
             self.s.plate_lookups.append(uid)
         return (f"🔎 استعلام پلاک `{self.s.case.vehicle['plate']}` ثبت شد.\n"
                 "نتیجه سحرِ فردا به همین پیوی می‌رسد.")
+
+    # ================= استعلامِ ظاهرِ یک نفر (روزی یک بار) =================
+    def inspect_person(self, uid: int, target: int) -> str:
+        """کارآگاه هر روز مشخصات ظاهریِ یک نفر را می‌گیرد.
+
+        این توانایی جدا از استعلامِ شبانه‌ی هویت است: آن یکی می‌گوید «پاک یا
+        مشکوک»، این یکی می‌گوید «بلندقامت، پالتو تیره». ارزشش وقتی معلوم
+        می‌شود که شهادتِ شاهد را کنارش بگذاری — و چون چند نفر ویژگی مشترک
+        دارند، تطبیق هیچ‌وقت یک‌نفره نیست.
+        """
+        self._may_query(uid)
+        p = self.s.players[uid]
+        if not p.role or ROLES[p.role].info != "sightings":
+            raise RuleError("استعلام مشخصات فقط از دفتر کارآگاه ممکن است.")
+        t = self.s.players.get(target)
+        if not t or not t.in_game:
+            raise RuleError("هدف نامعتبر است.")
+        if (uid, self.s.day) in self.s.inspect_days:
+            raise RuleError("امروز استعلامت را خرج کرده‌ای؛ فردا یکی دیگر.")
+        self.s.inspect_days.append((uid, self.s.day))
+        from . import people
+        desc = people.describe(t.appearance)
+        line = f"👤 روز {_fa(self.s.day)}: {t.name} — {desc}"
+        p.notes.append(line)
+        hits = []
+        for w in self.s.day_hints:
+            m = people.matches(t.appearance, w)
+            if m:
+                hits.append("، ".join(m))
+        tail = ("\n🔗 با شهادتِ منتشرشده هم‌خوانی دارد در: " + "؛ ".join(hits)
+                if hits else "\n🔗 با هیچ شهادتِ منتشرشده‌ای تطبیق مستقیم ندارد.")
+        return (f"👤 *مشخصات {t.name}*\n{'─' * 18}\n{desc}{tail}\n\n"
+                "⚠️ ویژگی‌های ظاهری بین چند نفر مشترک‌اند؛ تطبیق، اثبات نیست.")
+
+    def _witness_clue(self, acts: Dict[str, Dict[int, int]]) -> str:
+        """شهادتِ ناقصِ یک شاهد درباره‌ی کسی که واقعاً دیشب بیرون بوده.
+
+        از *اکشنِ واقعی* ساخته می‌شود، نه از هوا: فقط کسانی که واقعاً به کسی
+        سر زده‌اند دیده می‌شوند. پس پزشک و نگهبان هم می‌توانند سوژه‌ی شهادت
+        باشند — و همین است که شهادت را قابل بحث می‌کند نه قطعی.
+        """
+        from . import people
+        movers = [a for ab, pairs in acts.items()
+                  if ab not in ("investigate", "expose", "watch")
+                  for a in pairs]
+        movers = [u for u in dict.fromkeys(movers)
+                  if u in self.s.players and u not in self.s.hidden]
+        self.s.witness_of = None
+        if not movers:
+            return ""
+        rng = random.Random(self.s.chat_id * 31 + self.s.day)
+        who = rng.choice(sorted(movers))
+        self.s.witness_of = who
+        return "👁️ " + people.witness_line(self.s.players[who].appearance, rng)
 
     def _deliver_plate(self) -> None:
         """سحر: نتیجه‌ی استعلام دیشب.
@@ -1376,25 +1441,23 @@ class Game:
         اگر استعلام‌کننده دیگر در بازی نیست، نتیجه تحویل *نمی‌شود* و کسی
         آن را ارث نمی‌برد (hints.md §۱۲.۳: «officer unavailable»).
         """
-        uid = self.s.plate_query
-        if uid is None:
-            return
-        self.s.plate_query = None
-        p = self.s.players.get(uid)
-        if not p or not p.in_game:
-            self.s.log.append("🚗 استعلام پلاک بی‌تحویل ماند.")
-            return
+        pending, self.s.plate_queries = dict(self.s.plate_queries), {}
         owner = self.s.players.get(self.s.plate_owner)
-        if owner is None:
-            return
-        p.notes.append(f"🚗 روز {_fa(self.s.day)}: مالک ثبت‌شده‌ی پلاک → {owner.name}")
-        self.post(uid,
-                  "🔎 *نتیجه‌ی استعلام پلاک* — پرونده‌ی انتظامی، محرمانه\n"
-                  f"خودرو: {self.s.case.vehicle['model']} {self.s.case.vehicle['color']}\n"
-                  f"شناسه‌ی پلاکِ ساختگیِ بازی: `{self.s.case.vehicle['plate']}`\n"
-                  f"مالک ثبت‌شده در زمان واقعه: *{owner.name}*\n\n"
-                  "⚠️ مالکیت، رانندگیِ آن شب را ثابت نمی‌کند؛ سند هم قابل جعل است. "
-                  "این یک سرنخ است، نه حکم.")
+        for uid in pending:
+            p = self.s.players.get(uid)
+            if not p or not p.in_game:
+                self.s.log.append("🚗 یک استعلام پلاک بی‌تحویل ماند.")
+                continue
+            if owner is None:
+                continue
+            p.notes.append(f"🚗 روز {_fa(self.s.day)}: مالک ثبت‌شده‌ی پلاک → {owner.name}")
+            self.post(uid,
+                      "🔎 *نتیجه‌ی استعلام پلاک* — محرمانه\n"
+                      f"خودرو: {self.s.case.vehicle['model']} {self.s.case.vehicle['color']}\n"
+                      f"شناسه‌ی پلاکِ ساختگیِ بازی: `{self.s.case.vehicle['plate']}`\n"
+                      f"مالک ثبت‌شده در زمان واقعه: *{owner.name}*\n\n"
+                      "⚠️ مالکیت، رانندگیِ آن شب را ثابت نمی‌کند؛ سند هم قابل جعل است. "
+                      "این یک سرنخ است، نه حکم.")
 
     def swap_plate(self, uid: int, target: int) -> str:
         """قاتل یک بار در بازی سند خودرو را به نام دیگری می‌زند."""

@@ -566,3 +566,12 @@ def manage_kb(g) -> Dict:
     rows.append([("🕶️ ناشناس/علنی کردن رای", "voteanon")])
     rows.append([BACK, HOME])
     return kb(rows)
+
+
+def stance_kb() -> Dict:
+    """R07.2: نشانه‌های صحنه‌ای انتخابِ خودِ متهم است، نه مشاهده‌ی ربات."""
+    return kb([[("😰 عصبی و بی‌قرار", "stance:nervous"),
+                ("😐 آرام و خونسرد", "stance:calm")],
+               [("🥵 از گرما شاکی", "stance:hot"),
+                ("😠 عصبانی و معترض", "stance:angry")],
+               [BACK, HOME]])

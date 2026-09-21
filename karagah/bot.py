@@ -595,6 +595,30 @@ def h_reply(chat, uid, name, arg):
                                          [ui.BACK, ui.HOME]]), private=True)
 
 
+def h_inspect(chat, uid, name, arg):
+    """کارآگاه: مشخصات ظاهریِ یک نفر، روزی یک بار."""
+    g, p = _player(chat, uid)
+    if not arg:
+        if not p.role or ROLES[p.role].info != "sightings":
+            raise RuleError("استعلام مشخصات فقط از دفتر کارآگاه ممکن است.")
+        return _ok("👤 *مشخصات چه کسی را می‌خواهی؟* روزی یک نفر.",
+                   menus.player_kb(g.s, "inspect", exclude=(uid,)), private=True)
+    return _ok(g.inspect_person(uid, int(arg)),
+               ui.kb([[("📓 دفترچه", "notes")], [ui.BACK, ui.HOME]]), private=True)
+
+
+def h_stance(chat, uid, name, arg):
+    """متهم: ژستِ نمایشیِ شخصیتش را خودش انتخاب می‌کند."""
+    g = _g(chat)
+    if not arg:
+        if g.s.suspect_uid != uid:
+            raise RuleError("فقط متهمِ داخل اتاق ژست انتخاب می‌کند.")
+        return _ok("🎭 *شخصیتت در اتاق چطور رفتار می‌کند؟*\n"
+                   "بازجو این را به‌عنوان «روایت صحنه» می‌بیند — نه مشاهده‌ی واقعی.",
+                   ui.stance_kb(), private=True)
+    return _ok(g.set_stance(uid, arg), ui.back_only(), private=True)
+
+
 def h_closeroom(chat, uid, name, arg):
     g = _g(chat)
     msg = g.close_room(uid)
@@ -1180,6 +1204,7 @@ _ROUTES = {
     "share_note": h_share_note, "refer": h_refer, "surrender": h_surrender,
     "archive": h_archive, "plate": h_plate, "manage": h_manage,
     "reply": h_reply, "closeroom": h_closeroom, "closerelease": h_closerelease,
+    "inspect": h_inspect, "stance": h_stance,
 }
 
 # دستورهایی که به BotFather معرفی می‌شوند (زیرمجموعه‌ی امن برای منوی دستورها)
