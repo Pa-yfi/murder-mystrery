@@ -141,7 +141,10 @@ def _player(chat: int, uid: int):
 
 
 # فرمان‌هایی که به بازی وابسته نیستند و در پیوی همان‌جا اجرا می‌شوند
-GLOBAL_CMDS = {"start", "menu", "back", "help", "roles", "tutorial", "share",
+# «menu»/«back» عمداً اینجا نیستند: §۱۳ ST04 — اگر جهانی باشند، در پیوی
+# chat_id خودِ کاربر برگردانده می‌شود، بازی پیدا نمی‌شود و منوی پیش از بازی
+# وسطِ یک بازیِ زنده ظاهر می‌شود.
+GLOBAL_CMDS = {"start", "help", "roles", "tutorial", "share",
                "balance",
                "sharelink", "top", "league", "season", "missions", "achv",
                "new", "blitz", "newtable", "table",
@@ -312,13 +315,30 @@ def h_start(chat, uid, name, arg):
     return _ok(ui.first_screen(), ui.first_kb(chat, GAMES[chat].s if chat in GAMES else None))
 
 
+def _head(g) -> str:
+    """سرصفحه‌ی مشترک §۱۳.۵: دورِ جاری و آخرین شبی که واقعاً حل شده."""
+    last = g.s.last_report_night
+    tail = f" · آخرین گزارش: شب {ui._fa(last)}" if last else " · هنوز گزارشی نیست"
+    title = g.s.case.title if g.s.case else "کارآگاه"
+    return f"🗂️ *{title}* · دور {ui._fa(g.s.day)} · {g.s.phase.value}{tail}"
+
+
 def h_menu(chat, uid, name, arg):
     """منو با فاز بازی عوض می‌شود؛ وسط بازی به صفحه‌ی «شروع بازی» برنمی‌گردد."""
     g = GAMES.get(chat)
     if g and g.s.phase not in (Phase.LOBBY, Phase.END):
-        return _ok(f"🏠 *منوی بازی* — روز {g.s.day} | فاز: {g.s.phase.value}\n"
-                   f"➡️ {g.next_step()}", ui.main_menu(g.s))
+        me = g.s.players.get(uid)
+        return _ok(_head(g) + f"\n➡️ {g.next_step()}",
+                   ui.main_menu(g.s, g, me) if me else ui.main_menu(g.s))
     return _ok("🏠 *منوی اصلی*", ui.main_menu(g.s if g else None))
+
+
+def h_manage(chat, uid, name, arg):
+    """ST06: کنترل‌های میزبان برای همین بازی — بدون گزینه‌ی ساختِ بازی تازه."""
+    g = _g(chat)
+    if uid != g.owner:
+        raise RuleError("فقط میزبان به مدیریت این بازی دسترسی دارد.")
+    return _ok(_head(g) + "\n🛠️ *مدیریت همین بازی*", ui.manage_kb(g), private=True)
 
 
 def _guard_replace(chat, uid):
@@ -713,7 +733,7 @@ def h_will(chat, uid, name, arg):
         return _ask_text(chat, uid, "will")
     g.set_will(uid, arg)
     return _ok("📜 وصیت‌نامه ثبت شد؛ اگر کشته شوی صبح خوانده می‌شود.",
-               menus.commands_menu(), private=True)
+               menus.commands_menu(g.s, g, p), private=True)
 
 
 def h_note(chat, uid, name, arg):
@@ -1065,21 +1085,23 @@ def h_commands(chat, uid, name, arg):
     """تابلوی دکمه‌ها — وسط بازی فقط دسته‌های مربوط به همین دور."""
     g = GAMES.get(chat)
     st = g.s if g else None
+    me = g.s.players.get(uid) if g else None
     head = menus.commands_screen()
     if g and g.s.phase not in (Phase.LOBBY, Phase.END):
         head = (f"🎛️ *دکمه‌های همین دور* — روز {ui._fa(g.s.day)} | "
                 f"فاز: {g.s.phase.value}\n" + "─" * 18 +
                 f"\n➡️ {g.next_step()}")
-    return _ok(head, menus.commands_menu(st))
+    return _ok(head, menus.commands_menu(st, g, me))
 
 
 def h_group(chat, uid, name, arg):
     g = GAMES.get(chat)
     st = g.s if g else None
-    keys = [k for k, _t, _i in menus.visible_groups(st)]
+    me = g.s.players.get(uid) if g else None
+    keys = [k for k, _t, _i in menus.visible_groups(st, g, me)]
     if arg not in keys:
-        return _ok(menus.commands_screen(), menus.commands_menu(st))
-    return _ok(f"*{menus.group_title(arg)}*", menus.group_kb(arg, st))
+        return _ok(menus.commands_screen(), menus.commands_menu(st, g, me))
+    return _ok(f"*{menus.group_title(arg)}*", menus.group_kb(arg, st, g, me))
 
 
 def h_roleinfo(chat, uid, name, arg):
@@ -1096,8 +1118,11 @@ def h_abilities(chat, uid, name, arg):
 
 
 def h_cancel(chat, uid, name, arg):
+    """لغو هم باید به همان منوی بازی برگردد، نه به فهرستِ پیش از بازی."""
     take_pending(uid)
-    return _ok("✖️ باشه، بی‌خیال.", menus.commands_menu())
+    g = GAMES.get(chat)
+    me = g.s.players.get(uid) if g else None
+    return _ok("✖️ باشه، بی‌خیال.", menus.commands_menu(g.s if g else None, g, me))
 
 
 _ROUTES = {
@@ -1126,7 +1151,7 @@ _ROUTES = {
     # جعبه‌ابزار قاتل، یادداشت سپرده، و مسیر دومِ بازجو
     "killer": h_killer, "fakeclue": h_fakeclue, "recruit": h_recruit,
     "share_note": h_share_note, "refer": h_refer, "surrender": h_surrender,
-    "archive": h_archive, "plate": h_plate,
+    "archive": h_archive, "plate": h_plate, "manage": h_manage,
 }
 
 # دستورهایی که به BotFather معرفی می‌شوند (زیرمجموعه‌ی امن برای منوی دستورها)

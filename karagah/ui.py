@@ -65,17 +65,40 @@ IN_GAME_MENU = [
 ]
 
 
-def main_menu(state: GameState | None = None) -> Dict:
-    """منو با فاز بازی عوض می‌شود.
+def main_menu(state: GameState | None = None, g=None, p=None) -> Dict:
+    """منو با فاز بازی *و با کارهای قانونیِ همین بازیکن* ساخته می‌شود.
 
-    وقتی بازی در گروه شروع شده، «🎮 شروع بازی همین‌جا» نباید آنجا باشد:
-    زدنش بازیِ در جریان را دور می‌انداخت و به نظر می‌رسید منو به قبل از
-    بازی برگشته است.
+    §۱۳ ST03: یک فهرستِ ثابت برای همه یعنی نقشی که اکشن شبانه ندارد هم
+    «اکشن شبانه» می‌بیند و بعد از کلیک خطا می‌گیرد. منو از روی توانایی
+    ساخته می‌شود، نه از روی یک لیستِ یکسان.
     """
     from .models import Phase as _P
-    if state is not None and state.phase not in (_P.LOBBY, _P.END):
+    from . import menus
+    if state is None or state.phase in (_P.LOBBY, _P.END):
+        return kb(MENU)
+    if g is None or p is None:
         return kb(IN_GAME_MENU)
-    return kb(MENU)
+    rows = [[("🎛️ همه‌ی دکمه‌ها", "commands")]]
+    first = []
+    if menus.may_use("killer", g, p):
+        first.append(("🔪 جعبه‌ابزار قاتل", "killer"))
+    elif menus.may_use("act", g, p):
+        first.append(("🌙 اکشن شبانه", "act"))
+    if menus.may_use("hunter", g, p):
+        first.append(("🏹 هدف شلیک آخر", "hunter"))
+    if menus.may_use("hints", g, p) and state.suspect_uid:
+        first.append(("🔦 سرنخ‌های بازجویی", "hints"))
+    if menus.may_use("defense", g, p):
+        first.append(("🛡️ دفاع من", "defense"))
+    if first:
+        rows += [first[i:i + 2] for i in range(0, len(first), 2)]
+    rows.append([("🗂️ بایگانی نقش من", "archive"), ("🎯 توانایی‌های من", "abilities")])
+    rows.append([("📋 داشبورد", "dashboard"), ("📓 دفترچه‌ی من", "notes")])
+    rows.append([("🏙️ وضعیت شهر", "status"), ("📖 قوانین", "help")])
+    if p.uid == g.owner:                       # ST06: مدیریتِ همین بازی
+        rows.append([("🛠️ مدیریت همین بازی", "manage")])
+    rows.append([("🏳️ تسلیم می‌شوم", "surrender")])
+    return kb(rows)
 
 
 # ── صفحه‌ی اول: افزودن به گروه / دعوت دوست ──
@@ -520,3 +543,14 @@ def balance_report_sql(roles, seats, aband) -> str:
     return (f"📊 *تعادل بازی*\n{DIV}\n🎭 نرخ برد هر نقش:\n{r}\n{DIV}\n"
             f"👥 بر اساس تعداد بازیکن:\n{s}\n{DIV}\n"
             f"🚪 رهاشدگی: {aband['abandoned']}/{aband['games']} ({aband['pct']}٪)")
+
+
+def manage_kb(g) -> Dict:
+    """ST06: کنترل‌های میزبان برای *همین* بازی. هیچ گزینه‌ی جایگزینیِ بازی ندارد."""
+    rows = [[("▶️ ادامه‌ی بازی", "resume")] if g.s.paused
+            else [("⏸️ توقف بازی", "pause")]]
+    rows.append([("👑 انتقال میزبانی", "host")])
+    rows.append([("⏰ یادآوری به بازیکن‌ها", "remind")])
+    rows.append([("🕶️ ناشناس/علنی کردن رای", "voteanon")])
+    rows.append([BACK, HOME])
+    return kb(rows)

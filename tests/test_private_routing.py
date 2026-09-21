@@ -43,7 +43,8 @@ def test_group_command_is_untouched():
 
 def test_global_commands_stay_in_private():
     _started()
-    for cmd in ("help", "menu", "top", "roles"):
+    # «menu» دیگر جهانی نیست: وسط بازی باید میزِ فعال را پیدا کند (§۱۳ ST04)
+    for cmd in ("help", "top", "roles"):
         assert route_chat(cmd, 2, 2, private=True) == 2
 
 

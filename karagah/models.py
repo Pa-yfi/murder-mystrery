@@ -143,6 +143,8 @@ class GameState:
     plate_lookups: List[int] = field(default_factory=list)   # چه کسانی استعلام گرفتند
     plate_query: Optional[int] = None        # استعلامِ در جریان (نتیجه سحر)
     plate_nights: List[int] = field(default_factory=list)    # شب‌هایی که استعلام خرج شد
+    death_cause: Dict[int, str] = field(default_factory=dict)  # uid → علتِ واقعیِ مرگ
+    last_report_night: int = 0            # آخرین شبی که واقعاً حل شد
     win_reason: str = ""                              # بهبود ۶: چرا این تیم برد
     paused: bool = False                        # بهبود ۷: بازی موقتاً متوقف
     paused_left: Optional[int] = None            # ثانیه‌های باقی‌ماندهی فاز هنگام توقف

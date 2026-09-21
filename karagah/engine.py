@@ -366,6 +366,13 @@ class Game:
                 res = "پاک" if t.align is Align.CITY else "مشکوک"
             p.notes.append(f"شب {day}: {t.name} → {res}")
 
+        for actor, tgt in acts.get("protect", {}).items():
+            doc, t = self.s.players[actor], self.s.players[tgt]
+            who = "خودت" if actor == tgt else t.name
+            hit = tgt in [v for v in acts.get("kill", {}).values()]
+            doc.notes.append(f"💉 شب {day}: از {who} محافظت کردی — "
+                             + ("حمله دفع شد ✅" if hit else "حمله‌ای به او نشد."))
+
         for actor, tgt in acts.get("watch", {}).items():
             p, t = self.s.players[actor], self.s.players[tgt]
             n = 0 if tgt in self.s.hidden else visits.get(tgt, 0)
@@ -422,6 +429,7 @@ class Game:
         for tgt in acts.get("kill", {}).values():
             if tgt not in protected and tgt not in killed:
                 killed.append(tgt)
+                self.s.death_cause[tgt] = "حمله‌ی مستقیم"
         if self.s.night_event.startswith("طوفان") and killed:
             self.s.log.append("⛈️ طوفان راه‌ها را بست؛ حمله‌ی امشب ناکام ماند.")
             killed = []
@@ -437,14 +445,17 @@ class Game:
             elif tgt not in killed:
                 del self.s.poison_queue[tgt]
                 killed.append(tgt)
+                self.s.death_cause[tgt] = "اثر تأخیریِ سم (تماس، شب‌ها پیش‌تر)"
                 self.s.log.append(f"☠️ {self.s.players[tgt].name} بر اثر سم از پا درآمد.")
         # ایده ۸: زوج سرنوشت
         if self.s.fate_pair:
             a, b = self.s.fate_pair
             if a in killed and b not in killed and self.s.players[b].in_game:
                 killed.append(b)
+                self.s.death_cause[b] = "پیامدِ زنجیره‌ای (زوج سرنوشت)"
             elif b in killed and a not in killed and self.s.players[a].in_game:
                 killed.append(a)
+                self.s.death_cause[a] = "پیامدِ زنجیره‌ای (زوج سرنوشت)"
         # ایده ۱۵: شلیک آخر شکارچی
         extra = []
         for uid in list(killed):
@@ -453,6 +464,7 @@ class Game:
                 tgt = self.s.players[p.hunter_target]
                 if tgt.in_game and p.hunter_target not in killed:
                     extra.append(p.hunter_target)
+                    self.s.death_cause[p.hunter_target] = "شلیک آخرِ شکارچی"
                     self.s.log.append(f"🏹 شلیک آخر {p.name}: {tgt.name} را با خود برد!")
         killed += extra
         for uid in killed:
@@ -465,7 +477,11 @@ class Game:
         if killed:
             for p in self.s.players.values():
                 if p.role == "کالبدشکاف" and p.in_game:
-                    p.notes.append(f"🔬 شب {self.s.day}: مرگ حوالی ۲۳:۱۵ با {self.s.case.weapon}.")
+                    for u in killed:
+                        cause = self.s.death_cause.get(u, "نامشخص")
+                        p.notes.append(
+                            f"🔬 شب {_fa(self.s.day)}: {self.s.players[u].name} — "
+                            f"دسته‌ی علت: {cause}.")
         # ایده ۱۰: تحویل نتایج آزمایشگاه سررسیدشده
         ready = [c for c, d in self.s.lab_queue.items() if d <= self.s.day]
         for c in ready:
@@ -476,6 +492,7 @@ class Game:
         self.s._protect_prev = self.s.night_actions.get("_last_protect")
         self.s.night_actions.clear()
         self.s.phase = Phase.MORNING
+        self.s.last_report_night = self.s.day    # §۱۳.۵: شب واقعاً حل شد
         self.s.deadline = None
         ev = self.s.case.evidence[min(self.s.day - 1, len(self.s.case.evidence) - 1)]
         self.s.revealed_evidence.append(ev["code"])
@@ -1260,25 +1277,30 @@ class Game:
 
         if kind == "hospital":          # 💉 پزشک
             title = "🏥 *پرونده‌ی درمانگاه*"
-            L.append(f"🛏️ سهمیه‌ی نجاتِ خودت: "
+            L.append("🛏️ سهمیه‌ی نجاتِ خودت: "
                      + ("سوخته ✔️" if p.self_save_used else "دستِ نخورده"))
-            hurt = sorted((q for q in self.alive_in_game()), key=lambda q: -q.stress)[:3]
-            L.append("📈 بالاترین فشار عصبی (از پذیرش‌های امروز):")
-            L += [f"   • {q.name} — {self._stress_band(q)}" for q in hurt]
-            dead = [q.name for q in self.s.players.values() if not q.alive]
-            L.append("⚰️ فوتی‌ها: " + ("، ".join(dead) if dead else "—"))
-            L.append(f"🧾 علت مرگ در پرونده: {c.weapon}")
+            # فقط چیزی که واقعاً ثبت شده. رتبه‌بندیِ «فشار عصبی» حذف شد:
+            # آن عدد از هم‌ترازی می‌آمد و عملاً یک فالِ تیمی به پزشک می‌داد.
+            mine = [n for n in p.notes if n.startswith("💉")]
+            L.append("📋 مراجعه‌های ثبت‌شده‌ی خودت:")
+            L += [f"   • {n}" for n in mine] or ["   — هنوز محافظتی ثبت نکرده‌ای —"]
+            dead = [(q.name, self.s.death_cause.get(q.uid, "نامشخص"))
+                    for q in self.s.players.values() if not q.alive]
+            L.append("⚰️ فوتی‌های تأییدشده:")
+            L += [f"   • {n} — {cz}" for n, cz in dead] or ["   — هیچ —"]
+            L.append("_این گزارش لحظه‌ی ثبت را می‌گوید؛ سلامتِ همین حالا را تضمین نمی‌کند._")
 
         elif kind == "forensic_files":  # 🧪 پزشک قانونی / 🔬 کالبدشکاف
             title = "🔬 *گزارش کالبدشکافی*"
-            L.append(f"🕰️ ساعت تقریبی مرگ: {self._death_hour()}")
-            L.append(f"🔪 ابزار: {c.weapon}")
+            # توییستِ پرونده و فهرستِ مدارکِ جعلی اینجا نمی‌آید: آن‌ها جوابِ
+            # معما هستند و فقط با خرج‌کردنِ اکشن شبانه به دست می‌آیند.
+            L.append(f"🕰️ ساعت مرگ در پرونده‌ی اولیه: {self._death_hour()}")
             L.append(f"📍 محل کشف: {c.place}")
-            L.append(f"🧬 یافته: {c.twist}")
-            fake = [e["code"] for e in c.evidence
-                    if e["misleading"] and e["code"] in self.s.revealed_evidence]
-            L.append("🎭 مدارکی که آزمایشگاه جعلی خواند: "
-                     + ("، ".join(fake) if fake else "— هنوز هیچ —"))
+            L.append("")
+            L.append("🧪 نتیجه‌های آزمایشِ خودت:")
+            L += [f"   • {n}" for n in p.notes if n.startswith("🧪")] or                  ["   — هنوز مدرکی را آزمایش نکرده‌ای —"]
+            L.append("🔬 گزارش‌های کالبدشکافیِ خودت:")
+            L += [f"   • {n}" for n in p.notes if n.startswith("🔬")] or                  ["   — هنوز مرگی ثبت نشده —"]
 
         elif kind == "police_files":    # 🔦 بازجو
             title = "👮 *پرونده‌های پلیس*"

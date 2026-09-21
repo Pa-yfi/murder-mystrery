@@ -67,7 +67,7 @@ GROUPS: List[Tuple[str, str, List[tuple]]] = [
         ("📺 تماشاچی", "spectate"), ("🕶️ ناشناس/علنی", "voteanon"),
         ("🔁 دور دوباره", "rematch"), ("⏰ یادآوری", "remind"),
         ("⏸️ توقف بازی", "pause"), ("▶️ ادامه‌ی بازی", "resume"),
-        ("🏳️ تسلیم می‌شوم", "surrender"),
+        ("🏳️ تسلیم می‌شوم", "surrender"), ("🛠️ مدیریت همین بازی", "manage"),
         ("👑 انتقال میزبانی", "host"), ("⏳ بررسی تایمر", "tick"),
     ]),
     ("guide", "📚 راهنما", [
@@ -111,8 +111,51 @@ PREGAME_ONLY = {"new", "blitz", "newtable", "join", "leave", "startgame",
                 "ready", "rematch", "table", "spectate"}
 
 
-def visible_groups(state=None) -> List[Tuple[str, str, List[tuple]]]:
-    """دسته‌های دیدنی در این لحظه — و داخل هر دسته، دکمه‌های دیدنی."""
+# دکمه‌هایی که فقط یک نقشِ مشخص می‌تواند بزند. کلید = callback،
+# مقدار = تابعی که می‌گوید این بازیکن مجاز است یا نه.
+# §۱۳ ST02/ST03: منو باید از روی «کارهای قانونیِ همین بازیکن» ساخته شود،
+# نه یک فهرستِ ثابت که بعد از کلیک خطا می‌دهد.
+def _has_night_action(g, p) -> bool:
+    r = ROLES.get(p.role)
+    return bool(r and r.ability and r.ability != "hunter")
+
+
+def _is_killer_tool_user(g, p) -> bool:
+    return (p.align.value == "قاتل‌ها" and not p.recruited
+            and bool(ROLES[p.role].ability))
+
+
+CAPABILITY = {
+    "act":        lambda g, p: _has_night_action(g, p),
+    "hunter":     lambda g, p: ROLES[p.role].ability == "hunter",
+    "expose":     lambda g, p: p.role == "کارآگاه",
+    "plate":      lambda g, p: ROLES[p.role].info == "police_files",
+    "hints":      lambda g, p: p.uid == g.s.officer_uid,
+    "ask":        lambda g, p: p.uid == g.s.officer_uid,
+    "verdict":    lambda g, p: p.uid == g.s.officer_uid,
+    "refer":      lambda g, p: p.uid == g.s.officer_uid,
+    "clear":      lambda g, p: p.uid == g.s.officer_uid,
+    "defense":    lambda g, p: g.s.suspect_uid == p.uid,
+    "killer":     _is_killer_tool_user,
+    "fakeclue":   _is_killer_tool_user,
+    "recruit":    lambda g, p: g.s.recruit_offer == p.uid,
+    "pause":      lambda g, p: p.uid == g.owner,
+    "resume":     lambda g, p: p.uid == g.owner,
+    "host":       lambda g, p: p.uid == g.owner,
+    "voteanon":   lambda g, p: p.uid == g.owner,
+}
+
+
+def may_use(cb: str, g=None, p=None) -> bool:
+    """آیا این دکمه برای این بازیکن معنا دارد؟ (مجوزِ سرور جداست.)"""
+    if g is None or p is None:
+        return True
+    check = CAPABILITY.get(cb)
+    return True if check is None else bool(check(g, p))
+
+
+def visible_groups(state=None, g=None, p=None) -> List[Tuple[str, str, List[tuple]]]:
+    """دسته‌های دیدنی در این لحظه — و داخل هر دسته، فقط دکمه‌های همین بازیکن."""
     from .models import Phase as _P
     live = state is not None and state.phase not in (_P.LOBBY, _P.END)
     if not live:
@@ -121,14 +164,16 @@ def visible_groups(state=None) -> List[Tuple[str, str, List[tuple]]]:
     for key, title, items in GROUPS:
         if key not in IN_GAME_GROUPS:
             continue
-        keep = [(lbl, cb) for lbl, cb in items if cb not in PREGAME_ONLY]
-        if keep:
+        keep = [(lbl, cb) for lbl, cb in items
+                if cb not in PREGAME_ONLY and may_use(cb, g, p)]
+        if keep:                       # دسته‌ی خالی اصلاً نشان داده نمی‌شود
             out.append((key, title, keep))
     return out
 
 
-def commands_menu(state=None) -> Dict:
-    rows = [[(title, f"group:{key}")] for key, title, _items in visible_groups(state)]
+def commands_menu(state=None, g=None, p=None) -> Dict:
+    rows = [[(title, f"group:{key}")]
+            for key, title, _items in visible_groups(state, g, p)]
     return kb(rows + [[HOME]])
 
 
@@ -138,11 +183,11 @@ def commands_screen() -> str:
             "\nهر دکمه‌ای که ورودی بخواهد، خودش فهرست انتخاب‌ها را نشان می‌دهد.")
 
 
-def group_kb(key: str, state=None) -> Dict:
-    groups = visible_groups(state)
+def group_kb(key: str, state=None, g=None, p=None) -> Dict:
+    groups = visible_groups(state, g, p)
     items = next((items for k, _t, items in groups if k == key), None)
     if items is None:                    # دسته‌ای که وسط بازی پنهان است
-        return commands_menu(state)
+        return commands_menu(state, g, p)
     return kb(_pairs(items) + [[BACK, HOME]])
 
 

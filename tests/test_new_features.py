@@ -343,7 +343,8 @@ def test_menu_does_not_offer_starting_a_new_game_mid_match():
     cbs = _cbs(r["keyboard"])
     assert "new" not in cbs and "blitz" not in cbs, "منو نباید بازی در جریان را دور بیندازد"
     assert "surrender" in cbs
-    assert "منوی بازی" in r["text"]
+    # §۱۳.۵: سرصفحه‌ی مشترک — پرونده، دورِ جاری، فاز
+    assert "دور ۱" in r["text"] and g.s.phase.value in r["text"]
 
 
 def test_menu_returns_to_the_normal_one_in_lobby_and_after_the_end():
@@ -456,7 +457,57 @@ def test_doctor_archive_is_a_hospital_report():
     txt = handle("archive", CHAT, doc.uid)["text"]
     assert "درمانگاه" in txt
     assert "سهمیه‌ی نجاتِ خودت" in txt
-    assert g.s.case.weapon in txt
+    # محافظتِ ثبت‌شده رسید می‌گیرد
+    other = next(u for u in g.legal_targets(doc.uid) if u != doc.uid)
+    handle("act", CHAT, doc.uid, arg=str(other))
+    handle("dawn", CHAT)
+    assert g.s.players[other].name in handle("archive", CHAT, doc.uid)["text"]
+
+
+def test_doctor_archive_is_not_an_alignment_oracle():
+    """§۱۳ ST09: رتبه‌بندیِ «فشار عصبی» از هم‌ترازی می‌آمد و تیمِ بازیکن‌ها را لو می‌داد."""
+    g = _started()
+    doc = next((p for p in g.s.players.values() if p.role == "پزشک"), None)
+    if doc is None:
+        pytest.skip("این ترکیب پزشک ندارد")
+    txt = handle("archive", CHAT, doc.uid)["text"]
+    assert "فشار عصبی" not in txt
+    for band in ("آرام", "بی‌قرار", "در آستانه‌ی فروپاشی"):
+        assert band not in txt
+
+
+def test_forensic_archive_does_not_hand_out_unearned_answers():
+    """§۱۳ ST10: توییستِ پرونده و فهرستِ مدارکِ جعلی نباید مجانی باشند."""
+    g = _started()
+    fo = next((p for p in g.s.players.values()
+               if ROLES[p.role].info == "forensic_files"), None)
+    if fo is None:
+        pytest.skip("این ترکیب نقشِ پزشکی قانونی ندارد")
+    txt = handle("archive", CHAT, fo.uid)["text"]
+    assert g.s.case.twist not in txt
+    fake = [e["code"] for e in g.s.case.evidence if e["misleading"]]
+    assert not any(f"• {c}" in txt for c in fake)
+    # ولی نتیجه‌ی آزمایشی که خودش خرج کرده، می‌آید
+    if ROLES[fo.role].ability == "autopsy":
+        handle("act", CHAT, fo.uid, arg=str(next(iter(g.legal_targets(fo.uid)))))
+        handle("dawn", CHAT)
+        assert "🧪" in handle("archive", CHAT, fo.uid)["text"]
+
+
+def test_coroner_reports_the_real_cause_not_the_case_weapon():
+    """§۷.۳: «هر مرگ را با سلاحِ پرونده توصیف نکن.»"""
+    g = _started()
+    cor = next((p for p in g.s.players.values() if p.role == "کالبدشکاف"), None)
+    k = _role(g, "قاتل")
+    if cor is None:
+        pytest.skip("این ترکیب کالبدشکاف ندارد")
+    victim = next(u for u in g.legal_targets(k.uid) if u != cor.uid)
+    handle("act", CHAT, k.uid, arg=str(victim))
+    handle("dawn", CHAT)
+    notes = " ".join(cor.notes)
+    assert "حمله‌ی مستقیم" in notes
+    assert g.s.case.weapon not in notes
+    assert g.s.death_cause[victim] == "حمله‌ی مستقیم"
 
 
 def test_officer_archive_holds_police_files_and_the_plate():
@@ -579,10 +630,83 @@ def test_command_hub_shows_everything_again_in_the_lobby():
 
 def test_pregame_buttons_are_stripped_from_in_game_group_pages():
     g = _started()
-    cbs = _cbs(handle("group", CHAT, 2, arg="play")["keyboard"])
+    actor = next(p for p in g.s.alive_players()
+                 if ROLES[p.role].ability not in ("", "hunter"))
+    cbs = _cbs(handle("group", CHAT, actor.uid, arg="play")["keyboard"])
     for bad in ("new", "blitz", "join", "leave", "startgame", "ready"):
         assert bad not in cbs, f"«{bad}» وسط بازی نباید در فهرست باشد"
     assert "act" in cbs and "dashboard" in cbs
+
+
+def test_menus_are_built_from_this_actors_legal_actions():
+    """§۱۳ ST03: نقشی که اکشن شبانه ندارد نباید دکمه‌ی آن را ببیند."""
+    g = _started()
+    idle = next((p for p in g.s.alive_players()
+                 if ROLES[p.role].ability in ("", "hunter")
+                 and p.uid != g.s.officer_uid), None)
+    if idle is None:
+        pytest.skip("همه‌ی نقش‌های این ترکیب اکشن شبانه دارند")
+    assert "act" not in _cbs(handle("group", CHAT, idle.uid, arg="play")["keyboard"])
+    assert "act" not in _cbs(handle("menu", CHAT, idle.uid)["keyboard"])
+
+
+def test_only_the_officer_sees_police_and_interrogation_controls():
+    """§۱۳ ST02: شهروند نباید دکمه‌ی پلیس/پلاک/بازجویی ببیند."""
+    g = _started()
+    civ = next(p for p in g.s.alive_players()
+               if p.uid != g.s.officer_uid and p.align is Align.CITY)
+    seen = set()
+    for key, _t, _i in menus.visible_groups(g.s, g, civ):
+        seen |= set(_cbs(menus.group_kb(key, g.s, g, civ)))
+    for secret in ("plate", "hints", "ask", "verdict", "refer", "clear"):
+        assert secret not in seen, f"«{secret}» نباید برای شهروند دیده شود"
+    off = g.s.players[g.s.officer_uid]
+    off_seen = set()
+    for key, _t, _i in menus.visible_groups(g.s, g, off):
+        off_seen |= set(_cbs(menus.group_kb(key, g.s, g, off)))
+    assert {"plate", "hints", "verdict"} <= off_seen
+
+
+def test_only_the_killer_team_sees_the_criminal_category():
+    g = _started()
+    civ = next(p for p in g.s.alive_players() if p.align is Align.CITY)
+    k = _role(g, "قاتل")
+    civ_groups = [key for key, _t, _i in menus.visible_groups(g.s, g, civ)]
+    k_groups = [key for key, _t, _i in menus.visible_groups(g.s, g, k)]
+    assert "dark" not in civ_groups
+    assert "dark" in k_groups
+
+
+def test_host_management_is_host_only_and_offers_no_new_game():
+    g = _started()
+    r = handle("manage", CHAT, 1)
+    assert r["ok"] and r["private"]
+    cbs = _cbs(r["keyboard"])
+    assert "pause" in cbs and "host" in cbs
+    for bad in ("new", "blitz", "newtable", "rematch", "startgame"):
+        assert bad not in cbs
+    other = next(p.uid for p in g.s.alive_players() if p.uid != 1)
+    assert handle("manage", CHAT, other)["ok"] is False
+
+
+def test_navigation_from_a_private_chat_keeps_the_live_match():
+    """§۱۳ ST04: Home/Back در پیوی نباید منوی پیش از بازی را بیاورد."""
+    from karagah.bot import route_chat
+    g = _started()
+    for cmd in ("menu", "back"):
+        assert route_chat(cmd, 5, 5, private=True) == CHAT
+    r = handle("menu", CHAT, 5)
+    assert "new" not in _cbs(r["keyboard"])
+    assert "دور ۱" in r["text"]
+
+
+def test_cancel_returns_to_the_game_menu_not_the_lobby_hub():
+    """§۱۳ ST05: لغو هم باید بافتِ بازی را حفظ کند."""
+    g = _started()
+    handle("note", CHAT, 3)
+    cbs = _cbs(handle("cancel", CHAT, 3)["keyboard"])
+    for bad in ("group:progress", "group:table", "group:guide", "group:admin"):
+        assert bad not in cbs
 
 
 def test_hidden_group_page_falls_back_to_the_hub_mid_match():
