@@ -12,7 +12,9 @@ import os
 import os.path as osp
 
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, BotCommand
-from telegram.error import InvalidToken
+import time
+
+from telegram.error import InvalidToken, RetryAfter
 from telegram.ext import (ApplicationBuilder, CommandHandler, CallbackQueryHandler,
                           MessageHandler, ContextTypes, filters)
 
@@ -22,19 +24,21 @@ try:
     from .bot import GAMES
     from .bot import (handle, ENDPOINTS, COMMANDS, restore_games,
                       is_dup_callback, route_chat, take_pending)
-    from .config import BOT_TOKEN as CONFIG_BOT_TOKEN
+    from .config import BOT_TOKEN as CONFIG_BOT_TOKEN, CLOCK_SECONDS
 except ImportError:
     import theme
     import bot as botmod
     from bot import GAMES
     from bot import (handle, ENDPOINTS, COMMANDS, restore_games,
                      is_dup_callback, route_chat, take_pending)
-    from config import BOT_TOKEN as CONFIG_BOT_TOKEN
+    from config import BOT_TOKEN as CONFIG_BOT_TOKEN, CLOCK_SECONDS
 
 logging.basicConfig(level=logging.INFO,
                     format="%(asctime)s %(levelname)s %(name)s: %(message)s")
 # httpx هر getUpdates را با آدرسِ کامل (همراه توکن) در INFO لاگ می‌کند → روی سرور هر چند ثانیه یک خط و توکن در لاگ
 logging.getLogger("httpx").setLevel(logging.WARNING)
+# تیکِ هر ثانیه: اگر یک دور بیشتر از یک ثانیه طول بکشد، APScheduler دورِ بعد را رد می‌کند و هر بار هشدار می‌نویسد
+logging.getLogger("apscheduler").setLevel(logging.ERROR)
 log = logging.getLogger("karagah.telegram")
 
 TOKEN = CONFIG_BOT_TOKEN
@@ -337,13 +341,28 @@ async def _post_init(app):
     log.info("دستورها ثبت شد: %s", ", ".join(COMMANDS))
 
 
-CLOCK_INTERVAL = 5          # ثانیه — پیامِ ساعت هر چند ثانیه خودش را ویرایش می‌کند
+CLOCK_INTERVAL = max(1.0, CLOCK_SECONDS)   # ثانیه — پیامِ ساعت هر ثانیه خودش را ویرایش می‌کند
 CLOCKS: dict = {}           # chat → {"key", "mid", "text"}: پیامِ ساعتِ فازِ فعلی
+# تلگرام در گروه‌ها ویرایشِ پشتِ سرِ هم را محدود می‌کند (RetryAfter). آن گروه تا زمانِ گفته‌شده
+# ویرایش نمی‌شود؛ بازی و مهلت‌ها بی‌وقفه جلو می‌روند و ساعت بعدش دوباره هر ثانیه تازه می‌شود.
+FLOOD_UNTIL: dict = {}      # chat → time.monotonic() که تا آن ویرایش نکن
+
+
+def _flood_wait(chat: int, e: Exception) -> bool:
+    if isinstance(e, RetryAfter):
+        ra = e.retry_after
+        secs = ra.total_seconds() if hasattr(ra, "total_seconds") else float(ra)
+        FLOOD_UNTIL[chat] = time.monotonic() + secs + 1
+        log.info("clock %s: Telegram asked to wait %.0fs", chat, secs)
+        return True
+    return False
 
 
 async def _update_clock(bot, chat: int) -> None:
     """نسخه ۷: یک پیامِ ساعت برای هر فاز (شبِ ۲، صبحِ روز ۲، …) که مدام ویرایش می‌شود.
     فاز عوض شد → پیامِ قبلی «✔️ تمام شد» می‌گیرد و پیامِ ساعتِ تازه پایینِ چت می‌آید."""
+    if FLOOD_UNTIL.get(chat, 0) > time.monotonic():
+        return
     view = botmod.clock_view(chat)
     cur = CLOCKS.get(chat)
     if cur and (view is None or cur["key"] != view["key"]):
@@ -351,6 +370,8 @@ async def _update_clock(bot, chat: int) -> None:
             await bot.edit_message_text(chat_id=chat, message_id=cur["mid"],
                                         text=cur["text"] + "\n✔️ این مرحله تمام شد.", parse_mode="Markdown")
         except Exception as e:
+            if _flood_wait(chat, e):
+                return                      # پیامِ قدیمی بعداً بسته می‌شود
             log.debug("clock close %s: %s", chat, e)
         CLOCKS.pop(chat, None)
         cur = None
@@ -363,6 +384,8 @@ async def _update_clock(bot, chat: int) -> None:
             msg = await bot.send_message(chat, view["text"], parse_mode="Markdown", reply_markup=kb)
             CLOCKS[chat] = {"key": view["key"], "mid": msg.message_id, "text": view["text"]}
         except Exception as e:
+            if _flood_wait(chat, e):
+                return
             if "emoji" in str(e).lower():
                 ICONS_OK = False
             log.warning("clock send %s: %s", chat, e)
@@ -374,6 +397,8 @@ async def _update_clock(bot, chat: int) -> None:
                                     parse_mode="Markdown", reply_markup=kb)
         cur["text"] = view["text"]
     except Exception as e:
+        if _flood_wait(chat, e):
+            return
         err = str(e).lower()
         if "not modified" in err:
             cur["text"] = view["text"]
@@ -384,7 +409,7 @@ async def _update_clock(bot, chat: int) -> None:
 
 
 async def _timer_job(ctx: ContextTypes.DEFAULT_TYPE):
-    """ایده ۱: هر ۱۵ ثانیه، فازهای منقضی‌شده را خودکار جلو می‌برد.
+    """ایده ۱: هر ثانیه فازهای منقضی‌شده را خودکار جلو می‌برد و کارتِ ساعت را تازه می‌کند.
 
     از handle() رد می‌شود، نه مستقیم از موتور — وگرنه قفل چت، ذخیره‌ی
     اسنپ‌شات و ثبت نتیجه‌ی پایان بازی دور زده می‌شود.
@@ -403,6 +428,8 @@ async def _timer_job(ctx: ContextTypes.DEFAULT_TYPE):
         botmod.gc()                                   # میزهای تمام‌شده/رهاشده و ورودی‌های کهنه
         for chat in [c for c in CLOCKS if c not in GAMES]:
             CLOCKS.pop(chat, None)
+        for chat in [c for c in FLOOD_UNTIL if c not in GAMES]:
+            FLOOD_UNTIL.pop(chat, None)
     except Exception as e:
         log.warning("gc: %s", e)
 
@@ -426,7 +453,8 @@ def main():
         raise SystemExit("⛔ BOT_TOKEN تنظیم نشده یا هنوز مقدار نمونه را دارد. در فایل .env توکن واقعی BotFather را جایگزین کن.")
     app = build_app(TOKEN)
     if app.job_queue:
-        app.job_queue.run_repeating(_timer_job, interval=CLOCK_INTERVAL, first=CLOCK_INTERVAL)
+        app.job_queue.run_repeating(_timer_job, interval=CLOCK_INTERVAL, first=CLOCK_INTERVAL,
+                                    job_kwargs={"max_instances": 1, "coalesce": True})
     else:
         # بی‌صدا رد نشو: بدون job-queue، مهلت فازها هرگز خودکار جلو نمی‌رود.
         log.warning("⚠️ JobQueue نصب نیست → تایمر خودکار فازها کار نمی‌کند. "

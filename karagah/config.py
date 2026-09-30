@@ -32,16 +32,19 @@ REVEAL_ROLE_ON_LIFE_JAIL = False   # ⛓️ هرگز؛ تا پایان بازی 
 
 # --- تایمر فازها (ثانیه) — ایده ۱ ---
 PHASE_SECONDS = {
-    "شب": int(os.getenv("NIGHT_SECONDS", 60)),
-    "گفتگو": int(os.getenv("DISCUSS_SECONDS", 180)),
+    "شب": int(os.getenv("NIGHT_SECONDS", 420)),          # ۷ دقیقه
+    "گفتگو": int(os.getenv("DISCUSS_SECONDS", 420)),      # روز: ۷ دقیقه
     "رای‌گیری": int(os.getenv("VOTE_SECONDS", 90)),
-    "اتاق بازجویی": int(os.getenv("NIGHT_SECONDS", 60)),   # شبِ بازجویی
+    "اتاق بازجویی": int(os.getenv("NIGHT_SECONDS", 420)),   # شبِ بازجویی
     # نسخه ۴: صبح و هیئت منصفه هم مهلت دارند؛ میزِ بی‌میزبان دیگر گیر نمی‌کند
     "صبح": int(os.getenv("MORNING_SECONDS", 90)),
     "هیئت منصفه": int(os.getenv("JURY_SECONDS", 60)),
 }
 # مهلتِ شب تمام شد ولی نقشی هنوز تصمیم نگرفته → یک بار این‌قدر فرصتِ اضافه + یادآوری به پیوی‌اش
 NIGHT_GRACE_SECONDS = int(os.getenv("NIGHT_GRACE_SECONDS", 30))
+# کارتِ ساعت هر چند ثانیه خودش را ویرایش کند (۱ = هر ثانیه). اگر تلگرام «آهسته‌تر» بگوید
+# (RetryAfter)، همان گروه تا زمانِ گفته‌شده صبر می‌کند و بعد دوباره هر ثانیه جلو می‌رود.
+CLOCK_SECONDS = float(os.getenv("CLOCK_SECONDS", 1))
 MAX_DAYS = int(os.getenv("MAX_DAYS", 20))
 # نگه‌داری طولانی: میزِ تمام‌شده بعد از این‌قدر ثانیه از حافظه و اسنپ‌شات پاک می‌شود (افشا تا آن وقت در دسترس)،
 # لابیِ بی‌فعالیت و بازیِ رهاشده هم بعد از IDLE_TTL.

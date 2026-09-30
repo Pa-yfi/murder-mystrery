@@ -195,7 +195,7 @@ def scenario_card(key: str, n: int) -> str:
     name, desc, comps = SCENARIOS.get(key, SCENARIOS[DEFAULT_SCENARIO])
     roles = comps.get(n)
     lst = "، ".join(f"{ROLES[r].emoji} {r}" for r in roles) if roles else \
-        f"(برای {_fa(min(comps))} تا {_fa(max(comps))} نفر)"
+        f"با {_fa(min(comps))} نفر یا بیشتر معلوم می‌شود (تا {_fa(max(comps))} نفر)"
     return f"🎭 سناریو: *{name}* — {desc}\n🃏 نقش‌های این میز: {lst}"
 
 

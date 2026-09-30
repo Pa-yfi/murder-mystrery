@@ -7,24 +7,24 @@
 
 | گونه‌ی آزمون | نتیجه | زمان (ث) | خلاصه |
 |---|---|---|---|
-| Unit & Integration | ✅ | 5.5 | pytest: 378 passed, 1 skipped in 5.12s |
-| Smoke & Sanity | ✅ | 0.35 | modules: 17 |
-| Functional & Gameplay | ✅ | 2.42 | games: 21 |
-| Regression (chaos players) | ✅ | 2.02 | chaos_games_finished: 21/21 |
-| Performance | ✅ | 19.54 | handle_calls: 3485 |
-| Soak / Longevity | ✅ | 61.46 | games_per_run: 300 |
-| Network & Multiplayer | ✅ | 3.67 | concurrent_vote_calls: 6000 |
-| Platform & Compatibility | ✅ | 2.12 | messages_checked: 2618 |
-| Automated gameplay & balance | ✅ | 30.03 | games: 1260 |
-| Localization & I18n | ✅ | 0.89 | messages_scanned: 1837 |
-| Playtest & UX | ✅ | 1.98 | presses_total: 2693 |
+| Unit & Integration | ✅ | 9.71 | pytest: 411 passed, 1 skipped, 3 warnings in 9.22s |
+| Smoke & Sanity | ✅ | 0.49 | modules: 17 |
+| Functional & Gameplay | ✅ | 2.95 | games: 21 |
+| Regression (chaos players) | ✅ | 2.35 | chaos_games_finished: 21/21 |
+| Performance | ✅ | 18.45 | handle_calls: 3485 |
+| Soak / Longevity | ✅ | 60.98 | games_per_run: 300 |
+| Network & Multiplayer | ✅ | 3.8 | concurrent_vote_calls: 6000 |
+| Platform & Compatibility | ✅ | 2.56 | messages_checked: 2618 |
+| Automated gameplay & balance | ✅ | 29.24 | games: 1260 |
+| Localization & I18n | ✅ | 0.86 | messages_scanned: 1837 |
+| Playtest & UX | ✅ | 1.41 | presses_total: 2693 |
 
 ## ✅ Unit & Integration
 _pytest: منطقِ خالص (واحد) + ربات/موتور/SQLite/آداپتور با هم (یکپارچگی)_
 
-- **pytest:** 378 passed, 1 skipped in 5.12s
-- **tests_passed:** 378
-- **test_files:** 21
+- **pytest:** 411 passed, 1 skipped, 3 warnings in 9.22s
+- **tests_passed:** 411
+- **test_files:** 22
 
 ## ✅ Smoke & Sanity
 _دود: import، ساختِ برنامه، همه‌ی اندپوینت‌ها، یک بازی، ذخیره/بازیابی_
@@ -52,16 +52,16 @@ _بازیکن‌های شلوغ‌کار: هر دکمه در هر لحظه، /st
 _کارایی: تأخیرِ هر تپ، دورِ تایمر با ۲۰۰ میز، اسنپ‌شات_
 
 - **handle_calls:** 3485
-- **handle_ms_p50/p95/p99:** 0.27 / 0.76 / 1.17
-- **slowest_cmds_p99_ms:** startgame 1.5, act 1.4, pass 1.2, closevote 1.1, castvote 0.6
-- **handle_ms_on_disk_p50/p95/p99:** 4.11 / 10.75 / 16.93
+- **handle_ms_p50/p95/p99:** 0.31 / 0.81 / 1.28
+- **slowest_cmds_p99_ms:** startgame 1.8, act 1.7, closevote 1.6, pass 1.2, vote 0.7
+- **handle_ms_on_disk_p50/p95/p99:** 4.00 / 10.58 / 16.64
 - **db_file_kb:** 264.0
-- **timer_round_200_tables_s:** 0.018
+- **timer_round_200_tables_s:** 0.015
 - **timer_round_200_tables_on_disk_s:** 0.006
 - **snapshot_kb:** 18.8
 - **snapshot_save_ms:** 0.09
 - **board_render_ms:** 0.16
-- **board_chars:** 2808
+- **board_chars:** 2800
 
 ## ✅ Soak / Longevity
 _ماندگاری: هزاران بازی در یک پروسه، با و بدون پاک‌سازی_
@@ -90,11 +90,11 @@ _هم‌روندی، خرابیِ تلگرام/شبکه، callbackِ تکرار�
 _سقف‌های Bot API، Markdown، ری‌استارت در هر فاز، ارتقای گروه، توقف/ادامه_
 
 - **messages_checked:** 2618
-- **longest_message_chars:** 1677
+- **longest_message_chars:** 1560
 - **messages_over_4096 (sent in chunks):** 0
 - **distinct_callback_data / max_bytes:** 197 / 16
 - **markdown_unbalanced:** 0
-- **longest_board_chars (12 long chaos games):** 3508
+- **longest_board_chars (12 long chaos games):** 3500
 - **hostile_text_messages:** 20
 - **restart_ok_in_phases:** اتاق بازجویی، رای‌گیری، شب، صبح، هیئت منصفه، گفتگو
 
@@ -109,35 +109,37 @@ _هزاران بازیِ ربات‌ها؛ نرخ برد با فاصله‌ی ا
 | سناریو | نفر | شهر (۹۵٪ CI) | قاتل‌ها | جانی | سپر بلا | میانگین روز |
 |---|---|---|---|---|---|---|
 | classic | 4 | 92% (82–96) | 8% | 0% | 0% | 3.9 |
-| classic | 5 | 98% (91–100) | 2% | 0% | 0% | 4.0 |
-| classic | 6 | 82% (70–89) | 2% | 0% | 17% | 4.0 |
-| classic | 7 | 27% (17–39) | 73% | 0% | 0% | 5.2 |
-| classic | 8 | 22% (13–34) | 40% | 0% | 38% | 5.7 |
-| classic | 9 | 23% (14–35) | 35% | 0% | 42% | 5.7 |
-| classic | 10 | 10% (5–20) | 90% | 0% | 0% | 4.7 |
+| classic | 5 | 98% (91–100) | 2% | 0% | 0% | 4.1 |
+| classic | 6 | 82% (70–89) | 3% | 0% | 15% | 4.2 |
+| classic | 7 | 28% (19–41) | 72% | 0% | 0% | 5.2 |
+| classic | 8 | 20% (12–32) | 57% | 0% | 23% | 5.1 |
+| classic | 9 | 20% (12–32) | 23% | 0% | 57% | 5.5 |
+| classic | 10 | 7% (3–16) | 93% | 0% | 0% | 4.9 |
 | court | 4 | 97% (89–99) | 3% | 0% | 0% | 4.0 |
-| court | 5 | 88% (78–94) | 12% | 0% | 0% | 3.9 |
-| court | 6 | 83% (72–91) | 0% | 0% | 17% | 4.1 |
-| court | 7 | 18% (11–30) | 82% | 0% | 0% | 4.8 |
-| court | 8 | 43% (32–56) | 57% | 0% | 0% | 5.5 |
-| court | 9 | 15% (8–26) | 85% | 0% | 0% | 5.1 |
-| court | 10 | 17% (9–28) | 57% | 0% | 27% | 6.0 |
-| chaos | 4 | 53% (41–65) | 47% | 0% | 0% | 3.2 |
-| chaos | 5 | 70% (57–80) | 30% | 0% | 0% | 4.1 |
-| chaos | 6 | 57% (44–68) | 18% | 25% | 0% | 4.3 |
-| chaos | 7 | 7% (3–16) | 93% | 0% | 0% | 3.5 |
-| chaos | 8 | 15% (8–26) | 60% | 22% | 0% | 4.6 |
-| chaos | 9 | 23% (14–35) | 52% | 23% | 0% | 4.9 |
-| chaos | 10 | 32% (21–44) | 55% | 12% | 0% | 5.7 |
-- **cells_flagged:** 6
+| court | 5 | 95% (86–98) | 5% | 0% | 0% | 4.0 |
+| court | 6 | 80% (68–88) | 3% | 0% | 17% | 4.1 |
+| court | 7 | 23% (14–35) | 77% | 0% | 0% | 4.7 |
+| court | 8 | 35% (24–48) | 65% | 0% | 0% | 5.8 |
+| court | 9 | 10% (5–20) | 90% | 0% | 0% | 5.7 |
+| court | 10 | 10% (5–20) | 57% | 0% | 33% | 5.5 |
+| chaos | 4 | 57% (44–68) | 43% | 0% | 0% | 3.4 |
+| chaos | 5 | 58% (46–70) | 42% | 0% | 0% | 4.0 |
+| chaos | 6 | 42% (30–54) | 18% | 40% | 0% | 3.6 |
+| chaos | 7 | 8% (4–18) | 92% | 0% | 0% | 3.9 |
+| chaos | 8 | 17% (9–28) | 58% | 23% | 0% | 4.4 |
+| chaos | 9 | 20% (12–32) | 53% | 27% | 0% | 4.8 |
+| chaos | 10 | 25% (16–37) | 58% | 15% | 0% | 5.2 |
+- **cells_flagged:** 8
 
 **مشاهده‌ها:**
 - نامتعادل (با ربات‌های ساده): classic 4 نفره: شهر 92% (CI 82–96)
 - نامتعادل (با ربات‌های ساده): classic 5 نفره: شهر 98% (CI 91–100)
+- نامتعادل (با ربات‌های ساده): classic 10 نفره: شهر 7% (CI 3–16)
+- نامتعادل (با ربات‌های ساده): classic 10 نفره: killers 93%
 - نامتعادل (با ربات‌های ساده): court 4 نفره: شهر 97% (CI 89–99)
-- نامتعادل (با ربات‌های ساده): court 5 نفره: شهر 88% (CI 78–94)
-- نامتعادل (با ربات‌های ساده): chaos 7 نفره: شهر 7% (CI 3–16)
-- نامتعادل (با ربات‌های ساده): chaos 7 نفره: killers 93%
+- نامتعادل (با ربات‌های ساده): court 5 نفره: شهر 95% (CI 86–98)
+- نامتعادل (با ربات‌های ساده): chaos 7 نفره: شهر 8% (CI 4–18)
+- نامتعادل (با ربات‌های ساده): chaos 7 نفره: killers 92%
 
 ## ✅ Localization & I18n
 _رقم فارسی، نشتِ انگلیسی/پایتون، mojibake، برچسب دکمه، نام‌های عجیب، UTF-8_
@@ -165,7 +167,7 @@ _تله‌متری: خطای هر دکمه، تپ برای هر تصمیم، ش�
 - **game_length_days p50/p90/max:** 5 / 8 / 9
 - **nights_needing_grace:** 0
 - **games:** 12
-- **tutorial_chars:** 806
+- **tutorial_chars:** 804
 
 **مشاهده‌ها:**
 - دکمه‌ی «startgame» در 50% از 24 تپ خطا داد — یا جایی نشان داده می‌شود که کار نمی‌کند، یا توضیحش کافی نیست.

@@ -45,7 +45,7 @@ SHINE = "✨"
 
 
 def hourglass(tick: int) -> str:
-    """ساعت‌شنی هر ویرایش (هر ۵ ثانیه) یک بار برمی‌گردد."""
+    """ساعت‌شنی با هر تیکِ ساعت (هر ثانیه) یک بار برمی‌گردد."""
     return HOURGLASS[tick % 2]
 
 
@@ -62,6 +62,9 @@ def shiny_bar(left: int, full: int, tick: int, phase: str = "", cells: int = 10)
     return "".join(bar)
 
 
+DIV = "┈" * 16                     # تنها جداکننده‌ی متن‌ها
+
+
 def ribbon(icon: str, title: str) -> str:
     """سربرگِ هر کارت: ایموجی دو طرف و خطِ نازک — در راست‌به‌چپ هم مرتب می‌ماند."""
     return f"{icon} ┈┈ *{title}* ┈┈ {icon}"
@@ -71,7 +74,7 @@ def card(icon: str, title: str, lines: List[str], foot: Optional[str] = None) ->
     body = "\n".join(l for l in lines if l)
     out = f"{ribbon(icon, title)}\n{body}"
     if foot:
-        out += f"\n┈┈┈┈┈┈┈┈┈┈┈┈\n{foot}"
+        out += f"\n{DIV}\n{foot}"
     return out
 
 

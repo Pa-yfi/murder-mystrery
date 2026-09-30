@@ -287,3 +287,19 @@ def test_night_with_nobody_to_wait_for_ends_immediately():
     r = handle("closevote", G)
     assert g.s.phase is not Phase.NIGHT
     assert any("کاری برای انجام دادن نداشت" in m["text"] for m in r["outbox"])
+
+
+def test_clues_are_grouped_by_place_and_status_board_is_compact():
+    """مرتب‌سازی: «📍 مکان» فقط یک بار بالای سرنخ‌هایش؛ وضعیتِ شهر سه نفر در هر خط؛ یک جداکننده."""
+    from karagah import ui, theme
+    handle("new", -9901, 1, "Host")
+    for i in range(2, 8):
+        handle("join", -9901, i, f"P{i}")
+    txt = handle("startgame", -9901, 1, arg="force")["text"]
+    g = GAMES[-9901]
+    places = {c["place"] for c in g.s.clues}
+    for p in places:
+        assert txt.count(f"📍 {p}") == 1, p
+    board = ui.status_board(g.s)
+    assert "P2" in board and "  ·  " in board and board.count("\n") <= 5
+    assert "─" not in txt and theme.DIV in txt

@@ -92,7 +92,13 @@ def test_clock_message_edits_itself_and_renews_per_phase(monkeypatch):
     now[0] += 7
     asyncio.run(telegram_app._timer_job(ctx))
     assert len(ctx.sent) == 1 and ctx.edits and ctx.edits[-1][1] == first      # همان پیام ویرایش شد
-    assert "۰:۵۳" in ctx.edits[-1][2]
+    from karagah import config
+    from karagah.ui import _mmss
+    assert _mmss(config.PHASE_SECONDS["شب"] - 7) in ctx.edits[-1][2]     # ۷:۰۰ − ۷ ثانیه
+    now[0] += 1                                            # یک ثانیه بعد → دوباره ویرایش (ساعتِ ثانیه‌شمار)
+    n = len(ctx.edits)
+    asyncio.run(telegram_app._timer_job(ctx))
+    assert len(ctx.edits) == n + 1 and _mmss(config.PHASE_SECONDS["شب"] - 8) in ctx.edits[-1][2]
     handle("dawn", chat)                                   # سیستم شب را می‌بندد → صبح
     asyncio.run(telegram_app._timer_job(ctx))
     assert telegram_app.CLOCKS[chat]["mid"] != first and "صبحِ روز ۱" in ctx.sent[-1][1]
@@ -128,3 +134,40 @@ def test_tiebreak_runoff_gets_a_fresh_deadline():
     assert g.s.tie_break and g.s.phase is Phase.VOTE
     assert g.remaining() and g.remaining() > 0        # دور دوم مهلت تازه دارد
     assert g.tick() is None                           # تیکِ بعدی آن را نمی‌بلعد
+
+
+def test_default_night_and_day_are_seven_minutes_and_clock_ticks_every_second():
+    from karagah import config
+    assert config.PHASE_SECONDS["شب"] == 420 and config.PHASE_SECONDS["گفتگو"] == 420
+    assert telegram_app.CLOCK_INTERVAL == 1
+
+
+def test_flood_control_pauses_only_that_groups_clock_then_resumes(monkeypatch):
+    """تلگرام «RetryAfter» داد → همان گروه تا زمانِ گفته‌شده ویرایش نمی‌شود، بعد دوباره هر ثانیه."""
+    import karagah.engine as eng
+    from telegram.error import RetryAfter
+    chat = 854
+    g = _started(chat)
+    now = [2_000_000.0]
+    monkeypatch.setattr(eng._time, "time", lambda: now[0])
+    mono = [500.0]
+    monkeypatch.setattr(telegram_app.time, "monotonic", lambda: mono[0])
+    g._arm()
+    ctx = _Ctx()
+    asyncio.run(telegram_app._timer_job(ctx))          # پیامِ ساعت فرستاده شد
+
+    async def flooded(**kw):
+        raise RetryAfter(10)
+    ctx.bot.edit_message_text = flooded
+    now[0] += 1; mono[0] += 1
+    asyncio.run(telegram_app._timer_job(ctx))          # تلگرام: ۱۰ ثانیه صبر کن
+    assert telegram_app.FLOOD_UNTIL[chat] > mono[0]
+    ctx.bot.edit_message_text = ctx._edit
+    for _ in range(5):                                 # در این مدت هیچ ویرایشی (و هیچ خطایی)
+        now[0] += 1; mono[0] += 1
+        asyncio.run(telegram_app._timer_job(ctx))
+    assert ctx.edits == [] and g.s.phase is Phase.NIGHT
+    now[0] += 6; mono[0] += 6
+    asyncio.run(telegram_app._timer_job(ctx))
+    assert len(ctx.edits) == 1                         # دوباره ثانیه‌شمار
+    telegram_app.FLOOD_UNTIL.clear()

@@ -11,9 +11,8 @@ from .config import (BOT_USERNAME, MIN_PLAYERS, MAX_PLAYERS, PHASE_SECONDS,
 def _fa(n) -> str:
     return str(n).translate(str.maketrans("0123456789", "۰۱۲۳۴۵۶۷۸۹"))
 
-DIV = "─" * 18
 
-from .theme import ANIM, card, dots, hourglass, ribbon, shiny_bar  # noqa: E402  (نسخه ۹: زبانِ بصری)
+from .theme import ANIM, DIV, card, dots, hourglass, ribbon, shiny_bar  # noqa: E402  (نسخه ۹: زبانِ بصری)
 
 CUSTODY_ICON = {
     Custody.FREE: "🟢", Custody.INTERROGATION: "🔦",
@@ -202,7 +201,7 @@ def lobby_screen(s: GameState, tick: int = 0) -> str:
     else:
         step = "🟢 همه آماده‌اند — میزبان «🎬 شروع بازی» را بزند"
     return card("🏛️", "لابیِ کارآگاه", [
-        names, "┈┈┈┈┈┈┈┈┈┈┈┈",
+        names, DIV,
         f"👥 {_fa(n)}/{_fa(MAX_PLAYERS)} نفر (حداقل {_fa(MIN_PLAYERS)}) · آماده: {_fa(ready)}/{_fa(n)}",
         dots(ready, n) if n else "",
         scenario_card(getattr(s, "scenario", "classic"), n)], foot=f"➡️ {step}")
@@ -223,8 +222,11 @@ def status_board(s: GameState) -> str:
         icon = CUSTODY_ICON[p.custody] if p.alive else "💀"
         tag = "" if p.custody is Custody.FREE else f" — {p.custody.value}"
         rows.append(f"{icon} {p.name}{tag}")
-    return (f"📋 *وضعیت شهر — روز {s.day} | فاز: {s.phase.value}*\n{DIV}\n" +
-            "\n".join(rows) + f"\n{DIV}\n" + clue_count(s))
+    per_line = 3                                   # فهرستِ فشرده: سه نفر در هر خط
+    grid = "\n".join("  ·  ".join(rows[i:i + per_line]) for i in range(0, len(rows), per_line))
+    alive = sum(1 for p in s.players.values() if p.alive)
+    return (f"📋 *وضعیت شهر — روز {_fa(s.day)} · {s.phase.value}*  ({_fa(alive)}/{_fa(len(rows))} زنده)\n"
+            f"{grid}\n{DIV}\n" + clue_count(s))
 
 
 def case_intro(s: GameState) -> str:
@@ -233,10 +235,10 @@ def case_intro(s: GameState) -> str:
     tl = "\n".join(f"  • {t}" for t in c.timeline)
     story = scenario_rules(getattr(s, "scenario", "classic"))["story"]
     return (f"{story}\n{DIV}\n" + ribbon("🕯️", f"پرونده #{c.cid} — {c.title}") + "\n"
-            f"⚰️ مقتول: {c.victim}\n📍 صحنه: {c.place}\n🔪 سلاح احتمالی: {c.weapon}\n"
-            f"💰 انگیزه‌ی محتمل: {c.motive}\n🧩 گره‌ی پرونده: {c.twist}\n{DIV}\n🕰️ تایم‌لاین:\n{tl}\n{DIV}\n"
+            f"⚰️ مقتول: {c.victim}   📍 صحنه: {c.place}\n🔪 سلاح احتمالی: {c.weapon}   💰 انگیزه: {c.motive}\n"
+            f"🧩 گره‌ی پرونده: {c.twist}\n{DIV}\n🕰️ *تایم‌لاین*\n{tl}\n{DIV}\n"
             + suspects_board(s) + "\n" + DIV + "\n🔎 *سرنخ‌های صحنه‌ی جرم* (بعضی راست، بعضی کاشته):\n"
-            + "\n".join(clue_line(x) for x in s.clues))
+            + clues_by_place(s.clues))
 
 
 def clue_count(s: GameState) -> str:
@@ -254,6 +256,21 @@ def suspects_board(s: GameState) -> str:
     return "👥 *مظنونان (مشخصاتِ ظاهری، عمومی):*\n" + "\n".join(rows)
 
 
+def clues_by_place(clues: List[Dict]) -> str:
+    """سرنخ‌ها دسته‌بندی‌شده بر اساسِ مکان: «📍 مکان — جزئیاتِ امروز» یک بار، سرنخ‌ها زیرش."""
+    from .clues import STATUS_ICON
+    groups: Dict[str, List[str]] = {}
+    for c in clues:
+        head, _, where = c["text"].partition("\n      📍 ")
+        groups.setdefault(where, []).append(
+            f"    {STATUS_ICON[c['verified']]} *{c['code']}* (روز {_fa(c['day'])}): {head}")
+    out = []
+    for where, rows in groups.items():
+        out.append(f"  📍 {where}" if where else "  📍 —")
+        out += rows
+    return "\n".join(out)
+
+
 def clue_line(c: Dict) -> str:
     from .clues import clue_line as _cl
     return "  " + _cl(c)
@@ -263,7 +280,7 @@ def clue_block(new: List[Dict]) -> str:
     if not new:
         return "🔎 امشب سرنخ تازه‌ای پیدا نشد."
     return ("🔎 *سرنخ‌های تازه* (راست یا کاشته؟ با 🧪 آزمایشگاه و 🗂️ پرونده بسنج):\n"
-            + "\n".join(clue_line(c) for c in new))
+            + clues_by_place(new))
 
 
 def patrol_block(rows) -> str:
@@ -580,7 +597,7 @@ def clock_text(g, detail: bool = False) -> str:
     s = g.s
     icon, title = PHASE_TITLE.get(s.phase.value, ("🎮", s.phase.value + " {d}"))
     left = g.remaining()
-    tick = (left or 0) // 5                                  # هر ویرایشِ ۵ثانیه‌ای یک تیک
+    tick = left or 0                                         # هر ثانیه یک تیک (ساعت‌شنی و ✨)
     head = ribbon(icon, title.format(d=_fa(s.day)))
     grace = getattr(s, "grace_day", -1) == s.day and s.phase in (Phase.NIGHT, Phase.INTERROGATION)
     full = (config.NIGHT_GRACE_SECONDS if grace else config.PHASE_SECONDS.get(s.phase.value)) or 0
@@ -596,8 +613,7 @@ def clock_text(g, detail: bool = False) -> str:
     lines = [head, tline]
     if detail:
         if s.phase in (Phase.NIGHT, Phase.INTERROGATION):
-            lines.append("🤫 نقش‌ها در پیوی تصمیم می‌گیرند (هدف یا «🙅 کاری نمی‌کنم»). "
-                         "صبح وقتی همه تصمیم گرفتند خودکار می‌رسد.")
+            lines.append("🤫 نقش‌ها در پیوی تصمیم می‌گیرند · صبح وقتی همه تصمیم گرفتند خودش می‌رسد")
         elif s.phase in (Phase.VOTE, Phase.JURY):
             box = s.votes if s.phase is Phase.VOTE else s.jury_votes
             voters = [p for p in s.alive_players() if p.can_vote]

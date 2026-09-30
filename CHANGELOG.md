@@ -2,6 +2,22 @@
 
 Every version below is one commit. Each commit message has the full detail, and this file is the map. Test numbers are the full pytest suite at that commit.
 
+## Timers and tidier messages
+**Timers**
+- Night and day (discussion) are now **7 minutes** each (`NIGHT_SECONDS=420`, `DISCUSS_SECONDS=420`, still overridable).
+- The live clock card edits itself **every second** (`CLOCK_SECONDS=1`): the countdown shows every second, and the hourglass and ✨ move each second.
+- Telegram limits how often a bot may edit messages in a group. When it answers `RetryAfter`, only that group's clock waits the time Telegram asks for, then goes back to per-second updates. The game and its deadlines never stop.
+- The 1-second job never overlaps itself (`max_instances=1`, `coalesce`), and APScheduler's "skipped run" warnings are silenced.
+
+**Tidier messages**
+- One divider (`┈`) everywhere, instead of a mix of `─` and `┈`.
+- Clues are grouped by place: "📍 place — today's detail" appears once, with the clues under it, instead of repeated under every clue.
+- The city status lists three players per line, with an "alive/total" count, instead of one player per line.
+- The case intro is more compact: victim and scene, then weapon and motive, share a line.
+- The lobby shows "roles appear with 4+ players" instead of an empty roles line.
+- The night clock hint is shorter.
+- Tests: default durations, a clock that edits each second, flood backoff and resume, clue grouping, compact board. 411 tests pass; the quick QA suite is all green.
+
 ## Deploy: one SSH connection per job
 - The third real run passed the key check, then timed out on login right after `ssh-keyscan`. keyscan opens a burst of connections (one per key type), which `ufw limit` or fail2ban treat as an attack.
 - There is no keyscan any more: the host key is learned on the first login (`StrictHostKeyChecking accept-new`, or pinned with `VPS_KNOWN_HOSTS`). An SSH ControlMaster lets the upload reuse that login, so the whole job opens **one** connection (checked against a local sshd).

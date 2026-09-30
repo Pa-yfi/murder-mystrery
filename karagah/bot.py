@@ -275,7 +275,7 @@ def _handle(cmd: str, chat: int, uid: int = 0, name: str = "", arg: str = "") ->
         try:
             res = _ROUTES[cmd](chat, uid, name, arg)
             idle_tick = cmd == "tick" and not (isinstance(res, dict) and res.get("advanced"))
-            if not idle_tick:                        # تیکِ بی‌اتفاق (هر ۵ ثانیه، هر میز) دیسک را نمی‌کوبد
+            if not idle_tick:                        # تیکِ بی‌اتفاق (هر ثانیه، هر میز) دیسک را نمی‌کوبد
                 db.log_event(chat, uid, cmd, arg[:40])   # ایده ۷: audit log
             if chat in GAMES and not idle_tick:
                 g = GAMES[chat]
