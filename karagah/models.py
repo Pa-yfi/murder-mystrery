@@ -58,6 +58,7 @@ class Player:
     missed: int = 0                # بهبود ۷: شب‌هایی که هیچ اکشنی نداده
     self_saved: bool = False       # نسخه ۴: پزشک فقط یک بار خودش را نجات می‌دهد
     notes_pushed: int = 0          # نسخه ۴: چند یادداشت به پیوی فرستاده شده
+    traits: Dict[str, str] = field(default_factory=dict)   # نسخه ۵: پرونده‌ی ظاهریِ عمومی
 
     @property
     def in_game(self) -> bool:
@@ -148,6 +149,13 @@ class GameState:
     auto_jury: bool = False                     # هیئت منصفه به‌جای بازجوی غایب
     questions: Dict[int, str] = field(default_factory=dict)  # متهم → آخرین پرسشِ بی‌جواب
     goat_jailed_alive: bool = False             # سپر بلا زنده حبس ابد گرفت
+    # ── نسخه ۵: سرنخ‌ها ──
+    clues: List[dict] = field(default_factory=list)          # karagah/clues.py
+    poison_by: Dict[int, int] = field(default_factory=dict)  # هدفِ سم → سم‌ساز
+    lab_day: int = 0                                         # آخرین روزی که آزمایشگاه نمونه گرفت
+    # ── نسخه ۶: صحنه‌ها (karagah/scenes.py) ──
+    scene_log: Dict[str, List[str]] = field(default_factory=dict)   # مکان → جزئیاتی که تا حالا دیده شده
+    scene_today: Dict[str, str] = field(default_factory=dict)       # مکان/جزئیاتِ امشب
 
     def alive_players(self) -> List[Player]:
         return [p for p in self.players.values() if p.in_game]

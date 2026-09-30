@@ -36,7 +36,7 @@ def _reset_globals() -> None:
 
 class Session:
     def __init__(self, n: int, seed: int, report: Report, rb: Rulebook, mode: str = "group",
-                 scenario: str = "classic"):
+                 scenario: str = "classic", talk: bool = True):
         _reset_globals()
         self.n, self.seed, self.mode, self.r, self.rb = n, seed, mode, report, rb
         self.scenario = scenario
@@ -51,6 +51,10 @@ class Session:
         self.ref: Optional[Referee] = None
         self.stuck = ""
         self.lab_due: Dict[str, int] = {}
+        self.talk_on = talk
+        self.talk = None
+        self.interrogated: set = set()
+        self.jailed: set = set()
         report.context = f"{scenario_name(scenario)}، {n} نفره، بذر {seed}، {MODE_FA[mode]}"
 
     @property
@@ -125,6 +129,9 @@ class Session:
         self.ref = Referee(self.g, self.agents, self.r)
         self.ref.mode = MODE_FA[self.mode]
         self.ref.check_start()
+        if self.talk_on:
+            from .talk import TableTalk
+            self.talk = TableTalk(self)
         return True
 
     # ─────────────────────────── حلقه ───────────────────────────
@@ -138,6 +145,10 @@ class Session:
             if g.s.phase is Phase.END:
                 break
             self.check_dashboard()
+            if g.s.suspect_uid:
+                self.interrogated.add(g.s.suspect_uid)
+            self.jailed |= {p.uid for p in g.s.players.values()
+                            if p.custody in (Custody.TEMP_JAIL, Custody.LIFE_JAIL)}
             key = (g.s.phase, g.s.day, g.s.suspect_uid, len(g.s.votes))
             stall = stall + 1 if key == last else 0
             last = key
@@ -284,8 +295,9 @@ class Session:
             open_ = [q for q in others if q.free and not (
                 ab in ("kill", "poison", "frame") and ROLES[a.role].align is Align.KILLER
                 and q.align is Align.KILLER)]
-            if open_ and ab in ("kill", "poison", "frame", "hide") or \
-                    ab not in ("kill", "poison", "frame", "hide", "protect") and others:
+            legal = g.legal_targets(a.uid)
+            if legal and (open_ and ab in ("kill", "poison", "frame", "hide") or
+                          ab not in ("kill", "poison", "frame", "hide", "protect") and others):
                 self.r.find("متوسط", "دکمه‌ها", f"{a.role} در شب هیچ هدفِ مجازی نداشت", panel.text[:160])
             elif "هدفِ مجازی نداری" not in panel.text:
                 self.r.find("پایین", "رابط", "پنل اکشن بی‌هدف توضیح نمی‌دهد چرا", key="no-target-why")
@@ -315,6 +327,10 @@ class Session:
         names = [(b, a.name_of_button(b)) for b in btns]
         if ab in ("kill", "poison", "frame") and a.team is not None and ROLES[a.role].align is Align.KILLER:
             pool = [b for b, n in names if n not in a.team] or btns
+            if self.talk and ab in ("kill", "poison"):
+                loud = self.talk.kill_priority(a, [n for _, n in names])
+                if loud and a.rng.random() < 0.75:
+                    return next(b for b, n in names if n == loud)
             return a.rng.choice(pool)
         if ab == "protect" and a.rng.random() < 0.35:
             # «حدسِ خوش‌شانس»: پزشک گاهی دقیقاً هدفِ امشبِ قاتل را نجات می‌دهد تا مسیر نجات هم سنجیده شود
@@ -333,7 +349,7 @@ class Session:
         if not evs:
             return False
         m = a.press(m, a.rng.choice(evs))
-        if m and m.ok and ("اصل" in m.text or "جعلی" in m.text):
+        if m and m.ok and ("راست ✅" in m.text or "دروغ ❌" in m.text):
             self.ref.intent(a.uid, "expose", 0)
             self.r.ok("کارآگاه: راستی‌آزمایی مدرک")
             return True
@@ -384,8 +400,9 @@ class Session:
         for code, due in list(self.lab_due.items()):
             if due <= day:
                 del self.lab_due[code]
-                if f"نتیجه‌ی آزمایشگاه برای مدرک {code}" in log:
-                    self.r.ok("آزمایشگاه: نتیجه بعد از دو شب")
+                c = next(x for x in self.g.s.clues if x["code"] == code)
+                if f"نتیجه‌ی آزمایشگاه: سرنخ {code}" in log and c["verified"] is c["genuine"]:
+                    self.r.ok("آزمایشگاه: نتیجه‌ی راست/دروغِ درست، سر موعد")
                 else:
                     self.r.find("متوسط", "مدارک", "نتیجه‌ی آزمایشگاه سر موعد نرسید", code)
 
@@ -440,7 +457,12 @@ class Session:
                 if r and r.ok and g.s.players[who].custody is Custody.FREE:
                     self.r.ok("بازجو: آزادی زندانی قبلی (با متهم جدید)")
                     self.ref.temp_nights.pop(who, None)
-        confirm = (off.uid != sus) and (tp.name in off.dirty or off.rng.random() < 0.55)
+        if self.talk:
+            guilty = (tp.name not in off.team and self.talk.score(off, sus) >= 2.5
+                      if not self.talk.is_killer_agent(off) else tp.name not in off.team)
+            confirm = off.uid != sus and guilty
+        else:
+            confirm = (off.uid != sus) and (tp.name in off.dirty or off.rng.random() < 0.55)
         x = 1 if confirm else 0
         m = off.tap(cb_is(f"ver:{sus}:{x}"), ("group",), depth=12)
         if m is None:
@@ -479,10 +501,12 @@ class Session:
     # ─────────────────────────── گفتگو و رای ───────────────────────────
     def discussion(self) -> None:
         g = self.g
+        if self.talk:
+            self.talk.day()
         talkers = [a for a in self.agents if g.s.players[a.uid].can_speak]
-        if talkers and self.rng.random() < 0.35:
+        if talkers and self.rng.random() < (0.8 if self.talk else 0.35):
             self.interp(self.rng.choice(talkers))
-        if talkers and self.rng.random() < 0.25:
+        if talkers and self.rng.random() < (0.6 if self.talk else 0.25):
             self.lab(self.rng.choice(talkers))
         if talkers and self.rng.random() < 0.2:
             a = self.rng.choice(talkers)
@@ -508,8 +532,13 @@ class Session:
         m = a.press(m, a.rng.choice(evs))
         opts = [b for b in a.buttons_named(m, "interp:") if b["callback_data"].count(":") == 2]
         if opts:
-            r = a.press(m, a.rng.choice(opts))
-            if r and r.ok and "تفسیر غالب" in r.text:
+            pick = a.rng.choice(opts)
+            if self.talk:                     # 👍 = راست (idx 1)، 👎 = کاشته (idx 0) طبق باورش
+                code = opts[0]["callback_data"].split(":")[1]
+                want = "1" if self.talk.believes(a, code) else "0"
+                pick = next((b for b in opts if b["callback_data"].endswith(":" + want)), pick)
+            r = a.press(m, pick)
+            if r and r.ok and "باور دارند" in r.text:
                 self.r.ok("رای تفسیر مدرک")
 
     def lab(self, a: Agent) -> None:
@@ -517,11 +546,29 @@ class Session:
         evs = a.buttons_named(m, "lab:")
         if not evs:
             return
-        b = a.rng.choice(evs)
-        r = a.press(m, b)
+        b = self.pick_lab(a, evs)
+        r = a.press(m, b)                             # «عادی یا فوری؟»
         code = b["callback_data"].split(":")[1]
+        hit = a.find(cb_is(f"lab:{code}:N"), ("dm", "group"), 2)
+        r = a.press(*hit) if hit else None
         if r and r.ok and code not in self.lab_due:
-            self.lab_due[code] = self.g.s.day + 2
+            from karagah.roles import scenario_rules
+            self.lab_due[code] = self.g.s.day + scenario_rules(self.scenario)["lab_nights"]
+
+    def pick_lab(self, a: Agent, evs: List[dict]) -> dict:
+        """سرنخی را به آزمایشگاه بفرست که بیشترین مظنون را جدا می‌کند (نیمی جور، نیمی نه)."""
+        from karagah.clues import matches
+        alive = self.g.s.alive_players()
+        def split(b):
+            c = self.g.clue(b["callback_data"].split(":")[1])
+            k = sum(matches(p, c) for p in alive)
+            return -abs(k - len(alive) / 2)
+        if self.talk:                          # سرنخی که سرش دعواست اول (ادعاهای متناقض در چت)
+            hot = self.talk.contested()
+            pool = [b for b in evs if b["callback_data"].split(":")[1] in hot]
+            if pool:
+                return a.rng.choice(pool)
+        return max(evs, key=lambda b: (split(b), a.rng.random()))
 
     def sos(self) -> None:
         g = self.g
@@ -599,6 +646,8 @@ class Session:
         named = [(b, a.name_of_button(b)) for b in options if a.name_of_button(b) != a.name]
         if not named:
             return None
+        if self.talk:
+            return self.talk.vote_choice(a, named)
         if ROLES[a.role].align is Align.KILLER:
             pool = [b for b, n in named if n not in a.team] or [b for b, _ in named]
             return a.rng.choice(pool)
@@ -623,7 +672,10 @@ class Session:
             if not hit:
                 self.r.find("بالا", "هیئت منصفه", "دکمه‌های رای هیئت منصفه در گروه نیست", key=f"no-jury-kb:{self.mode}")
                 break
-            acquit = (sus and g.s.players[sus].name in a.team) or a.rng.random() < 0.5
+            if self.talk and sus:
+                acquit = self.talk.acquit(a, sus)
+            else:
+                acquit = (sus and g.s.players[sus].name in a.team) or a.rng.random() < 0.5
             b = next(x for x in hit[0].buttons() if x["callback_data"] == f"jury:{1 if acquit else 0}")
             r = a.press(hit[0], b)
             if r and r.ok:
@@ -636,11 +688,13 @@ class Session:
         if g.s.phase is Phase.JURY:
             return
         freed = sus is not None and g.s.players[sus].custody is Custody.FREE
-        want = total and yes * 100 >= 60 * total
+        from karagah.roles import scenario_rules
+        pct = scenario_rules(self.scenario)["jury"]
+        want = total and yes * 100 >= pct * total
         if bool(want) == freed:
-            self.r.ok("هیئت منصفه: آستانه‌ی ۶۰٪")
+            self.r.ok(f"هیئت منصفه: آستانه‌ی {pct}٪ ({self.scenario})")
         else:
-            self.r.find("بالا", "هیئت منصفه", "نتیجه‌ی هیئت منصفه با آستانه‌ی ۶۰٪ نمی‌خواند",
+            self.r.find("بالا", "هیئت منصفه", f"نتیجه‌ی هیئت منصفه با آستانه‌ی {pct}٪ نمی‌خواند",
                         f"{yes}/{total} تبرئه — آزاد شد؟ {freed}")
 
     # ─────────────────────────── پایان ───────────────────────────
@@ -663,12 +717,47 @@ class Session:
                 "winner": g.s.winner if g else None, "days": g.s.day if g else 0,
                 "presses": self.tg.presses, "finished": bool(g and g.s.phase is Phase.END and not self.stuck),
                 "stuck": self.stuck,
-                "roles": {a.name: a.role for a in self.agents}}
+                "roles": {a.name: a.role for a in self.agents},
+                "talk": self.talk.summary() if self.talk else None,
+                "arrests": self.arrests(), "clues": self.clue_stats(),
+                "rumors": list(self.ref.rumors) if self.ref else [0, 0],
+                "winner_team": self.winner_team()}
+
+    def winner_team(self) -> str:
+        w = (self.g.s.winner or "") if self.g else ""
+        return ("city" if "شهر" in w else "killers" if "قاتل" in w else
+                "serial" if "جانی" in w else "scapegoat" if "سپر" in w else "none")
+
+    def clue_stats(self) -> dict:
+        g = self.g
+        if not g:
+            return {}
+        cl = g.s.clues
+        by = {}
+        for c in cl:
+            by[c["source"]] = by.get(c["source"], 0) + 1
+        return {"total": len(cl), "true": sum(c["genuine"] for c in cl),
+                "false": sum(not c["genuine"] for c in cl),
+                "verified": sum(c["verified"] is not None for c in cl),
+                "verified_right": sum(c["verified"] is c["genuine"] for c in cl if c["verified"] is not None),
+                "by_source": by}
+
+    def arrests(self) -> dict:
+        """چند بار شهر درست آدم گرفت: بازجویی‌شده‌ها و زندانی‌ها در برابر نقشِ واقعی."""
+        g = self.g
+        if not g:
+            return {}
+        self.jailed |= {p.uid for p in g.s.players.values()
+                        if p.custody in (Custody.TEMP_JAIL, Custody.LIFE_JAIL)}
+        bad = lambda u: g.s.players[u].align is Align.KILLER or g.s.players[u].role == "جانی سریالی"
+        return {"interrogated": len(self.interrogated),
+                "interrogated_evil": sum(map(bad, self.interrogated)),
+                "jailed": len(self.jailed), "jailed_evil": sum(map(bad, self.jailed))}
 
 
 def run_session(n: int, seed: int, report: Report, rb: Rulebook, mode: str = "group",
-                scenario: str = "classic") -> dict:
-    s = Session(n, seed, report, rb, mode, scenario)
+                scenario: str = "classic", talk: bool = True) -> dict:
+    s = Session(n, seed, report, rb, mode, scenario, talk)
     try:
         if s.lobby():
             s.play()

@@ -51,6 +51,7 @@ class Report:
             lines.append(f"| {g.get('scenario', '—')} | {g['players']} | {g['seed']} | {g['case']} | {g['winner'] or '—'} | "
                          f"{g['days']} | {g['presses']} | {'✅' if g['finished'] else '⛔ ' + g['stuck']} | "
                          f"{g['mode']} |")
+        lines += self.balance_md()
         lines += ["", "## توانایی‌هایی که داور درست بودنشان را سنجید", "",
                   "| بررسی | دفعات |", "|---|---|"]
         for k, v in sorted(self.checks.items()):
@@ -65,6 +66,61 @@ class Report:
                 lines.append(f["detail"])
             lines.append("")
         return "\n".join(lines)
+
+    def balance_md(self) -> List[str]:
+        """برد هر تیم در هر سناریو + آمار گفتگو/بلوف + دقت بازداشت‌ها + سرنخ‌ها."""
+        out = ["", "## تعادل، گفتگو و سرنخ‌ها", ""]
+        scen: Dict[str, Dict[str, int]] = {}
+        for g in self.games:
+            d = scen.setdefault(g.get("scenario", "—"), {})
+            d[g.get("winner_team", "none")] = d.get(g.get("winner_team", "none"), 0) + 1
+            d["n"] = d.get("n", 0) + 1
+        out += ["| سناریو | بازی | شهر | قاتل‌ها | جانی سریالی | سپر بلا |", "|---|---|---|---|---|---|"]
+        for k, d in scen.items():
+            pc = lambda t: f"{100 * d.get(t, 0) // max(1, d['n'])}٪"
+            out.append(f"| {k} | {d['n']} | {pc('city')} | {pc('killers')} | {pc('serial')} | {pc('scapegoat')} |")
+        talk: Dict[str, int] = {}
+        arr: Dict[str, int] = {}
+        clu: Dict[str, int] = {}
+        src: Dict[str, int] = {}
+        rum = [0, 0]
+        for g in self.games:
+            for k, v in (g.get("talk") or {}).items():
+                talk[k] = talk.get(k, 0) + v
+            for k, v in (g.get("arrests") or {}).items():
+                arr[k] = arr.get(k, 0) + v
+            for k, v in (g.get("clues") or {}).items():
+                if k == "by_source":
+                    for s2, n in v.items():
+                        src[s2] = src.get(s2, 0) + n
+                else:
+                    clu[k] = clu.get(k, 0) + v
+            r = g.get("rumors") or [0, 0]
+            rum = [rum[0] + r[0], rum[1] + r[1]]
+        pct = lambda a, b: f"{100 * a // b}٪" if b else "—"
+        if talk:
+            out += ["", "**گفتگو سر میز (مجموع همه‌ی بازی‌ها):**", "",
+                    f"- پیام‌های چت: {talk.get('messages', 0)} · ادعای راست: {talk.get('honest_claims', 0)} · "
+                    f"دروغ/بلوف: {talk.get('lies', 0)}",
+                    f"- ترفندها: کارآگاهِ قلابی {talk.get('fake_detective', 0)} · پزشک قانونیِ قلابی "
+                    f"{talk.get('fake_forensic', 0)} · «پاک» جا زدنِ هم‌تیمی {talk.get('vouch', 0)} · "
+                    f"هل دادنِ پاپوش {talk.get('frame_push', 0)}",
+                    f"- دروغ‌های لو رفته با آزمایشگاه: {talk.get('lies_caught', 0)} · ادعای متقابل "
+                    f"(«کارآگاه/پزشک قانونی منم»): {talk.get('counter_claims', 0)}",
+                    f"- رای‌های شهر روی تیم قاتل/جانی: {pct(talk.get('city_votes_on_killer', 0), talk.get('city_votes', 0))}"
+                    f" ({talk.get('city_votes_on_killer', 0)}/{talk.get('city_votes', 0)})",
+                    f"- ربات به چتِ عادی جواب داد: {talk.get('bot_replied_to_chat', 0)} بار"]
+        if arr:
+            out += [f"- بازجویی‌شده‌ها که واقعاً شرور بودند: {pct(arr.get('interrogated_evil', 0), arr.get('interrogated', 0))}"
+                    f" · زندانی‌های شرور: {pct(arr.get('jailed_evil', 0), arr.get('jailed', 0))}"]
+        if clu:
+            out += ["", "**سرنخ‌ها:**", "",
+                    f"- کل: {clu.get('total', 0)} · راست: {clu.get('true', 0)} · دروغ/کاشته: {clu.get('false', 0)}",
+                    f"- تاییدشده (آزمایشگاه): {clu.get('verified', 0)} · حکمِ درست: "
+                    f"{pct(clu.get('verified_right', 0), clu.get('verified', 0))}",
+                    "- منبع: " + " · ".join(f"{k} {v}" for k, v in sorted(src.items(), key=lambda x: -x[1])),
+                    f"- شایعه‌ی بقال درست بود: {pct(rum[0], rum[1])} ({rum[0]}/{rum[1]})"]
+        return out
 
     def write(self, folder: Path) -> Path:
         folder.mkdir(parents=True, exist_ok=True)

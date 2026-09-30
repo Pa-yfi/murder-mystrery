@@ -432,7 +432,7 @@ def test_timer_dawn_posts_the_full_morning_message():
     g = _started(7)
     g.s.deadline = 0
     r = handle("tick", CHAT)
-    assert r["advanced"] and "کشته‌شده" in r["text"] and "مدرک" in r["text"]
+    assert r["advanced"] and "کشته‌شده" in r["text"] and "سرنخ" in r["text"]
 
 
 def test_timer_opens_the_vote_with_vote_buttons():
@@ -501,8 +501,10 @@ def test_announcement_pressed_in_private_goes_to_the_group():
     g.s.deadline = 0
     res = telegram_app._dispatch(upd, "dawn", "")
     asyncio.run(telegram_app._reply(upd, res))
-    assert sent[0][0] == CHAT and "صبح روز" in sent[0][1]
-    assert sent[1][0] == 1 and "اعلام شد" in sent[1][1]
+    assert any(c == CHAT and "صبح روز" in t for c, t in sent)      # پیام صبح در گروه
+    assert sent[0][0] == CHAT and "🌅" in sent[0][1]                # اول ایموجیِ متحرکِ صبح
+    assert any(c == 1 and "اعلام شد" in t for c, t in sent)          # در پیوی فقط تاییدیه
+    assert not any(c == 1 and "صبح روز" in t for c, t in sent)
 
 
 def test_notes_reachable_from_private_after_the_game_ends():

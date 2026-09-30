@@ -26,6 +26,8 @@ class Referee:
         self.night_day = 0
         self.suspect_at_night: Optional[int] = None
         self.mode = ""                            # «دکمه در گروه» / «تایمر» / «پیوی»
+        self.poisoner: Dict[int, int] = {}        # هدفِ سم → سم‌ساز (از دکمه‌هایی که زده شد)
+        self.rumors = [0, 0]                      # [شایعه‌ی درست، کل]
 
     @property
     def s(self):
@@ -89,8 +91,9 @@ class Referee:
             acts.setdefault(ab, {})[u] = t
         protected = set(acts.get("protect", {}).values())
         storm = s.night_event.startswith("طوفان")
-        for t in acts.get("poison", {}).values():
+        for who, t in acts.get("poison", {}).items():
             self.poison_due.setdefault(t, day + 2)
+            self.poisoner.setdefault(t, who)
         for t in acts.get("frame", {}).values():
             self.frame_until[t] = day + 1
         alive_before = {u for u, b in self.before.items() if b[0] and b[3]}
@@ -180,10 +183,6 @@ class Referee:
         for actor in acts.get("spy", {}):
             who = self.name(self.suspect_at_night) if self.suspect_at_night else "کسی"
             self._expect_note(actor, f"📞 شب {day}: بازجو سراغ {who} رفته بود.", "خبرچین: خبر بازجویی")
-        for actor in acts.get("autopsy", {}):
-            ev = s.case.evidence[min(day - 1, len(s.case.evidence) - 1)]
-            res = "جعلی 🎭" if ev["misleading"] else "اصل ✅"
-            self._expect_note(actor, f"🧪 شب {day}: مدرک {ev['code']} → {res}", "پزشک قانونی: اصالت مدرک")
         if "⚰️ کشته‌شده" in announced and "frame" in acts:
             if "اثر انگشت روی صحنه" in announced:
                 self.r.ok("همدست: ردِ پاپوش در پیام صبح")
@@ -202,8 +201,148 @@ class Referee:
                 elif want is Custody.LIFE_JAIL:
                     self.r.ok("حبس موقت → حبس ابد بعد از ۲ شب")
                     self._hunter_on_life_jail(u)
+        self.check_clues(acts, died, day)
         self.check_invariants("سحر")
         self.check_win("سحر")
+
+    # ── صحنه‌ها (نسخه ۶): مکان‌های سناریو، جزئیاتِ هر روز تازه، متن و مشخصه‌ی ویژه‌ی سناریو ──
+    def check_scenes(self, day) -> None:
+        from karagah import scenes as SC
+        from karagah.clues import keys_for
+        s = self.s
+        scen = SC.pack(s.scenario)
+        allowed = set(SC.LOCATIONS[scen]) | {f"🕯️ {s.case.place}"}
+        for c in s.clues:
+            if c.get("place") not in allowed:
+                self.r.find("بالا", "صحنه", "سرنخ در مکانی بیرون از سناریو پیدا شد",
+                            f"{c['code']}: {c.get('place')} ({scen})", key="scene-foreign")
+                break
+            if SC.trait_text(scen, c["trait"], c["value"]) not in c["text"]:
+                self.r.find("متوسط", "صحنه", "متنِ سرنخ با فضای سناریو نمی‌خواند", c["text"][:80],
+                            key="scene-text")
+                break
+        else:
+            if s.clues:
+                self.r.ok(f"صحنه: سرنخ‌ها در مکان‌ها و با متنِ سناریوی {scen}")
+        hist = SC.history(s)
+        for loc, rows in hist.items():
+            details = [d for _, d in rows]
+            days = [d for d, _ in rows]
+            if len(set(details)) != len(details):
+                self.r.find("بالا", "صحنه", "یک مکان جزئیاتِ تکراری نشان داد", loc, key="scene-repeat")
+            if len(set(days)) != len(days):
+                self.r.find("متوسط", "صحنه", "یک مکان در یک روز دو جزئیات گرفت", loc, key="scene-twice")
+        if hist and day >= 1 and not s.night_event.startswith("قطعی برق"):
+            stale = [loc for loc, rows in hist.items() if rows and rows[-1][0] < day]
+            if stale:
+                self.r.find("متوسط", "صحنه", "مکانِ سرنخ‌داری امروز چیزِ تازه‌ای نشان نداد",
+                            "، ".join(stale[:3]), key="scene-stale")
+            else:
+                self.r.ok("صحنه: هر مکانِ سرنخ‌دار امروز جزئیاتی تازه نشان داد")
+        want = set(keys_for(scen))
+        if any(set(p.traits) != want for p in s.players.values()):
+            self.r.find("بالا", "صحنه", "مشخصه‌های بازیکن با سناریو نمی‌خواند", key="scene-traits")
+
+    # ── سرنخ‌ها: راست‌ها به مجرمِ واقعی وصل‌اند، دروغ‌ها هرگز مجرمِ آن شب را نشان نمی‌دهند ──
+    def check_clues(self, acts, died, day) -> None:
+        s = self.s
+        new = [c for c in s.clues if c["day"] == day and c["source"] != "case"]
+        self.check_scenes(day)
+        if s.night_event.startswith("قطعی برق"):
+            if new:
+                self.r.find("بالا", "سرنخ", "در قطعی برق سرنخ جمع شد", str([c["code"] for c in new]))
+            else:
+                self.r.ok("سرنخ: قطعی برق → هیچ سرنخی")
+            return
+        hidden = set(acts.get("hide", {}).values())
+        killers = acts.get("kill", {})
+
+        def bad(title, c, why):
+            self.r.find("بحرانی", "سرنخ", title, f"شب {day} · {c['code']} ({c['source']}): {c['text']} — {why}",
+                        key=f"clue:{title}")
+
+        for c in new:
+            about = s.players.get(c["about"]) if c["about"] is not None else None
+            src = c["source"]
+            if src in ("kill", "sk", "poison", "witness", "reporter"):
+                if not c["genuine"] or about is None or about.traits[c["trait"]] != c["value"]:
+                    bad("سرنخِ «راست» با مشخصاتِ مجرم نمی‌خواند", c, "genuine/about/value")
+                    continue
+                if c["about"] in hidden:
+                    bad("ضاربِ پنهان‌شده رد گذاشت", c, "قاچاقچی او را پنهان کرده بود")
+                    continue
+                if src in ("kill", "sk") and c["about"] not in killers:
+                    bad("سرنخ به کسی وصل است که امشب حمله نکرد", c, "")
+                    continue
+                if src == "poison" and c["about"] not in self.poisoner.values():
+                    bad("سرنخِ سم به کسی غیر از سم‌ساز وصل است", c, "")
+                    continue
+                self.r.ok(f"سرنخ راست ({src}) → مشخصه‌ی واقعیِ مجرم")
+            elif src in ("frame", "herring"):
+                if c["genuine"]:
+                    bad("سرنخِ کاشته «راست» علامت خورده", c, "")
+                    continue
+                evil = [p for p in s.players.values() if p.in_game and p.align is Align.KILLER] + \
+                    [s.players[u] for u in killers]
+                hit = next((p for p in evil if p.traits[c["trait"]] == c["value"]), None)
+                if hit is not None:
+                    bad("سرنخِ دروغ به مجرمِ واقعی اشاره می‌کند", c, hit.name)
+                    continue
+                if src == "frame" and (about is None or c["about"] not in acts.get("frame", {}).values()
+                                       or about.traits[c["trait"]] != c["value"]):
+                    bad("پاپوش به کسی جز پاپوش‌خورده اشاره می‌کند", c, "")
+                    continue
+                self.r.ok(f"سرنخ دروغ ({src}) → مجرم را نشان نمی‌دهد")
+        # هر قتلِ موفقِ ضاربِ پنهان‌نشده دقیقاً یک سرنخِ راست درباره‌ی همان ضارب
+        for actor, tgt in killers.items():
+            if tgt in died and actor not in hidden:
+                n = sum(1 for c in new if c["source"] in ("kill", "sk") and c["about"] == actor)
+                if n == 1:
+                    self.r.ok("سرنخ: هر قتل یک رد")
+                else:
+                    self.r.find("بالا", "سرنخ", "قتل بدون سرنخ (یا با چند سرنخ)", f"شب {day}: {n}",
+                                key="kill-clue-count")
+        # پزشک قانونی راست/دروغِ همه‌ی سرنخ‌های امشب را درست می‌گوید
+        for actor in acts.get("autopsy", {}):
+            notes = "\n".join(s.players[actor].notes)
+            wrong = [c["code"] for c in new
+                     if f"{c['code']} {'✅ راست' if c['genuine'] else '❌ دروغ'}" not in notes]
+            if wrong:
+                self.r.find("بالا", "توانایی‌ها", "پزشک قانونی راست/دروغِ سرنخ‌ها را اشتباه گفت", str(wrong))
+            elif new:
+                self.r.ok("پزشک قانونی: راست/دروغِ سرنخ‌های امشب")
+        # نتیجه‌ی آزمایشگاه همیشه با حقیقت می‌خواند
+        for c in s.clues:
+            if c["verified"] is not None and c["verified"] != c["genuine"]:
+                self.r.find("بحرانی", "سرنخ", "تاییدِ سرنخ با حقیقت نمی‌خواند", c["code"], key="verify-wrong")
+        # کالبدشکاف: روش و مشخصه‌ی راستِ ضارب
+        for p in s.players.values():
+            if p.role != "کالبدشکاف":
+                continue
+            for n in [x for x in p.notes if x.startswith(f"🔬 شب {day}:")]:
+                if "ضارب:" in n:
+                    tr, val = n.split("ضارب:")[1].strip().split(" = ")
+                    culprits = list(killers) + list(self.poisoner.values())
+                    if any(s.players[u].traits.get(k) == val for u in culprits
+                           for k in s.players[u].traits if __import__("karagah.clues").clues.TRAITS[k][1] == tr):
+                        self.r.ok("کالبدشکاف: مشخصه‌ی راستِ ضارب")
+                    else:
+                        self.r.find("بالا", "توانایی‌ها", "کالبدشکاف مشخصه‌ی غلط گفت", n)
+        # بقال: شایعه ۷۰٪ درست (آمار در پایان)
+        for p in s.players.values():
+            if p.role == "بقال محله" and p.alive:
+                for n in [x for x in p.notes if x.startswith(f"🏪 شایعه‌ی روز {day}")]:
+                    knife = next((u for u, q in s.players.items() if q.in_game and q.align is Align.KILLER
+                                  and self.g.ability_of(q) == "kill"), None)
+                    if knife is None:
+                        continue
+                    import karagah.clues as CL
+                    for k, tdef in CL.TRAITS.items():
+                        nm = tdef[1]
+                        if f"{nm}ِ قاتل «" in n:
+                            val = n.split("«")[1].split("»")[0]
+                            self.rumors[1] += 1
+                            self.rumors[0] += int(s.players[knife].traits[k] == val)
 
     def _chain(self, start: List[int], alive_before) -> List[int]:
         """مرگ + زنجیره: زوج سرنوشت و شلیک آخر شکارچی (از متن نقش‌ها)."""

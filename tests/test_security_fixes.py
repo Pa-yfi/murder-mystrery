@@ -99,7 +99,10 @@ def test_outsider_cannot_replace_running_game(cmd):
 
 def test_host_can_still_restart():
     _running_game()
-    assert handle("new", 901, 1, "Host")["ok"] is True
+    r = handle("new", 901, 1, "Host")               # نسخه ۵: اول تایید می‌خواهد
+    assert r["ok"] and GAMES[901].s.phase is not Phase.LOBBY
+    assert any(b["callback_data"] == "new:confirm" for row in r["keyboard"]["inline_keyboard"] for b in row)
+    assert handle("new", 901, 1, "Host", "confirm")["ok"] is True
     assert GAMES[901].s.phase is Phase.LOBBY
 
 

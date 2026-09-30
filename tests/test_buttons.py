@@ -72,12 +72,15 @@ def test_every_button_label_has_an_emoji_and_persian():
             assert any("؀" <= ch <= "ۿ" for ch in label), f"no persian: {cb}"
 
 
-def test_command_hub_opens_every_group():
+def test_command_hub_opens_every_group(monkeypatch):
+    monkeypatch.setattr(bot, "ADMIN_IDS", [1])
     r = handle("commands", CHAT, 1)
     assert r["ok"]
     cbs = _cbs(r["keyboard"])
     for key, _title, _items in menus.GROUPS:
         assert f"group:{key}" in cbs
+    # نسخه ۵: غیرادمین دسته‌ی ادمین را نمی‌بیند (دکمه‌ای که هرگز برایش کار نمی‌کرد)
+    assert "group:admin" not in _cbs(handle("commands", CHAT, 2)["keyboard"])
 
 
 def test_each_group_page_renders_its_buttons():
@@ -159,14 +162,16 @@ def test_abilities_tells_a_jailed_player_they_are_out():
 def test_lab_without_argument_offers_evidence_buttons():
     g = _started()
     cbs = _cbs(handle("lab", CHAT, 1)["keyboard"])
-    for e in g.s.case.evidence:
-        assert f"lab:{e['code']}" in cbs
+    for c in g.s.clues:
+        assert f"lab:{c['code']}" in cbs
 
 
 def test_lab_button_submits_the_evidence():
     g = _started()
-    code = g.s.case.evidence[0]["code"]
-    assert handle("lab", CHAT, 1, arg=code)["ok"]
+    code = g.s.clues[0]["code"]
+    r = handle("lab", CHAT, 1, arg=code)             # عادی یا فوری؟
+    assert r["ok"] and f"lab:{code}:N" in _cbs(r["keyboard"])
+    assert handle("lab", CHAT, 1, arg=f"{code}:N")["ok"]
     assert code in g.s.lab_queue
 
 
@@ -179,12 +184,12 @@ def test_expose_without_argument_offers_evidence_buttons():
 
 def test_interp_is_a_two_step_picker():
     g = _started()
-    code = g.s.case.evidence[1]["code"]
+    code = g.s.clues[1]["code"]
     assert f"interp:{code}" in _cbs(handle("interp", CHAT, 1)["keyboard"])
     second = _cbs(handle("interp", CHAT, 1, arg=code)["keyboard"])
-    assert f"interp:{code}:0" in second and f"interp:{code}:2" in second
+    assert f"interp:{code}:0" in second and f"interp:{code}:1" in second
     assert handle("interp", CHAT, 1, arg=f"{code}:1")["ok"]
-    assert g.s.interp_votes[code][1] == 1
+    assert g.s.clues[1]["votes"][1] == 1
 
 
 def test_sos_without_argument_offers_player_buttons_excluding_self():

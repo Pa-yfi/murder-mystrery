@@ -66,6 +66,8 @@ def interrogation_hints(suspect: Player, day: int, n: int = 3) -> List[str]:
         tells.append(TELLS[idx])
     conf = "ضعیف" if s < 35 else ("متوسط" if s < 70 else "بالا")
     tells.append(f"سطح تنش: {conf} (این سطح، اثباتِ گناه نیست).")
-    if guilty_bias < 20:
+    # نسخه ۵: این نشانه به گناه واقعی وصل است (نه تصادف محض): تیم قاتل ۶۰٪، بقیه ۱۵٪
+    guilty = suspect.align is not Align.CITY
+    if guilty_bias < (60 if guilty else 15):
         tells.append("⚠️ نشانه‌ی متناقض: داستانش با تایم‌لاین کمی جور در نمی‌آید.")
     return tells

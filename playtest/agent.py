@@ -58,8 +58,8 @@ class Agent:
         msgs: List[Message] = []
         if "dm" in where:
             msgs += self.tg.inbox(self.uid)[-depth:]
-        if "group" in where:
-            msgs += self.tg.inbox(self.tg.group)[-depth:]
+        if "group" in where:          # چشمِ آدم از روی چتِ بقیه رد می‌شود و پیام‌های ربات را می‌گردد
+            msgs += [m for m in self.tg.inbox(self.tg.group) if not m.cause.startswith("chat:")][-depth:]
         return sorted(msgs, key=lambda m: m.mid, reverse=True)
 
     def find(self, pred: Pred, where=("dm", "group"), depth=6):

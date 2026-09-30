@@ -225,7 +225,27 @@ No crashes or internal errors, and no leaks of private information to the group.
 
 ---
 
-## Part 4 — Suggested fixes (not applied yet)
+## Part 5 — Status after v5 (clues, coloured buttons, table talk)
+| # | Status | What changed |
+|---|---|---|
+| A1 / A4 | ✅ fixed | `new` in a DM is refused with an explanation; the DM menu offers "➕ add to group" instead of a private table or a dead invite. |
+| A2 | ✅ fixed | Parallel tables were retired; `/newtable` no longer creates a second table (crawl check). |
+| A3 | ✅ fixed | New/blitz while a game is running asks for confirmation (`new:confirm`, `blitz:confirm`) and is host-only. |
+| B1 / B2 | ✅ fixed | The evidence deck was replaced by the clue layer (`karagah/clues.py`). True clues are traits of the real attacker; false clues are frames or decoys that never match any killer. The order is shuffled each game. |
+| B3 | ✅ fixed | The lab announces "✅ true" or "❌ planted" after the scenario's number of nights (or earlier with ⚡ express for 30 coins). |
+| B4 | ✅ fixed | 👍/👎 votes pay +5 XP for each correct belief once a clue is settled. |
+| B5 | ✅ fixed | A blackout night produces no clues. |
+| B6 | ✅ fixed | The coroner gets the method plus one true trait of the attacker. The grocer gets a rumour about a killer trait (70% true; measured 76%). The guard gets one trait of a visitor. |
+| B8 | ✅ fixed | Coins pay for the express lab. |
+| B9 | ✅ fixed | Persian font + shaping (libraqm, or arabic-reshaper + python-bidi). The crawl renders a real card. |
+| B10 | ✅ fixed | The timeline-mismatch tell fires for 60% of non-city suspects and 15% of city suspects. |
+| C1 | ✅ fixed | My role, role card, hints and timer screens now have role, officer or dashboard buttons. |
+| C2 | ✅ fixed | Pending questions are cleared on verdict, jail, acquittal or death. |
+| C3 | ◐ partial | The admin menu is shown only to admins. Role-specific buttons still appear in "all buttons" and fail with a clear message. |
+| C5 | ✅ fixed | The league shows the host's name. |
+| D1 | ✅ fixed | The host can close a phase once half its time has passed. |
+
+## Part 4 — Suggested fixes (written before v5; see Part 5 for status)
 - **A1/A4:** Remove "🎮 شروع بازی همین‌جا" from private chats (DM → only "add to group"), or refuse `new` in a DM with a message explaining that games live in groups.
 - **A2:** Put the table id in its buttons (`join:<table>`, `startgame:<table>`…), or drop parallel tables.
 - **A3:** Add a confirmation step for new/blitz while a game is running ("⚠️ بازیِ در جریان پاک شود؟ بله/خیر"), and hide them from the group menu during a game.

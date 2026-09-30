@@ -576,34 +576,40 @@ def test_notes_and_will_endpoints():            # ایده‌های ۵/۹
     assert "P3 مشکوک" in r["text"] and r["private"]
 
 
-def test_lab_delayed_results():                 # ایده ۱۰
+def test_lab_delayed_results():                 # ایده ۱۰ — نسخه ۵: نتیجه‌ی واقعی راست/دروغ برای همه
     g = _game(); g.start(8)
-    assert "دو شب" in g.submit_lab("E1")
+    code = g.s.clues[0]["code"]
+    assert "شب دیگر" in g.submit_lab(code)
     with pytest.raises(RuleError):
-        g.submit_lab("E1")                     # تکراری
+        g.submit_lab(code)                     # تکراری
     with pytest.raises(RuleError):
-        g.submit_lab("E9")                     # نامعتبر
+        g.submit_lab("C99")                    # نامعتبر
+    with pytest.raises(RuleError):
+        g.submit_lab(g.s.clues[1]["code"])     # روزی یک نمونه
     g.resolve_night()                           # روز هنوز نرسیده
     g.s.day = 3
     g.s.phase = Phase.NIGHT
     g.resolve_night()
-    assert any("آزمایشگاه" in l and "E1" in l for l in g.s.log)
+    c = g.s.clues[0]
+    assert c["verified"] is c["genuine"]
+    assert any("آزمایشگاه" in l and code in l for l in g.s.log)
 
 
-def test_interp_voting():                       # ایده ۱۱
+def test_interp_voting():                       # ایده ۱۱ — نسخه ۵: 👍 راست / 👎 کاشته
     g = _game(); g.start(9)
-    msg = g.vote_interp(1, "E1", 0)
-    assert "تفسیر غالب" in msg
+    code = g.s.clues[0]["code"]
+    msg = g.vote_interp(1, code, 1)
+    assert "👍" in msg and g.s.clues[0]["votes"][1] == 1
     with pytest.raises(RuleError):
-        g.vote_interp(1, "E1", 9)
+        g.vote_interp(1, code, 9)
 
 
 def test_detective_expose():                    # ایده ۱۲
     g = _game(); g.start(10)
     det = next(p for p in g.s.players.values() if p.role == "کارآگاه")
-    fake = next(e["code"] for e in g.s.case.evidence if e["misleading"])
-    real = next(e["code"] for e in g.s.case.evidence if not e["misleading"])
-    assert "جعلی" in g.expose(det.uid, fake)
+    fake = next(c["code"] for c in g.s.clues if not c["genuine"])
+    real = next(c["code"] for c in g.s.clues if c["genuine"])
+    assert "دروغ" in g.expose(det.uid, fake)
     with pytest.raises(RuleError):              # یک اکشن در شب
         g.expose(det.uid, real)
     other = next(p for p in g.s.players.values() if p.role != "کارآگاه")
@@ -659,14 +665,8 @@ def test_end_records_results_and_mvp():         # ایده‌های ۱۴-۲۰
     assert r["ok"] and len(GAMES[830].s.players) == 4
 
 
-def test_parallel_tables():                     # ایده ۲۱
-    handle("new", 840, 1, "Host")
-    r1 = handle("newtable", 840, 2, "P2")
-    r2 = handle("newtable", 840, 3, "P3")
-    assert r1["ok"] and r2["ok"]
-    assert 84001 in GAMES and 84002 in GAMES    # میزهای موازی
-    handle("newtable", 840, 4, "P4")
-    assert handle("newtable", 840, 5, "P5")["ok"] is False   # سقف ۳ میز
+def test_parallel_tables_were_retired():       # ایده ۲۱ — نسخه ۵: میزِ موازی با دکمه قابل ورود نبود (بن‌بست A2)
+    assert "newtable" not in bot._ROUTES
 
 
 def test_spectate_no_secrets():                 # ایده ۲۲

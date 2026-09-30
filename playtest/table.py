@@ -184,6 +184,19 @@ class Telegram:
             res = self._run("commands", uid, uid, "")
         return self._deliver(res, uid, uid, "text")
 
+    def chat(self, uid: int, text: str) -> Message:
+        """پیامِ معمولیِ بازیکن در گروه (بحث، ادعا، بلوف). مثل on_text: اگر ربات منتظرِ متنِ او
+        نیست، هیچ جوابی نمی‌دهد؛ پیام فقط برای بقیه‌ی بازیکن‌ها دیده می‌شود."""
+        self.clock.advance(4)
+        msg = Message(self.group, text, None, f"chat:{uid}")
+        self.inbox(self.group).append(msg)
+        if bot._PENDING.get(uid):                 # همان مسیرِ on_text
+            chat, cmd = take_pending(uid)
+            res = handle(cmd, chat, uid, self.names.get(uid, ""), text)
+            res["_target"] = chat
+            self._deliver(res, self.group, uid, "chat-text")
+        return msg
+
     def timer_job(self) -> Optional[Message]:
         """مثل _timer_job: هر ۱۵ ثانیه tick؛ فقط وقتی فاز واقعاً جلو رفت پیام می‌دهد."""
         res = handle("tick", self.group)

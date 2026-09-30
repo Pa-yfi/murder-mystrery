@@ -65,7 +65,7 @@ def test_abandoned_game_counted_not_scored():
     for i in range(2, 6):
         handle("join", 896, i, f"P{i}")
     handle("startgame", 896, 1, arg="5")
-    handle("new", 896, 1, "Host")            # میزبان بازیِ در جریان را دور انداخت
+    handle("new", 896, 1, "Host", "confirm")  # میزبان (با تایید) بازیِ در جریان را دور انداخت
     a = db.q_abandonment()
     assert a["abandoned"] == 1 and a["pct"] == 100.0
     assert db.q_balance() == []              # رهاشده در نرخ برد نمی‌آید

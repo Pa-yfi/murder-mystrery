@@ -11,6 +11,8 @@ from .roles import (ROLES, DEFAULT_SCENARIO, KILL_HEIRS, SURVIVORS,
                     composition, scenario_name, validate_composition)
 from .cases import CASES
 from . import dialogue
+from . import clues as C
+from .roles import scenario_rules
 import math
 import time as _time
 from .config import (MIN_PLAYERS, MAX_PLAYERS, INTERROGATION_NIGHTS,
@@ -200,7 +202,11 @@ class Game:
                     f"این بازیکن‌ها هنوز پیوی ربات را باز نکرده‌اند: {names}\n"
                     "هر کدام دکمه‌ی «✅ آماده‌ام» را بزنند (نقش محرمانه آنجا می‌رود). "
                     "برای شروع بدون آن‌ها: /startgame force")
-        self.s.case = CASES[(case_id - 1) if case_id else self.rng.randrange(len(CASES))]
+        from .scenes import CASE_POOL, pack
+        pool = CASE_POOL[pack(scenario)]                 # پرونده‌ای که با فضای سناریو بخواند
+        self.s.case = CASES[(case_id - 1) if case_id else self.rng.choice(pool) - 1]
+        self.s.scene_log, self.s.scene_today = {}, {}
+        self.s.day = 0                                   # سرنخ‌های اولِ پرونده مالِ «روز ۰» اند
         from .roles import assign_with_cooldown
         uids = list(self.s.players)
         mapping = assign_with_cooldown(uids, n, self.rng, getattr(self, "last_roles", {}), scenario)
@@ -211,18 +217,23 @@ class Game:
             rd = ROLES[rname]
             p.role, p.align = rname, rd.align
             p.secrets = [f"راز: {self.s.case.twist}"]
+        # پرونده‌ی ظاهریِ عمومیِ هر بازیکن (سرنخ‌ها به همین‌ها اشاره می‌کنند)
+        for u, t in C.assign_traits(uids, self.rng, scenario).items():
+            self.s.players[u].traits = t
         # اطلاعات اختصاصی هر نقش — همه‌ی اعضای تیم قاتل همدیگر را می‌شناسند (مثل مافیای استاندارد)
         killers = [p.uid for p in self.s.players.values() if p.align is Align.KILLER]
+        boss = next(u for u in killers if self.s.players[u].role == "قاتل")
         for p in self.s.players.values():
             info = ROLES[p.role].info
             if p.align is Align.KILLER:
                 p.knows = [f"هم‌تیمی: {self.s.players[u].name}" for u in killers if u != p.uid] or ["تنها هستی."]
+                p.knows.append("🧤 سرنخ‌هایی که به تو اشاره کنند راست‌اند؛ با پاپوش و دروغ، شهر را به سمت دیگری ببر.")
             elif info == "forensic":
-                p.knows = [f"آزمایشگاه: {self.s.case.evidence[0]['title']}"]
+                p.knows = ["هر شب راست/دروغ بودنِ سرنخ‌های همان شب را خصوصی می‌فهمی."]
             elif info == "interrogation_hints":
                 p.knows = ["تو بازجویی؛ حکم حبس موقت با توست."]
             elif info == "rumor":
-                p.knows = [f"شایعه: سلاح احتمالاً «{self.s.case.weapon}» بوده."]
+                p.knows = [self._rumor(boss)]
             else:
                 p.knows = []
         self.s.officer_uid = next(p.uid for p in self.s.players.values() if p.role == "بازجو")
@@ -236,10 +247,28 @@ class Game:
                 other = pair[1] if u == pair[0] else pair[0]
                 self.s.players[u].knows.append(
                     f"🔗 سرنوشتت به {self.s.players[other].name} گره خورده؛ مرگ او مرگ توست.")
+        # سرنخ‌های صحنه‌ی جرمِ پرونده: یکی/دو تا راست درباره‌ی قاتلِ واقعی، بقیه دروغ — به ترتیبِ تصادفی
+        rules = scenario_rules(scenario)
+        kinds = [True] * rules["start_true"] + [False] * rules["start_false"]
+        self.rng.shuffle(kinds)
+        for real in kinds:                               # مکان: صحنه‌ی اصلیِ پرونده (scenes.location_for)
+            if real:
+                C.true_clue(self.s, boss, self.rng, "case", "case")
+            else:
+                C.false_clue(self.s, boss, self.rng, "herring", "case",
+                             avoid=[p.uid for p in self.s.players.values() if p.align is Align.KILLER])
         self.s.phase = Phase.NIGHT
         self.s.day = 1
         self._arm()
         self.s.log.append(f"پرونده #{self.s.case.cid}: {self.s.case.title} — سناریو {scenario_name(scenario)}")
+
+    def _rumor(self, culprit: int) -> str:
+        """بقال: یک مشخصه‌ی قاتل — ۷۰٪ درست."""
+        rum = random.Random(self.s.chat_id * 7919 + self.s.day)
+        k = rum.choice(list(self.s.players[culprit].traits))
+        real = self.s.players[culprit].traits[k]
+        v = real if rum.random() < 0.7 else rum.choice([x for x in C.TRAITS[k][2] if x != real])
+        return f"🏪 شایعه‌ی روز {self.s.day}: می‌گویند {C.TRAITS[k][1]}ِ قاتل «{v}» است."
 
     # ---------------- توانایی‌ها ----------------
     def ability_of(self, p: Player) -> str:
@@ -465,30 +494,31 @@ class Game:
             who = self.s.players[night_suspect].name if night_suspect else "کسی"
             p.notes.append(f"📞 شب {day}: بازجو سراغ {who} رفته بود.")
 
-        for actor, tgt in acts.get("autopsy", {}).items():
+        new = [c for c in self.s.clues if c["day"] == day and c["source"] != "case"]
+        for actor in acts.get("autopsy", {}):   # پزشک قانونی: راست/دروغِ سرنخ‌های امشب
             p = self.s.players[actor]
-            ev = self.s.case.evidence[min(day - 1, len(self.s.case.evidence) - 1)]
-            p.notes.append(f"🧪 شب {day}: مدرک {ev['code']} → "
-                           + ("جعلی 🎭" if ev["misleading"] else "اصل ✅"))
+            if new:
+                verdicts = "، ".join(f"{c['code']} {'✅ راست' if c['genuine'] else '❌ دروغ'}" for c in new)
+                p.notes.append(f"🧪 شب {day}: {verdicts}")
+            else:
+                p.notes.append(f"🧪 شب {day}: امشب سرنخی از صحنه‌ها جمع نشد.")
 
-        for actor in acts.get("reveal", {}):    # خبرنگار: مدرک اضافه برای کل شهر
-            nxt = self.s.case.evidence[min(day, len(self.s.case.evidence) - 1)]
-            if nxt["code"] not in self.s.revealed_evidence:
-                self.s.revealed_evidence.append(nxt["code"])
-                self.s.log.append(f"📰 خبرنگار مدرک {nxt['code']} را رو کرد.")
-
-        # بقال محله: هر صبح یک شایعه، ۷۰٪ درست (قطعی بر اساس چت و روز)
-        rum = random.Random(self.s.chat_id * 7919 + day)
-        for g in [p for p in self.s.alive_players() if p.role == "بقال محله"]:
-            others = [p for p in self.s.alive_players() if p.uid != g.uid]
-            if not others:
+        for actor, tgt in acts.get("watch", {}).items():   # نگهبان: یک مشخصه‌ی یکی از ملاقات‌کننده‌ها
+            if tgt in self.s.hidden:
                 continue
-            t = rum.choice(others)
-            city = t.align is Align.CITY
-            if rum.random() >= 0.7:
-                city = not city                 # ۳۰٪ شایعه‌ی غلط
-            g.notes.append(f"🏪 شایعه‌ی صبح {day}: می‌گویند {t.name} "
-                           + ("آدمِ شهر است." if city else "با شهر نیست."))
+            who = [a for ab, pairs in acts.items() if ab not in NO_VISIT
+                   for a, t in pairs.items() if t == tgt]
+            if who:
+                v = self.s.players[random.Random(day * 131 + actor).choice(who)]
+                k = random.Random(day * 17 + actor).choice(list(v.traits))
+                self.s.players[actor].notes.append(
+                    f"🛡️ یکی از ملاقات‌کننده‌های {self.s.players[tgt].name}: {C.TRAITS[k][1]} = {v.traits[k]}")
+
+        # بقال محله: هر صبح یک شایعه درباره‌ی مشخصه‌ی قاتلِ فعلی (۷۰٪ درست)
+        knife = self._knife_holder()
+        for g in [p for p in self.s.alive_players() if p.role == "بقال محله"]:
+            if knife is not None:
+                g.notes.append(self._rumor(knife))
 
         for tgt, until in list(self.s.framed.items()):
             if until < day:
@@ -533,9 +563,11 @@ class Game:
         # ایده ۴: رویداد تصادفی شبانه (قطعی بر اساس seed+روز)
         ev_rng = random.Random(s.chat_id * 1000 + s.day)
         roll = ev_rng.random()
-        s.night_event = ("قطعی برق 🕯️" if roll < 0.12 else
-                         "طوفان ⛈️" if roll < 0.22 else
-                         "شاهد ناشناس 👁️" if roll < 0.32 else "")
+        r = scenario_rules(self.scenario)
+        b1, b2, b3 = r["blackout"], r["blackout"] + r["storm"], r["blackout"] + r["storm"] + r["witness"]
+        s.night_event = ("قطعی برق 🕯️" if roll < b1 else
+                         "طوفان ⛈️" if roll < b2 else
+                         "شاهد ناشناس 👁️" if roll < b3 else "")
         acts = self._committed_actions()
         # ترتیب شب (RULES.md): پنهان‌کاری → محافظت → پاپوش/سم → قتل → سمِ سررسیده → اطلاعات
         s.hidden = list(set(acts.get("hide", {}).values()))
@@ -543,8 +575,9 @@ class Game:
         for doc, tgt in acts.get("protect", {}).items():
             if doc == tgt:
                 s.players[doc].self_saved = True
-        for tgt in acts.get("poison", {}).values():
+        for who, tgt in acts.get("poison", {}).items():
             s.poison_queue.setdefault(tgt, s.day + 2)
+            s.poison_by.setdefault(tgt, who)
         for tgt in acts.get("frame", {}).values():
             s.framed[tgt] = s.day + 1
         # حمله‌ی مستقیم امشب — طوفان فقط همین را لغو می‌کند؛ بازداشتی در امان است
@@ -556,6 +589,8 @@ class Game:
         if s.night_event.startswith("طوفان") and attacked:
             s.log.append("⛈️ طوفان راه‌ها را بست؛ حمله‌ی امشب ناکام ماند.")
             attacked = []
+        storm = s.night_event.startswith("طوفان")
+        poisoned: List[int] = []
         # سمِ سررسیده ربطی به طوفان ندارد: دو شب پیش خورده شده.
         for tgt, due in list(s.poison_queue.items()):
             if due > s.day:
@@ -565,22 +600,36 @@ class Game:
                 s.log.append(f"💉 پادزهر به موقع رسید: {s.players[tgt].name} نجات یافت.")
             elif s.players[tgt].in_game and tgt not in attacked:
                 attacked.append(tgt)
+                poisoned.append(tgt)
                 s.log.append(f"☠️ {s.players[tgt].name} بر اثر سم از پا درآمد.")
         killed = self._eliminate(attacked)
+        new_clues = self._make_clues(acts, killed, poisoned)
+        # نسخه ۶: گشتِ صبحگاهی — هر مکانی که قبلاً سرنخ داشته امروز یک جزئیاتِ تازه نشان می‌دهد
+        from . import scenes
+        patrol = [] if s.night_event.startswith("قطعی برق") else \
+            scenes.patrol(s, random.Random(s.chat_id * 53 + s.day))
         # ایده ۵: وصیت‌نامه‌ی کشته‌ها + ایده ۷: گزارش کالبدشکاف
         for uid in killed:
             w = s.players[uid].will
             if w:
                 s.log.append(f"📜 وصیت {s.players[uid].name}: «{w}»")
-        if killed:
-            for p in s.players.values():
-                if p.role == "کالبدشکاف" and p.in_game:
-                    p.notes.append(f"🔬 شب {s.day}: مرگ حوالی ۲۳:۱۵ با {s.case.weapon}.")
-        # ایده ۱۰: تحویل نتایج آزمایشگاه سررسیدشده
+        coroners = [p for p in s.players.values() if p.role == "کالبدشکاف" and p.in_game]
+        for victim, (method, culprit) in self._death_causes(acts, killed, poisoned).items():
+            for p in coroners:
+                line = f"🔬 شب {s.day}: {s.players[victim].name} — {method}"
+                if culprit is not None:
+                    k = random.Random(s.day * 97 + victim).choice(list(s.players[culprit].traits))
+                    line += f"؛ ضارب: {C.TRAITS[k][1]} = {s.players[culprit].traits[k]}"
+                p.notes.append(line)
+        # ایده ۱۰: نتیجه‌ی آزمایشگاه — واقعاً می‌گوید سرنخ راست است یا دروغ (برای همه)
         ready = [c for c, d in s.lab_queue.items() if d <= s.day]
-        for c in ready:
-            del s.lab_queue[c]
-            s.log.append(f"🧪 نتیجه‌ی آزمایشگاه برای مدرک {c} رسید: منشأ مدرک مشخص شد، تفسیرها را محدود کنید.")
+        for code in ready:
+            del s.lab_queue[code]
+            c = next((x for x in s.clues if x["code"] == code), None)
+            if c:
+                c["verified"] = c["genuine"]
+                s.log.append(f"🧪 نتیجه‌ی آزمایشگاه: سرنخ {code} "
+                             + ("✅ راست است." if c["genuine"] else "❌ دروغ/کاشته است."))
         # پیشروی بازداشت‌ها (حبس موقت → حبس ابد) و شلیک شکارچیِ حبس‌ابدی
         for uid in self._advance_custody():
             shot = self._hunter_shot(s.players[uid])
@@ -592,16 +641,11 @@ class Game:
             dead.custody, dead.custody_nights = Custody.FREE, 0
             s.log.append(f"⚰️ {dead.name} پیش از صدور حکم درگذشت؛ پرونده‌ی بازجویی بسته شد.")
             s.suspect_uid = None
+            s.questions.clear()
         s._protect_prev = s.night_actions.get("_last_protect")
         s.inv_prev = dict(acts.get("investigate", {}))
         s.night_actions.clear()
         s.phase = Phase.MORNING
-        ev = s.case.evidence[min(s.day - 1, len(s.case.evidence) - 1)]
-        s.revealed_evidence.append(ev["code"])
-        if s.night_event.startswith("شاهد"):     # شاهد ناشناس → مدرک اضافه
-            nxt = s.case.evidence[min(s.day, len(s.case.evidence) - 1)]
-            if nxt["code"] not in s.revealed_evidence:
-                s.revealed_evidence.append(nxt["code"])
         # بهبود ۷: اکشنِ نداده پیش‌فرضش «هیچ‌کاری» است، ولی غیبت شمرده می‌شود.
         # فقط کسی که واقعاً می‌توانست اکشن بزند (آزاد، نه بازداشتی).
         acted = {a for pairs in acts.values() for a in pairs}
@@ -620,7 +664,112 @@ class Game:
         # بازجو نمی‌تواند حکم بدهد (خودش متهم/زندانی/حذف است) → هیئت منصفه خودکار
         if s.phase is Phase.MORNING and self.awaiting_verdict() and not self.officer_can_judge():
             self._form_jury(auto=True)
-        return {"killed": killed, "evidence": ev}
+        return {"killed": killed, "clues": new_clues, "patrol": patrol}
+
+    def _knife_holder(self) -> Optional[int]:
+        """قاتلِ فعلی تیم (قاتل یا جانشینش) — برای شایعه و سرنخ‌های دروغ."""
+        for p in self.s.alive_players():
+            if p.align is Align.KILLER and self.ability_of(p) == "kill":
+                return p.uid
+        k = [p.uid for p in self.s.alive_players() if p.align is Align.KILLER]
+        return k[0] if k else None
+
+    def _death_causes(self, acts, killed, poisoned) -> Dict[int, tuple]:
+        """قربانی → (روش، ضارب) برای کالبدشکاف."""
+        out: Dict[int, tuple] = {}
+        for actor, tgt in acts.get("kill", {}).items():
+            if tgt in killed and tgt not in out:
+                sk = self.s.players[actor].role == "جانی سریالی"
+                out[tgt] = ("زخم‌های متعدد و بی‌نظم (جانی سریالی)" if sk else "یک ضربه‌ی دقیقِ چاقو (تیم قاتل)",
+                            actor)
+        for tgt in poisoned:
+            out[tgt] = ("سم؛ بوی بادام تلخ (سم‌ساز)", self.s.poison_by.get(tgt))
+        for u in killed:
+            out.setdefault(u, ("مرگِ همراه (زوج سرنوشت / شلیک شکارچی)", None))
+        return out
+
+    def _make_clues(self, acts, killed, poisoned) -> List[dict]:
+        """سرنخ‌های امشب از روی کارِ واقعیِ بازیکن‌ها (RULES.md «سرنخ‌ها»):
+        جنایتِ واقعی → سرنخ راست از مجرم؛ پاپوش → سرنخ دروغ با مشخصاتِ بی‌گناه؛
+        ردِ گمراه‌کننده → سرنخ دروغ؛ شاهد → سرنخ راستِ اضافه؛ قطعی برق → هیچ سرنخی."""
+        s = self.s
+        rng = random.Random(s.chat_id * 31 + s.day * 7 + len(s.clues))
+        if s.night_event.startswith("قطعی برق"):
+            s.log.append("🕯️ برق رفت؛ صحنه‌ها تاریک ماند و امشب هیچ سرنخی جمع نشد.")
+            return []
+        # هر spec: (نوع، مجرم، منبع/پاپوش‌خورده، کلیدِ صحنه، یادداشت)
+        # کلیدِ صحنه = قربانی: سرنخ‌های یک قتل (و پاپوش/ردِ گمراه‌کننده‌ی همان شب) در یک مکان پیدا می‌شوند،
+        # تا از روی «کجا پیدا شد» نشود راست را از کاشته جدا کرد.
+        specs = []
+        attackers = []
+        scenes_ = []                              # (کلید، یادداشت) صحنه‌های واقعیِ امشب
+        for actor, tgt in acts.get("kill", {}).items():
+            src = "sk" if s.players[actor].role == "جانی سریالی" else "kill"
+            if actor in s.hidden:                 # قاچاقچی ردِ ضارب را پاک کرده
+                continue
+            name = s.players[tgt].name
+            if tgt in killed:
+                note = f"(کنارِ جسدِ {name})"
+                specs.append(("true", actor, src, f"v{tgt}", note))
+                attackers.append(actor)
+                scenes_.append((f"v{tgt}", note))
+            elif rng.random() < 0.5:
+                note = f"(ردِ حمله‌ی ناکام به {name})"
+                specs.append(("true", actor, src, f"v{tgt}", note))
+                attackers.append(actor)
+                scenes_.append((f"v{tgt}", note))
+        for tgt in poisoned:
+            who = s.poison_by.get(tgt)
+            if who is not None and who not in s.hidden:
+                note = f"(لیوانِ {s.players[tgt].name}؛ بوی بادام تلخ)"
+                specs.append(("true", who, "poison", f"v{tgt}", note))
+                attackers.append(who)
+                scenes_.append((f"v{tgt}", note))
+        culprit = next((a for a in attackers if s.players[a].align is Align.KILLER), None) \
+            or self._knife_holder()
+        for acc, tgt in acts.get("frame", {}).items():
+            key, note = rng.choice(scenes_) if scenes_ else ("frame", "")
+            specs.append(("frame", culprit, tgt, key, note))
+        # ردِ گمراه‌کننده فقط کنارِ یک صحنه‌ی واقعی (شب بی‌جنایت سرنخ دروغ هم نمی‌سازد)
+        if attackers and rng.random() < scenario_rules(self.scenario)["herring"]:
+            key, note = rng.choice(scenes_) if scenes_ else ("herring", "")
+            specs.append(("false", culprit, None, key, note))
+        if s.night_event.startswith("شاهد") and attackers:
+            a = rng.choice(attackers)
+            specs.append(("true", a, "witness", "witness", "(👁️ به گفته‌ی یک شاهد ناشناس)"))
+        # هر سرنخِ دروغ باید با **همه‌ی** مجرم‌های امشب (حتی ضاربِ پنهان) و کلِ تیم قاتل ناجور باشد؛
+        # وگرنه «دروغ» تصادفاً به یک مجرمِ واقعی اشاره می‌کرد
+        guilty = set(acts.get("kill", {})) | set(acts.get("poison", {})) | set(attackers)
+        guilty |= {s.poison_by[t] for t in poisoned if s.poison_by.get(t) is not None}
+        guilty |= {p.uid for p in s.players.values() if p.align is Align.KILLER and p.in_game}
+        rng.shuffle(specs)                        # ترتیبِ کدها چیزی درباره‌ی راستی لو ندهد
+        made = []
+        for sp in specs:
+            if sp[0] == "true":
+                made.append(C.true_clue(s, sp[1], rng, sp[2], sp[3], sp[4]))
+            elif sp[0] == "frame":
+                c = C.false_clue(s, sp[1], rng, "frame", sp[3], framed=sp[2], avoid=guilty, note=sp[4])
+                if c:
+                    made.append(c)
+            else:
+                c = C.false_clue(s, sp[1], rng, "herring", sp[3], avoid=guilty, note=sp[4])
+                if c:
+                    made.append(c)
+        # خبرنگار: اگر مصاحبه‌شونده امشب هدف حمله بود، سرنخِ تاییدشده از ضارب؛ وگرنه شمارِ ملاقات‌ها
+        for rep_uid, tgt in acts.get("reveal", {}).items():
+            hitters = [a for ab in ("kill", "poison") for a, t in acts.get(ab, {}).items()
+                       if t == tgt and a not in s.hidden]
+            name = s.players[tgt].name
+            if hitters:
+                c = C.true_clue(s, rng.choice(hitters), rng, "reporter", f"v{tgt}",
+                                f"(📰 گزارش خبرنگار از {name})")
+                c["verified"] = True
+                made.append(c)
+            else:
+                n = sum(1 for ab, pairs in acts.items() if ab not in NO_VISIT
+                        for a, t in pairs.items() if t == tgt and a != rep_uid)
+                s.log.append(f"📰 خبرنگار: دیشب {n} نفر (جز خودش) به {name} سر زدند.")
+        return made
 
     def _advance_custody(self) -> List[int]:
         """یک شب بازداشت می‌گذرد. خروجی: کسانی که همین حالا حبس ابد گرفتند."""
@@ -797,6 +946,7 @@ class Game:
         p.custody_nights = 0
         self.s.pending_jail.append(p.uid)
         self.s.suspect_uid = None
+        self.s.questions.clear()                 # پرسشِ بی‌جوابِ متهمِ قبلی دیگر معنایی ندارد
         self.s.defense_text = ""
         msg = (f"{why}: 🔒 {p.name} به حبس موقت رفت ({_fa(self.temp_jail_nights)} شب). آزادی‌اش فقط با "
                "تایید بی‌گناهی توسط بازجو، آن هم وقتی متهم جدیدی وارد بازجویی شده باشد.")
@@ -823,6 +973,7 @@ class Game:
         p.stress = max(0, p.stress - 15)
         msg = f"🔓 {p.name} آزاد شد؛ بازجو بی‌گناهی‌اش را تایید کرد."
         self.s.suspect_uid = None
+        self.s.questions.clear()                 # پرسشِ بی‌جوابِ متهمِ قبلی دیگر معنایی ندارد
         self.s.defense_text = ""
         self.s.log.append(msg)
         self._arm()
@@ -893,6 +1044,12 @@ class Game:
             raise RuleError("حق رای در هیئت منصفه نداری.")
         self.s.jury_votes[uid] = acquit
 
+    def jury_percent(self) -> int:
+        """درصدِ تبرئه طبق سناریو (دادگاه سخت‌گیرتر: ۵۰٪)؛ اگر در .env عوض شده، همان مقدار."""
+        if JURY_ACQUIT_PERCENT != 60:
+            return JURY_ACQUIT_PERCENT
+        return int(scenario_rules(getattr(self.s, "scenario", "classic")).get("jury", JURY_ACQUIT_PERCENT))
+
     def close_jury(self) -> str:
         if self.s.phase is not Phase.JURY:
             raise RuleError("فاز اشتباه است.")
@@ -902,11 +1059,12 @@ class Game:
         self.s.phase = Phase.MORNING
         self.s.phase_before_jury = None
         auto, self.s.auto_jury = self.s.auto_jury, False
-        if yes * 100 >= JURY_ACQUIT_PERCENT * total:
+        if yes * 100 >= self.jury_percent() * total:
             p.custody = Custody.FREE
             p.cleared = True
             p.custody_nights = 0
             self.s.suspect_uid = None
+            self.s.questions.clear()
             self.s.defense_text = ""
             msg = f"⚖️ هیئت منصفه {p.name} را تبرئه کرد ({_fa(yes)}/{_fa(total)})."
             self.s.log.append(msg)
@@ -994,6 +1152,9 @@ class Game:
         for p in self.s.players.values():        # ایده ۱۶: پاداش دقت رای
             hits = sum(1 for _, v, t in self.s.vote_history if v == p.uid and t in killers)
             p.xp += 15 * hits
+            # نسخه ۵: هر «باور/شک» درست درباره‌ی سرنخی که تکلیفش روشن شد +۵
+            p.xp += 5 * sum(1 for c in self.s.clues if c["verified"] is not None
+                            and c["votes"].get(p.uid) == int(c["genuine"]))
         self.s.mvp = max(self.s.players, key=lambda u: self.s.players[u].xp)   # ایده ۱۷
 
     def reveal(self) -> List[Tuple[str, str, str]]:
@@ -1042,46 +1203,55 @@ class Game:
         return f"🚨 رای اضطراری علیه {t.name}: {len(sup)}/{need}"
 
     # ---------------- ایده ۱۰: آزمایشگاه با تاخیر ----------------
-    def submit_lab(self, code: str) -> str:
+    def clue(self, code: str) -> dict:
+        c = next((x for x in self.s.clues if x["code"] == code), None)
+        if c is None:
+            raise RuleError("کد سرنخ نامعتبر است.")
+        return c
+
+    def submit_lab(self, code: str, express: bool = False) -> str:
+        """آزمایشگاه: روزی یک نمونه؛ نتیجه (راست/دروغ) برای همه اعلام می‌شود.
+        express: با سکه، یک شب زودتر (حداقل همان سحر)."""
         if not self.s.case:
-            raise RuleError("بازی هنوز شروع نشده؛ مدرکی وجود ندارد.")
-        codes = {e["code"] for e in self.s.case.evidence}
-        if code not in codes:
-            raise RuleError("کد مدرک نامعتبر است (E1 تا E6).")
+            raise RuleError("بازی هنوز شروع نشده؛ سرنخی وجود ندارد.")
+        c = self.clue(code)
+        if c["verified"] is not None:
+            raise RuleError("این سرنخ قبلاً تایید/رد شده است.")
         if code in self.s.lab_queue:
-            raise RuleError("این مدرک در صف آزمایشگاه است.")
-        self.s.lab_queue[code] = self.s.day + 2
-        return f"🧪 مدرک {code} به آزمایشگاه رفت؛ نتیجه دو شب دیگر می‌رسد."
+            raise RuleError("این سرنخ در صف آزمایشگاه است.")
+        if self.s.lab_day == self.s.day:
+            raise RuleError("آزمایشگاه امروز یک نمونه گرفته؛ فردا دوباره.")
+        nights = max(0 if express else 1, scenario_rules(self.scenario)["lab_nights"] - (1 if express else 0))
+        self.s.lab_queue[code] = self.s.day + max(nights, 0)
+        self.s.lab_day = self.s.day
+        when = "همین سحر" if nights == 0 else f"{_fa(nights)} شب دیگر"
+        return f"🧪 سرنخ {code} به آزمایشگاه رفت؛ نتیجه {when} برای همه اعلام می‌شود."
 
-    # ---------------- ایده ۱۱: رای تفسیر مدرک ----------------
+    # ---------------- ایده ۱۱: «باورش داری؟» ----------------
     def vote_interp(self, uid: int, code: str, idx: int) -> str:
-        if not self.s.case:
-            raise RuleError("بازی هنوز شروع نشده؛ مدرکی وجود ندارد.")
-        ev = next((e for e in self.s.case.evidence if e["code"] == code), None)
-        if not ev or not (0 <= idx < len(ev["interpretations"])):
-            raise RuleError("مدرک یا تفسیر نامعتبر.")
-        self.s.interp_votes.setdefault(code, {})[uid] = idx
-        tally = self.s.interp_votes[code]
-        top = max(set(tally.values()), key=list(tally.values()).count)
-        return f"🧠 تفسیر غالب {code}: «{ev['interpretations'][top]}» ({len(tally)} رای)"
+        """idx=1 یعنی «راست است»، idx=0 یعنی «دروغ/کاشته است». وقتی سرنخ تایید شد، درست‌گوها XP می‌گیرند."""
+        if idx not in (0, 1):
+            raise RuleError("فقط 👍 یا 👎.")
+        c = self.clue(code)
+        if c["verified"] is not None:
+            raise RuleError("این سرنخ تکلیفش روشن شده است.")
+        c["votes"][uid] = idx
+        yes = sum(1 for v in c["votes"].values() if v)
+        return f"🗳️ {code}: 👍 {_fa(yes)} باور دارند · 👎 {_fa(len(c['votes']) - yes)} شک دارند"
 
-    # ---------------- ایده ۱۲: راستی‌آزمایی مدرک توسط کارآگاه ----------------
+    # ---------------- ایده ۱۲: راستی‌آزمایی سرنخ توسط کارآگاه ----------------
     def expose(self, uid: int, code: str) -> str:
         p = self.s.players.get(uid)
         if not p or p.role != "کارآگاه" or not p.free:
-            raise RuleError("فقط کارآگاهِ آزاد می‌تواند اصالت مدرک را بسنجد.")
+            raise RuleError("فقط کارآگاهِ آزاد می‌تواند سرنخ را راستی‌آزمایی کند.")
         if self.s.phase not in (Phase.NIGHT, Phase.INTERROGATION):
             raise RuleError("راستی‌آزمایی فقط در شب ممکن است.")
         if f"investigate:{uid}" in self.s.night_actions or f"expose:{uid}" in self.s.night_actions:
             raise RuleError("امشب اکشنت را خرج کرده‌ای.")
-        if not self.s.case:
-            raise RuleError("بازی هنوز شروع نشده.")
-        ev = next((e for e in self.s.case.evidence if e["code"] == code), None)
-        if not ev:
-            raise RuleError("کد مدرک نامعتبر است.")
+        c = self.clue(code)
         self.s.night_actions[f"expose:{uid}"] = 0
-        res = "جعلی 🎭" if ev["misleading"] else "اصل ✅"
-        p.notes.append(f"شب {self.s.day}: مدرک {code} → {res}")
+        res = "راست ✅" if c["genuine"] else "دروغ ❌"
+        p.notes.append(f"شب {self.s.day}: سرنخ {code} → {res}")
         return res
 
     # ---------------- ایده ۱۴/۱۷: بازسازی و MVP ----------------

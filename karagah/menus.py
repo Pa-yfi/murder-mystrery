@@ -17,7 +17,8 @@ HOME = ("🏠 منوی اصلی", "menu")
 
 
 def kb(rows: List[List[tuple]]) -> Dict:
-    return {"inline_keyboard": [[{"text": t, "callback_data": d} for t, d in r] for r in rows]}
+    from .ui import kb as _kb                  # یک سازنده برای همه‌ی کیبوردها (با رنگ)
+    return _kb(rows)
 
 
 def _pairs(items: List[tuple]) -> List[List[tuple]]:
@@ -47,8 +48,9 @@ GROUPS: List[Tuple[str, str, List[tuple]]] = [
         ("📊 نتیجه‌ی هیئت", "closejury"), ("🚨 رای اضطراری", "sos"),
     ]),
     ("clues", "🔎 مدارک و دفترچه", [
-        ("🧪 آزمایشگاه", "lab"), ("🧠 تفسیر مدرک", "interp"),
-        ("🔍 راستی‌آزمایی مدرک", "expose"), ("📝 یادداشت تازه", "note"),
+        ("🗂️ پرونده و مظنونان", "board"), ("🧪 آزمایشگاه", "lab"),
+        ("👍👎 باورش داری؟", "interp"), ("🔍 راستی‌آزمایی سرنخ", "expose"),
+        ("📝 یادداشت تازه", "note"),
         ("📓 دفترچه‌ی من", "notes"), ("📜 وصیت‌نامه", "will"),
         ("🏹 هدف شلیک آخر", "hunter"),
     ]),
@@ -58,7 +60,7 @@ GROUPS: List[Tuple[str, str, List[tuple]]] = [
         ("🎯 ماموریت‌ها", "missions"), ("🏅 دستاوردها", "achv"),
     ]),
     ("table", "⚙️ میز و میزبانی", [
-        ("🎲 انتخاب میز", "table"), ("➕ میز تازه", "newtable"),
+        ("🎲 انتخاب میز", "table"),
         ("📺 تماشاچی", "spectate"), ("🕶️ ناشناس/علنی", "voteanon"),
         ("🔁 دور دوباره", "rematch"), ("⏰ یادآوری", "remind"),
         ("⏸️ توقف بازی", "pause"), ("▶️ ادامه‌ی بازی", "resume"),
@@ -94,8 +96,8 @@ def all_buttons() -> List[str]:
     return [cb for _k, _t, items in GROUPS for _label, cb in items]
 
 
-def commands_menu() -> Dict:
-    rows = [[(title, f"group:{key}")] for key, title, _items in GROUPS]
+def commands_menu(admin: bool = True) -> Dict:
+    rows = [[(title, f"group:{key}")] for key, title, _items in GROUPS if admin or key != "admin"]
     return kb(rows + [[HOME]])
 
 
@@ -233,16 +235,23 @@ def abilities_kb(g, p) -> Dict:
 
 # ── انتخابگرها: به‌جای تایپ آرگومان ───────────────────────────────────
 def evidence_kb(s: GameState, cmd: str) -> Dict:
-    """دکمه‌ی هر مدرک برای lab / expose / interp."""
-    # عنوان مدرک روی دکمه می‌آید تا کسی مجبور نباشد کدها را حفظ کند
-    items = [(f"{e['title']} ({e['code']})", f"{cmd}:{e['code']}") for e in s.case.evidence]
-    return kb([[i] for i in items] + [[BACK, HOME]])
+    """دکمه‌ی هر سرنخ برای lab / expose / interp — تاییدشده‌ها برای lab/interp نمی‌آیند."""
+    from .clues import STATUS_ICON
+    items = []
+    for c in s.clues:
+        if cmd in ("lab", "interp") and c["verified"] is not None:
+            continue
+        short = c["text"].split("،")[0].split(" در ")[0][:34]
+        items.append((f"{STATUS_ICON[c['verified']]} {c['code']} · {short}", f"{cmd}:{c['code']}"))
+    if not items:
+        return kb([[("— سرنخِ بازی نمانده —", "board")], [("🗂️ پرونده", "board")], [BACK, HOME]])
+    return kb([[i] for i in items] + [[("🗂️ پرونده", "board")], [BACK, HOME]])
 
 
-def interp_kb(ev: Dict) -> Dict:
-    rows = [[(f"{i+1}. {txt[:40]}", f"interp:{ev['code']}:{i}")]
-            for i, txt in enumerate(ev["interpretations"])]
-    return kb(rows + [[("🧠 مدرک دیگر", "interp")], [BACK, HOME]])
+def interp_kb(c: Dict) -> Dict:
+    return kb([[("👍 راست است", f"interp:{c['code']}:1"), ("👎 کاشته/دروغ است", f"interp:{c['code']}:0")],
+               [("🧪 بفرست آزمایشگاه", f"lab:{c['code']}")],
+               [("🔎 سرنخ دیگر", "interp"), ("🗂️ پرونده", "board")], [BACK, HOME]])
 
 
 def player_kb(s: GameState, cmd: str, exclude=(), only_custody=None) -> Dict:

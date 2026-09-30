@@ -6,6 +6,7 @@
     python -m karagah.telegram_app       # یا: python run.py
 """
 from __future__ import annotations
+import asyncio
 import logging
 import os
 import os.path as osp
@@ -56,7 +57,9 @@ def _kb(k):
             if "url" in b:
                 r.append(InlineKeyboardButton(b["text"], url=b["url"]))
             else:
-                r.append(InlineKeyboardButton(b["text"], callback_data=b["callback_data"]))
+                # style: danger 🔴 / success 🟢 / primary 🔵 (Bot API ≥ 9.4؛ کلاینت قدیمی نادیده می‌گیرد)
+                r.append(InlineKeyboardButton(b["text"], callback_data=b["callback_data"],
+                                              style=b.get("style")))
         rows.append(r)
     return InlineKeyboardMarkup(rows)
 
@@ -115,7 +118,28 @@ async def _flush_outbox(bot, res: dict) -> None:
         await _send(bot, m["chat"], m["text"], m.get("keyboard"))
 
 
+ANIM_DELAY = 0.6        # ثانیه بین فریم‌های ایموجیِ متحرک
+
+
+async def _animate(bot, chat: int, frames) -> None:
+    """ایموجیِ متحرک: یک پیام کوتاه که چند فریم عوض می‌شود (🌆→🌃→🌌→🔪) و بعد پاک می‌شود."""
+    if not frames or not chat:
+        return
+    try:
+        msg = await bot.send_message(chat, frames[0])
+        for f in frames[1:]:
+            await asyncio.sleep(ANIM_DELAY)
+            await msg.edit_text(f)
+        await asyncio.sleep(ANIM_DELAY)
+        await msg.delete()
+    except Exception as e:                        # انیمیشن تزئین است؛ هرگز جلوی پیام اصلی را نگیرد
+        log.debug("animation skipped: %s", e)
+
+
 async def _reply(update: Update, res: dict):
+    if res.get("anim") and not res.get("private"):
+        dest = res.get("_target") if res.get("announce") and res.get("_target") else update.effective_chat.id
+        await _animate(update.get_bot(), dest, res["anim"])
     await _deliver(update, res)
     await _flush_outbox(update.get_bot(), res)
 
@@ -211,8 +235,11 @@ async def on_text(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
     """متن ساده فقط وقتی معنا دارد که ربات منتظر آن باشد (یادداشت/وصیت/پرسش/دفاع).
     وگرنه کاربر را به تابلوی دکمه‌ها می‌بریم تا مجبور به تایپ دستور نشود."""
     uid = update.effective_user.id
-    pending = take_pending(uid)
+    private = update.effective_chat.type == "private"
     text = (update.effective_message.text or "").strip()
+    if not private and not botmod._PENDING.get(uid):
+        return        # گفتگوی عادیِ گروه مالِ بازیکن‌هاست؛ ربات وسط بحث منو نمی‌فرستد
+    pending = take_pending(uid)
     if pending and text:
         chat, cmd = pending
         res = handle(cmd, chat, uid, update.effective_user.first_name or "", text)

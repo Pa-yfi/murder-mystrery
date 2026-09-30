@@ -2,7 +2,7 @@
 همه‌ی callback_dataها به اندپوینت واقعی در bot._ROUTES اشاره می‌کنند (دکمه‌ی مرده نداریم).
 """
 from __future__ import annotations
-from typing import Dict, List
+from typing import Dict, List, Optional
 from .models import Custody, GameState
 from .roles import ROLES, scenario_card
 from .config import (BOT_USERNAME, MIN_PLAYERS, MAX_PLAYERS, PHASE_SECONDS,
@@ -42,8 +42,46 @@ MENU = [
 ]
 
 
+# ── رنگ دکمه‌ها (Bot API: style = danger 🔴 / success 🟢 / primary 🔵) ──
+_DANGER = ("sos", "pause", "leave", "admin_ban", "new:confirm", "blitz:confirm", "jury:0")
+_SUCCESS = ("ready", "startgame", "join", "jury:1", "resume", "rematch", "answer", "discuss",
+            "scenario:")
+_PRIMARY = ("dawn", "vote", "closevote", "closejury", "end", "board", "act", "dashboard", "lab:",
+            "hunter:", "expose:")
+
+
+def style_for(cb: str) -> Optional[str]:
+    """رنگِ دکمه از روی معنای آن — یک جا برای کل بازی."""
+    if not cb:
+        return None
+    if cb.endswith(":1") and cb.startswith(("ver:", "verdict:")):
+        return "danger"                    # 🔒 حبس
+    if cb.endswith(":0") and cb.startswith(("ver:", "verdict:")):
+        return "success"                   # 🔓 آزادی
+    if cb.startswith("interp:") and cb.count(":") == 2:
+        return "success" if cb.endswith(":1") else "danger"
+    if cb == "vote:0":
+        return None
+    if cb.startswith(_DANGER):
+        return "danger"
+    if cb.startswith(_SUCCESS):
+        return "success"
+    if cb.startswith(_PRIMARY):
+        return "primary"
+    return None
+
+
+def button(t: str, d: str, style: Optional[str] = None) -> Dict:
+    b = {"text": t, "callback_data": d}
+    st = style or style_for(d)
+    if st:
+        b["style"] = st
+    return b
+
+
 def kb(rows: List[List[tuple]]) -> Dict:
-    return {"inline_keyboard": [[{"text": t, "callback_data": d} for t, d in r] for r in rows]}
+    """هر دکمه (متن، callback) یا (متن، callback، رنگ)؛ رنگ پیش‌فرض از معنای callback."""
+    return {"inline_keyboard": [[button(*b) for b in r] for r in rows]}
 
 
 def with_back(rows: List[List[tuple]]) -> Dict:
@@ -54,26 +92,59 @@ def back_only() -> Dict:
     return kb([[BACK, HOME]])
 
 
-def main_menu() -> Dict:
-    return kb(MENU)
+def main_menu(private: bool = False, admin: bool = True) -> Dict:
+    """منوی اصلی — در پیوی به‌جای «شروع بازی» دکمه‌ی افزودن به گروه؛ دکمه‌ی ادمین فقط برای ادمین."""
+    rows = []
+    for row in MENU:
+        r = [b for b in row if admin or b[1] != "admin"]
+        if private and any(b[1] == "new" for b in r):
+            rows.append([("🗂️ پرونده‌ی بازی من", "board"), ("🔐 نقش من", "myrole")])
+            continue
+        if r:
+            rows.append(r)
+    out = kb(rows)
+    if private:
+        out["inline_keyboard"].insert(1, [{"text": "👥 افزودن ربات به گروه و شروع بازی",
+                                           "url": share_links(0)["group"]}])
+    return out
+
+
+def add_to_group_kb() -> Dict:
+    return {"inline_keyboard": [[{"text": "👥 افزودن ربات به گروه", "url": share_links(0)["group"]}],
+                                [{"text": HOME[0], "callback_data": HOME[1]}]]}
+
+
+def role_kb(p) -> Dict:
+    """زیر کارت نقش: کارِ بعدیِ همین نقش."""
+    rows = []
+    if p.role and ROLES[p.role].ability:
+        rows.append([("🌙 اکشن شبانه", "act"), ("🎯 توانایی‌های من", "abilities")])
+    else:
+        rows.append([("🎯 توانایی‌های من", "abilities")])
+    rows.append([("🗂️ پرونده", "board"), ("📓 دفترچه", "notes")])
+    rows.append([BACK, HOME])
+    return kb(rows)
 
 
 # ── صفحه‌ی اول: افزودن به گروه / دعوت دوست ──
-def first_screen() -> str:
+def first_screen(private: bool = False) -> str:
     return ("🕵️ *به «کارآگاه» خوش آمدی!*\n" + DIV +
             "\nنسخه‌ی پیشرفته‌ی مافیا + معمای قتل — کاملاً فارسی."
             f"\n👥 {_fa(MIN_PLAYERS)} تا {_fa(MAX_PLAYERS)} بازیکن | 🕯️ ۴۰ پرونده | 🔦 حذف سه‌مرحله‌ای\n\n"
             "برای شروع، ربات را به گروه اضافه کن یا دوستانت را دعوت کن:")
 
 
-def first_kb(chat_id: int) -> Dict:
+def first_kb(chat_id: int, private: bool = False, admin: bool = True) -> Dict:
+    """در پیوی لینکِ «دعوت به لابی» معنا ندارد (لابی در گروه است) — فقط افزودن به گروه (بن‌بست A4)."""
     l = share_links(chat_id)
-    rows = [
-        [{"text": "👥 افزودن به گروه", "url": l["group"]}],
-        [{"text": "📨 دعوت دوست", "url": l["share"]}],
-        [{"text": "📢 افزودن به کانال", "url": l["channel"]}],
-    ]
-    return {"inline_keyboard": rows + kb(MENU)["inline_keyboard"]}
+    rows = [[{"text": "👥 افزودن به گروه", "url": l["group"]}]]
+    if not private:
+        rows.append([{"text": "📨 دعوت دوست به همین لابی", "url": l["share"]}])
+    rows.append([{"text": "📢 افزودن به کانال", "url": l["channel"]}])
+    menu = main_menu(private, admin)["inline_keyboard"]
+    if private:
+        menu = [r for r in menu if not any("url" in b for b in r)]
+    return {"inline_keyboard": rows + menu}
 
 
 def newbie_guide() -> str:
@@ -146,21 +217,94 @@ def status_board(s: GameState) -> str:
         tag = "" if p.custody is Custody.FREE else f" — {p.custody.value}"
         rows.append(f"{icon} {p.name}{tag}")
     return (f"📋 *وضعیت شهر — روز {s.day} | فاز: {s.phase.value}*\n{DIV}\n" +
-            "\n".join(rows) + f"\n{DIV}\n🔎 مدارک رو شده: {len(s.revealed_evidence)}/۶")
+            "\n".join(rows) + f"\n{DIV}\n" + clue_count(s))
 
 
 def case_intro(s: GameState) -> str:
+    from .roles import scenario_rules
     c = s.case
     tl = "\n".join(f"  • {t}" for t in c.timeline)
-    return (f"🕯️ *پرونده #{c.cid} — {c.title}*\n{DIV}\n"
+    story = scenario_rules(getattr(s, "scenario", "classic"))["story"]
+    return (f"{story}\n{DIV}\n🕯️ *پرونده #{c.cid} — {c.title}*\n"
             f"⚰️ مقتول: {c.victim}\n📍 صحنه: {c.place}\n🔪 سلاح احتمالی: {c.weapon}\n"
-            f"💰 انگیزه‌ی محتمل: {c.motive}\n{DIV}\n🕰️ تایم‌لاین:\n{tl}")
+            f"💰 انگیزه‌ی محتمل: {c.motive}\n🧩 گره‌ی پرونده: {c.twist}\n{DIV}\n🕰️ تایم‌لاین:\n{tl}\n{DIV}\n"
+            + suspects_board(s) + "\n" + DIV + "\n🔎 *سرنخ‌های صحنه‌ی جرم* (بعضی راست، بعضی کاشته):\n"
+            + "\n".join(clue_line(x) for x in s.clues))
 
 
-def evidence_card(ev: Dict) -> str:
-    it = "\n".join(f"  ▫️ {i}" for i in ev["interpretations"])
-    return (f"🔎 *مدرک {ev['code']}: {ev['title']}*\n{DIV}\n🧠 تفسیرهای ممکن:\n{it}\n\n"
-            "❗ هیچ مدرکی به‌تنهایی قاتل را ثابت نمی‌کند.")
+def clue_count(s: GameState) -> str:
+    cl = getattr(s, "clues", [])
+    ok = sum(1 for c in cl if c["verified"] is True)
+    bad = sum(1 for c in cl if c["verified"] is False)
+    return f"🔎 سرنخ‌ها: {len(cl)} (✅{ok} ❌{bad} ❔{len(cl) - ok - bad})"
+
+
+def suspects_board(s: GameState) -> str:
+    """پرونده‌ی ظاهریِ عمومیِ همه — سرنخ‌ها با این‌ها سنجیده می‌شوند."""
+    from .clues import trait_line
+    rows = [f"  {'💀' if not p.alive else '⛓️' if p.custody is Custody.LIFE_JAIL else '👤'} "
+            f"{p.name}: {trait_line(p.traits)}" for p in s.players.values() if getattr(p, "traits", None)]
+    return "👥 *مظنونان (مشخصاتِ ظاهری، عمومی):*\n" + "\n".join(rows)
+
+
+def clue_line(c: Dict) -> str:
+    from .clues import clue_line as _cl
+    return "  " + _cl(c)
+
+
+def clue_block(new: List[Dict]) -> str:
+    if not new:
+        return "🔎 امشب سرنخ تازه‌ای پیدا نشد."
+    return ("🔎 *سرنخ‌های تازه* (راست یا کاشته؟ با 🧪 آزمایشگاه و 🗂️ پرونده بسنج):\n"
+            + "\n".join(clue_line(c) for c in new))
+
+
+def patrol_block(rows) -> str:
+    """🗺️ گشتِ صبحگاهی: صحنه‌های قبلی امروز چه چیزِ تازه‌ای نشان می‌دهند (فضاسازی، نه سرنخ)."""
+    if not rows:
+        return ""
+    return ("\n\n🗺️ *گشتِ صبحگاهی در صحنه‌های قبلی* (فقط حال‌وهوا، سرنخ نیست):\n"
+            + "\n".join(f"  📍 {loc} — {d}" for loc, d in rows))
+
+
+def scene_map(s: GameState) -> str:
+    """🗺️ نقشه‌ی صحنه‌ها: هر مکانِ سرنخ‌دار و آنچه هر روز نشان داد — هیچ روزی تکراری نیست."""
+    from .scenes import history
+    hist = history(s)
+    if not hist:
+        return ""
+    lines = ["🗺️ *نقشه‌ی صحنه‌ها* (هر روز چیزی تازه):"]
+    for loc, rows in hist.items():
+        codes = "، ".join(c["code"] for c in s.clues if c.get("place") == loc)
+        lines.append(f"  📍 {loc}" + (f" — سرنخ‌ها: {codes}" if codes else ""))
+        lines += [f"      روز {_fa(d)}: {t}" for d, t in rows[-4:]]
+    return "\n".join(lines)
+
+
+def board(s: GameState) -> str:
+    """🗂️ پرونده: همه‌ی سرنخ‌ها + مظنونان به ترتیبِ جور بودن با سرنخ‌های تاییدشده."""
+    from .clues import board_ranking, matches, trait_line
+    lines = [f"🗂️ *پرونده‌ی {s.case.title}*" if s.case else "🗂️ *پرونده*", DIV,
+             "🔎 *سرنخ‌ها* (✅ راستِ تاییدشده · ❌ دروغِ تاییدشده · ❔ هنوز معلوم نیست):"]
+    for c in s.clues:
+        yes = sum(1 for v in c["votes"].values() if v)
+        no = len(c["votes"]) - yes
+        who = "، ".join(p.name for p in s.alive_players() if matches(p, c)) or "هیچ‌کسِ زنده"
+        lines.append(clue_line(c) + (f"  👍{yes} 👎{no}" if c["votes"] else "")
+                     + f"\n      ↳ جور با: {who}")
+    sm = scene_map(s)
+    if sm:
+        lines += [DIV, sm]
+    rank = [r for r in board_ranking(s) if r[1] or r[2]]
+    if rank:
+        lines += [DIV, "🎯 *جور بودن با سرنخ‌ها* (✅ تاییدشده / ❔ تاییدنشده):"]
+        for uid, sure, open_ in rank[:10]:
+            p = s.players[uid]
+            bar = "🟥" * sure + "🟨" * open_
+            lines.append(f"  {bar or '▫️'} {p.name} — ✅{sure} ❔{open_}  ({trait_line(p.traits)})")
+    lines += [DIV, "⚠️ سرنخِ راست حتماً به مجرم اشاره نمی‌کند (گزارش خبرنگار ممکن است درباره‌ی پزشک باشد)؛ "
+              "و سرنخِ دروغ ممکن است عمداً به تو اشاره کند."]
+    return "\n".join(lines)
 
 
 def vote_kb(s: GameState) -> Dict:
@@ -196,7 +340,8 @@ def morning_kb(s: GameState, officer_can_judge: bool) -> Dict:
             rows += [[("🔒 حبس موقت", f"ver:{sus}:1"), ("🔓 آزادی", f"ver:{sus}:0")]]
         rows += [[("⚖️ هیئت منصفه", "jury")], [("📋 داشبورد", "dashboard")]]
         return kb(rows)
-    return kb([[("💬 گفتگو", "discuss")], [("📋 داشبورد", "dashboard")]])
+    return kb([[("💬 گفتگو", "discuss")], [("🗂️ پرونده", "board"), ("🧪 آزمایشگاه", "lab")],
+               [("📋 داشبورد", "dashboard")]])
 
 
 def jury_kb() -> Dict:
@@ -218,7 +363,7 @@ def help_text() -> str:
             "\n۱) 🔦 بازجویی — ۱ شب. بازجو می‌پرسد، متهم خودش جواب می‌دهد. متهم در بازداشت از قتل در امان است."
             "\n۲) 🔒 حبس موقت — با حکم بازجو، ۲ شب. آزادی فقط با تایید بازجو وقتی متهم جدیدی وارد بازجویی شده."
             "\n۳) ⛓️ حبس ابد — حذف کامل، بدون افشای نقش."
-            f"\n⚖️ *هیئت منصفه:* صبحِ بعد از بازجویی، ۲ نفر (یا وکیل تنها) می‌خواهند؛ {_fa(JURY_ACQUIT_PERCENT)}٪ = تبرئه. "
+            f"\n⚖️ *هیئت منصفه:* صبحِ بعد از بازجویی، ۲ نفر (یا وکیل تنها) می‌خواهند؛ {_fa(JURY_ACQUIT_PERCENT)}٪ = تبرئه (سناریوی دادگاه: ۵۰٪). "
             "اگر بازجو خودش متهم، زندانی یا حذف شده باشد، هیئت منصفه خودکار تشکیل می‌شود و تبرئه‌نکردن = حبس موقت."
             "\n🚨 *رای اضطراری:* یک بار در بازی، فقط در روز؛ ۸۰٪ رای = حبس موقتِ مستقیم."
             "\n\n*برد*"
@@ -402,7 +547,7 @@ def dashboard(s: GameState, remaining=None, pending=(), next_step="") -> str:
         who = ""
     return (f"📋 *داشبورد — روز {s.day} | فاز: {s.phase.value}*{timer}\n{DIV}\n"
             + "\n".join(rows) +
-            f"\n{DIV}\n🔎 مدارک رو شده: {len(s.revealed_evidence)}/۶{who}"
+            f"\n{DIV}\n{clue_count(s)}{who}"
             f"\n➡️ *قدم بعدی:* {next_step}")
 
 
@@ -428,7 +573,8 @@ def dashboard_kb(s: GameState) -> Dict:
                 [("📊 نتیجه‌ی هیئت", "closejury")]]
     elif ph is Phase.END:
         rows = [[("🏁 پایان و افشای نقش‌ها", "end")]]
-    return kb(rows + [[("🔄 بروزرسانی", "dashboard"), ("📝 دفترچه", "notes")], [BACK, HOME]])
+    return kb(rows + [[("🗂️ پرونده", "board"), ("🔄 بروزرسانی", "dashboard")],
+                      [("📝 دفترچه", "notes"), BACK]])
 
 
 # ── بهبود ۸: گزارش تعادل ──

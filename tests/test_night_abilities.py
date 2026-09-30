@@ -70,7 +70,7 @@ def test_investigation_result_arrives_at_dawn():
 def test_detective_cannot_spend_night_twice():
     g = _game()
     det = _role(g, "کارآگاه")
-    fake = next(e["code"] for e in g.s.case.evidence if e["misleading"])
+    fake = next(c["code"] for c in g.s.clues if not c["genuine"])
     g.expose(det.uid, fake)
     with pytest.raises(RuleError):
         g.night_action(det.uid, _other(g, det))

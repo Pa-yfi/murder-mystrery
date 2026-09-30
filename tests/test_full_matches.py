@@ -211,6 +211,6 @@ def test_abandoned_then_restarted_match_is_recorded():
     chat = 916
     _lobby(chat)
     handle("startgame", chat, 1, arg="17")
-    handle("new", chat, 1, "Host")            # میزبان نیمه‌کاره رهایش کرد
+    handle("new", chat, 1, "Host", "confirm")  # میزبان (با تایید) نیمه‌کاره رهایش کرد
     assert db.q_abandonment()["abandoned"] == 1
     assert GAMES[chat].s.phase is Phase.LOBBY

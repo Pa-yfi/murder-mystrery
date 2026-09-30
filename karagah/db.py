@@ -368,9 +368,25 @@ def q_top(limit: int = 10):                       # ایده ۱۵
 
 
 def q_league(limit: int = 10):                    # ایده ۲۵
+    # نامِ گروه را نداریم؛ «گروهِ <نام میزبان>» خواناتر از آیدیِ عددی است
     return conn().execute(
-        "SELECT chat_id, COUNT(DISTINCT uid) n, SUM(xp) sx FROM players "
-        "GROUP BY chat_id ORDER BY sx DESC LIMIT ?", (limit,)).fetchall()
+        "SELECT p.chat_id, COUNT(DISTINCT p.uid) n, SUM(p.xp) sx, "
+        "(SELECT u.name FROM games g JOIN users u ON u.uid = g.owner WHERE g.chat_id = p.chat_id) host "
+        "FROM players p GROUP BY p.chat_id ORDER BY sx DESC LIMIT ?", (limit,)).fetchall()
+
+
+def coins_of(uid: int) -> int:
+    r = conn().execute("SELECT coins FROM users WHERE uid=?", (uid,)).fetchone()
+    return int(r["coins"]) if r else 0
+
+
+def spend_coins(uid: int, n: int) -> bool:
+    """سکه خرج کن (n منفی = برگرداندن). False اگر موجودی کافی نیست."""
+    if n > 0 and coins_of(uid) < n:
+        return False
+    conn().execute("UPDATE users SET coins = coins - ? WHERE uid=?", (n, uid))
+    conn().commit()
+    return True
 
 
 def q_season(limit: int = 10):                    # ایده ۲۰

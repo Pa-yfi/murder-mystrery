@@ -287,21 +287,10 @@ def check_parallel_tables(report: Report, rb) -> None:
         s = sc.s
         s.tg.command(s.host.uid, "/new", s.group)
         s.tg.command(s.host.uid, "/newtable", s.group)
-        vid = next((c for c in GAMES if c != s.group), None)
-        m = s.tg.last(s.group)
-        joined = []
-        for a in s.agents[1:]:
-            hit = a.find(cb_is("join"), ("group",), 1)
-            if hit:
-                a.press(*hit)
-                joined.append(a.uid)
-        in_new = [u for u in joined if vid and u in GAMES[vid].s.players]
-        if vid and not in_new:
-            report.find("بالا", "بن‌بست", "«➕ میز تازه» میزی می‌سازد که هیچ‌کس با دکمه واردش نمی‌شود",
-                        f"میز {vid} ساخته شد؛ ولی دکمه‌ی «🙋 منم بازی می‌کنم» زیر پیامِ همان میز callback «join» "
-                        "دارد و در گروه به میزِ اصلیِ گروه می‌رسد (route_chat در گروه همیشه chat خود گروه است). "
-                        f"{len(joined)} نفر زدند و همه به میز اصلی رفتند. تنها راه ورود، لینک دعوت join_{vid} در پیوی است؛ "
-                        "شروع/شب/رای آن میز هم از گروه قابل زدن نیست.", key="newtable")
+        if any(c != s.group for c in GAMES):
+            report.find("بالا", "بن‌بست", "«/newtable» هنوز میزِ موازیِ بی‌دکمه می‌سازد", key="newtable")
+        else:
+            report.ok("میز موازی حذف شد: /newtable میز دوم نمی‌سازد")
     finally:
         sc.s.tg.close()
 
@@ -319,12 +308,22 @@ def check_rolecard(report: Report, rb, out: Path) -> Optional[str]:
         return None
     dst = out / "rolecard_sample.png"
     shutil.copy(path, dst)
-    font = ImageFont.load_default(size=48)
-    if bytes(font.getmask("ک")) == bytes(font.getmask("ه")):   # دو حرف متفاوت، یک شکل = جعبه
-        report.find("بالا", "بن‌بست", "کارت نقش تصویری (🖼️) فارسی و ایموجی را جعبه‌ی خالی نشان می‌دهد",
-                    "cards.py با فونت پیش‌فرض Pillow می‌نویسد که حروف فارسی و ایموجی ندارد؛ هر حرف یک مستطیلِ "
-                    f"ضربدری می‌شود (نمونه: playtest/{dst.name}). حروف هم بدون اتصال و راست‌به‌چپ چیده می‌شوند.",
-                    key="rolecard-tofu")
+    fpath = cards.find_font()
+    font = ImageFont.truetype(fpath, 48) if fpath else ImageFont.load_default(size=48)
+    shaped = cards.RAQM
+    if not shaped:
+        try:
+            import arabic_reshaper, bidi  # noqa: F401
+            shaped = True
+        except ImportError:
+            pass
+    if bytes(font.getmask("ک")) == bytes(font.getmask("ه")) or not shaped:   # دو حرف متفاوت، یک شکل = جعبه
+        report.find("بالا", "بن‌بست", "کارت نقش تصویری (🖼️) فارسی را جعبه‌ی خالی یا حروفِ جدا نشان می‌دهد",
+                    f"فونت: {fpath or 'پیش‌فرض Pillow'}؛ چیدمان راست‌به‌چپ: {'دارد' if shaped else 'ندارد'} "
+                    f"(نمونه: playtest/{dst.name}). یک فونت فارسی در assets/fonts بگذارید و "
+                    "arabic-reshaper/python-bidi را نصب کنید.", key="rolecard-tofu")
+    else:
+        report.ok("کارت نقش: فونت فارسی + چیدمان راست‌به‌چپ")
     return dst.name
 
 
