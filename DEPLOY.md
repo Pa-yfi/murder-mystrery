@@ -28,7 +28,7 @@ chmod 600 ~/.ssh/authorized_keys
 cat ~/.ssh/github_deploy
 ```
 
-The last command prints the **private key**. Copy all of it, from `-----BEGIN OPENSSH PRIVATE KEY-----` to `-----END OPENSSH PRIVATE KEY-----`, including those two lines.
+The last command prints the **private key**. Copy all of it, from `-----BEGIN OPENSSH PRIVATE KEY-----` to `-----END OPENSSH PRIVATE KEY-----`, including those two lines. If copying loses the line breaks or picks up the prompt around the key, that's fine: the workflow repairs it.
 
 After you save it in GitHub (step 2), delete it from the server. The server only needs the public half, which is already in `authorized_keys`:
 
@@ -97,7 +97,10 @@ Open the failed run on the **Actions** tab. The red message tells you what to fi
 |---|---|
 | `The VPS_HOST secret is not set yet` | Do step 2. |
 | `These secrets are missing: …` | Add the secrets it names. |
-| `VPS_SSH_KEY is not a private key …` | You pasted the `.pub` file, or only part of the key. Paste the whole private key again. |
+| `VPS_SSH_KEY: this is the PUBLIC key` | You pasted the `.pub` file. Paste the output of `cat ~/.ssh/github_deploy` (no `.pub`). |
+| `VPS_SSH_KEY: the key is cut off` / `is damaged` | Part of the key is missing. Copy it again, from `-----BEGIN` to `-----END … KEY-----`. |
+| `VPS_SSH_KEY: … protected by a passphrase` | GitHub can't type a password. Make the key exactly as in step 1 (`-N ""` means no passphrase). |
+| `VPS_SSH_KEY: this is a PuTTY (.ppk) key` | Make a new key as in step 1, or export it from PuTTYgen with *Conversions → Export OpenSSH key*. |
 | `Could not reach SSH on …` | Check `VPS_HOST` and `VPS_PORT`. If your firewall only allows SSH from your own IP, GitHub is blocked: it connects from many different addresses. |
 | `Could not log in to … as …` | `VPS_USER` is wrong, or the `github-deploy` line isn't in that user's `~/.ssh/authorized_keys`. Repeat step 1 as that user. |
 | `User '…' needs sudo without a password` | Use `root` as `VPS_USER`, or on the server run `echo "$USER ALL=(ALL) NOPASSWD:ALL" \| sudo tee /etc/sudoers.d/github-deploy`. This gives that user full sudo. |

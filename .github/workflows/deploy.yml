@@ -75,12 +75,7 @@ jobs:
           port=${VPS_PORT:-22}
           sshd="$RUNNER_TEMP/ssh"                    # key, host keys and config live only for this job
           install -m 700 -d "$sshd"
-          printf '%s\n' "$VPS_SSH_KEY" | tr -d '\r' > "$sshd/key"
-          chmod 600 "$sshd/key"
-          if ! ssh-keygen -y -P "" -f "$sshd/key" > /dev/null 2>&1; then
-            echo "::error::VPS_SSH_KEY is not a private key without a passphrase. Paste the whole key, from -----BEGIN to END-----."
-            exit 1
-          fi
+          python3 deploy/prepare_key.py "$sshd/key"   # repairs copy/paste damage, or names the exact mistake
           if [ -n "$VPS_KNOWN_HOSTS" ]; then
             printf '%s\n' "$VPS_KNOWN_HOSTS" | tr -d '\r' > "$sshd/known_hosts"
           else
