@@ -469,6 +469,9 @@ def test_phase_timer_auto_advances():           # ایده ۱
     assert g.s.deadline is not None            # شب مسلح شد
     assert g.remaining() >= 0
     g.s.deadline = _t.time() - 1               # مهلت گذشت
+    assert "فرصتِ اضافه" in g.tick()           # نسخه ۷: کسی تصمیم نگرفته → یک بار فرصت
+    assert g.s.phase is Phase.NIGHT
+    g.s.deadline = _t.time() - 1               # فرصت هم گذشت → تصمیم‌نگرفته‌ها «کاری نکرد»
     assert "شب" in g.tick()
     assert g.s.phase is Phase.MORNING
     g.open_discussion()

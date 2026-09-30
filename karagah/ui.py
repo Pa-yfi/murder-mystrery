@@ -321,6 +321,7 @@ def officer_kb(uid: int) -> Dict:
     # «پرسش» بدون آرگومان می‌رود تا ربات متنِ سؤال را بپرسد.
     # ver:<uid>:<x> — آیدی متهم در دکمه می‌ماند تا دکمه‌ی پیامِ دیروز روی متهمِ امروز اجرا نشود.
     return kb([[("🔦 سرنخ‌ها", "hints"), ("💬 پرسش", "ask")],
+               [("✅ بازجویی تمام شد (فقط بازجو)", "pass")],
                [("🔒 حبس موقت", f"ver:{uid}:1")],
                [("🔓 تایید بی‌گناهی و آزادی", f"ver:{uid}:0")],
                [("🌙 پایان شب", "dawn"), ("🎛️ همه‌ی دکمه‌ها", "commands")]])
@@ -493,7 +494,7 @@ ABILITY_TEXT = {
 }
 
 
-def action_panel(s: GameState, p, chosen=None, ab=None, targets=None) -> str:
+def action_panel(s: GameState, p, chosen=None, ab=None, targets=None, passed=False) -> str:
     """متن پنل اکشن شبانه‌ی یک بازیکن. ab: توانایی مؤثر (جانشین قاتل «kill» دارد)."""
     ab = ROLES[p.role].ability if ab is None else ab
     if ab == "hunter":
@@ -504,20 +505,154 @@ def action_panel(s: GameState, p, chosen=None, ab=None, targets=None) -> str:
     else:
         title, ask = ABILITY_TEXT.get(ab, (f"🌙 {ab}", "هدفت را انتخاب کن:"))
     done = f"\n\n✅ انتخاب فعلی: *{s.players[chosen].name}* (می‌توانی عوض کنی)" if chosen else ""
+    from .models import Phase
+    night = s.phase in (Phase.NIGHT, Phase.INTERROGATION)
+    if ab != "hunter" and not night:
+        return (f"{title}\n{DIV}\n🌞 الان شب نیست؛ اکشن شبانه‌ات را شبِ بعد (شبِ {_fa(s.day + 1)}) بزن. "
+                "وقتی شب شد، همین دکمه فهرستِ هدف‌ها را می‌دهد.")
+    if passed and not chosen:
+        done = "\n\n🙅 تصمیم فعلی: امشب کاری نمی‌کنی (تا سحر می‌توانی هدف بزنی)"
+    elif ab not in ("hunter",) and not chosen and targets:
+        done += "\n\n⏳ شب منتظرِ تصمیمِ توست: هدف بزن یا «🙅 امشب کاری نمی‌کنم»."
     if targets is not None and not targets:
         done += ("\n\n😶 امشب هدفِ مجازی نداری: بقیه یا در بازداشت‌اند (در امان)، یا هم‌تیمی‌ات‌اند، "
                  "یا قید «دو شب پیاپی» جلویت را گرفته. منتظرت نمی‌مانیم.")
     return (f"{title} — شب {s.day}\n{DIV}\n{ask}{done}")
 
 
-def action_kb(s: GameState, p, targets: List[int], chosen=None) -> Dict:
-    """دکمه‌ی هر هدف با نام؛ بدون تایپ آیدی."""
+def action_kb(s: GameState, p, targets: List[int], chosen=None, passed=False) -> Dict:
+    """دکمه‌ی هر هدف با نام؛ بدون تایپ آیدی. نقش‌های اکشن‌دار «🙅 امشب کاری نمی‌کنم» هم دارند:
+    شب تا تصمیمِ همه (هدف یا عبور) منتظر می‌ماند."""
     cmd = "hunter" if p.role == "شکارچی" else "act"
     rows = [[(("✅ " if t == chosen else "👉 ") + s.players[t].name, f"{cmd}:{t}")]
             for t in targets]
     if not rows:
         rows = [[("— امشب هدفِ مجازی نداری —", "notes")]]
+    elif cmd == "act":
+        rows.append([(("✅ " if passed else "") + "🙅 امشب کاری نمی‌کنم", "pass")])
     return kb(rows + [[("📋 داشبورد", "dashboard")], [BACK, HOME]])
+
+
+# ── نسخه ۷: ساعتِ زنده و پنلِ بازیِ جاری ──
+PHASE_TITLE = {"شب": ("🌙", "شبِ {d}"), "اتاق بازجویی": ("🔦", "شبِ {d} (بازجویی)"),
+               "صبح": ("☀️", "صبحِ روز {d}"), "گفتگو": ("💬", "گفتگوی روز {d}"),
+               "رای‌گیری": ("🗳️", "رای‌گیریِ روز {d}"), "هیئت منصفه": ("⚖️", "هیئت منصفه‌ی روز {d}")}
+
+
+def _mmss(sec: int) -> str:
+    return f"{_fa(sec // 60)}:{_fa(sec % 60).rjust(2, '۰')}"
+
+
+def timeline(s: GameState) -> str:
+    """📅 مسیرِ بازی تا الان: 🌙۱ ☀️۱ 🌙۲ ▶️ — شبِ N همیشه پیش از روزِ N."""
+    from .models import Phase
+    d = s.day
+    night = s.phase in (Phase.NIGHT, Phase.INTERROGATION)
+    steps = []
+    for i in range(1, d + 1):
+        steps.append(f"🌙{_fa(i)}")
+        if i < d or not night:
+            steps.append(f"☀️{_fa(i)}")
+    steps[-1] += "▶️"
+    return "📅 " + " ".join(steps[-6:])
+
+
+def clock_text(g, detail: bool = False) -> str:
+    """یک خط/چند خط ساعت: فاز، روز، زمانِ باقی‌مانده و نوار پیشرفت. در شب پیشرفتِ نقش‌ها
+    محرمانه است (نه نام، نه تعداد) — فقط «منتظرِ تصمیمِ نقش‌ها»."""
+    from .models import Phase
+    from . import config
+    s = g.s
+    icon, title = PHASE_TITLE.get(s.phase.value, ("🎮", s.phase.value + " {d}"))
+    head = f"{icon} *{title.format(d=_fa(s.day))}*"
+    left = g.remaining()
+    grace = getattr(s, "grace_day", -1) == s.day and s.phase in (Phase.NIGHT, Phase.INTERROGATION)
+    full = (config.NIGHT_GRACE_SECONDS if grace else config.PHASE_SECONDS.get(s.phase.value)) or 0
+    if getattr(g, "blitz", False):
+        full //= 2
+    if s.paused:
+        tline = f"⏸️ متوقف — {_mmss(left or 0)} مانده"
+    elif left is None:
+        tline = "⏳ بدون مهلت"
+    else:
+        cells = 10
+        filled = round(cells * left / full) if full else 0
+        bar = "🟩" * max(0, min(cells, filled)) + "⬜" * (cells - max(0, min(cells, filled)))
+        tline = f"⏳ {_mmss(left)}  {bar}" + ("  (فرصتِ اضافه)" if grace else "")
+    lines = [head, tline]
+    if detail:
+        if s.phase in (Phase.NIGHT, Phase.INTERROGATION):
+            lines.append("🤫 نقش‌ها در پیوی تصمیم می‌گیرند (هدف یا «🙅 کاری نمی‌کنم»). "
+                         "صبح وقتی همه تصمیم گرفتند خودکار می‌رسد.")
+        elif s.phase in (Phase.VOTE, Phase.JURY):
+            box = s.votes if s.phase is Phase.VOTE else s.jury_votes
+            voters = [p for p in s.alive_players() if p.can_vote]
+            lines.append(f"🗳️ {_fa(len(box))}/{_fa(len(voters))} رای ثبت شده")
+        lines.append(timeline(s))
+    return "\n".join(lines)
+
+
+def live_kb(s: GameState) -> Dict:
+    """دکمه‌های پنلِ گروهیِ بازیِ جاری: کارِ همین فاز + منوی کامل."""
+    base = dashboard_kb(s)
+    rows = [list(r) for r in base["inline_keyboard"]]
+    rows.append([{"text": "🎛️ همه‌ی دکمه‌ها", "callback_data": "commands", "style": None},
+                 {"text": "🏠 منوی کامل", "callback_data": "fullmenu", "style": None}])
+    for r in rows:
+        for b in r:
+            if b.get("style") is None:
+                b.pop("style", None)
+    return {"inline_keyboard": rows}
+
+
+def personal_panel(g, p) -> str:
+    """پیوی: نقش، وضعیت و تصمیمِ امشب/رایِ خودت."""
+    from .models import Phase
+    s = g.s
+    rd = ROLES[p.role] if p.role else None
+    lines = [f"{rd.emoji} نقش تو: *{p.role}*" if rd else "🎭 نقش هنوز پخش نشده"]
+    state = "💀 کشته شده‌ای" if not p.alive else (
+        "🟢 آزاد" if p.custody is Custody.FREE else f"{CUSTODY_ICON[p.custody]} {p.custody.value}")
+    lines.append(f"وضعیت: {state}")
+    if s.phase in (Phase.NIGHT, Phase.INTERROGATION) and p.in_game and p.free and rd:
+        ab = g.ability_of(p)
+        if ab in ("", "hunter"):
+            lines.append("🌙 امشب اکشنی نداری؛ صبح بحث کن.")
+        else:
+            ch = g.chosen_target(p.uid)
+            if ch:
+                lines.append(f"✅ هدفِ امشبت: *{s.players[ch].name}*")
+            elif g.passed(p.uid):
+                lines.append("🙅 امشب کاری نمی‌کنی")
+            elif not g.legal_targets(p.uid):
+                lines.append("😶 امشب هدفِ مجازی نداری؛ منتظرت نمی‌مانیم.")
+            else:
+                lines.append("⏳ *شب منتظرِ تصمیمِ توست* — هدف بزن یا «🙅 کاری نمی‌کنم»")
+    elif g._officer_on_duty(p.uid):
+        lines.append("✅ بازجویی تمام شد" if g.passed(p.uid) else
+                     "⏳ *شب منتظرِ توست*: بپرس و وقتی کارت تمام شد «✅ بازجویی تمام شد» را بزن")
+    elif s.phase is Phase.VOTE and p.can_vote:
+        v = s.votes.get(p.uid)
+        lines.append("🗳️ رای تو: " + ("ممتنع" if v == 0 else s.players[v].name if v else "هنوز نداده‌ای"))
+    lines.append(f"➡️ {g.next_step()}")
+    return "\n".join(lines)
+
+
+def personal_kb(g, p) -> Dict:
+    from .models import Phase
+    s = g.s
+    rows = []
+    if s.phase in (Phase.NIGHT, Phase.INTERROGATION) and p.in_game and p.free \
+            and g.ability_of(p) not in ("", "hunter"):
+        rows = [[("🌙 اکشن شبانه‌ی من", "act")], [("🙅 امشب کاری نمی‌کنم", "pass")]]
+    elif g._officer_on_duty(p.uid):
+        rows = [[("💬 پرسش از متهم", "ask"), ("🔦 سرنخ‌ها", "hints")],
+                [("✅ بازجویی تمام شد", "pass")]]
+    elif p.role == "شکارچی" and p.in_game:
+        rows = [[("🏹 هدفِ شلیک آخر", "hunter")]]
+    return kb(rows + [[("🔐 نقش من", "myrole"), ("📓 دفترچه", "notes")],
+                      [("🗂️ پرونده", "board"), ("🔄 بروزرسانی", "menu")],
+                      [("🎛️ همه‌ی دکمه‌ها", "commands"), ("🏠 منوی کامل", "fullmenu")]])
 
 
 # ── بهبود ۳: داشبورد راهنما ──

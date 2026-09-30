@@ -23,7 +23,7 @@ python run.py               # ربات بالا می‌آید
 
 ## ساختار
 ```
-run.py → karagah/telegram_app.py → karagah/bot.py (۷۱ اندپوینت)
+run.py → karagah/telegram_app.py → karagah/bot.py (۷۳ اندپوینت)
                                         ├── engine.py  (قواعد + ماشین حالت)
                                         ├── roles.py / cases.py / dialogue.py / models.py
                                         ├── ui.py / menus.py (کیبورد، دکمه‌ی هر فرمان، ایموجی)

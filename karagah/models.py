@@ -156,6 +156,8 @@ class GameState:
     # ── نسخه ۶: صحنه‌ها (karagah/scenes.py) ──
     scene_log: Dict[str, List[str]] = field(default_factory=dict)   # مکان → جزئیاتی که تا حالا دیده شده
     scene_today: Dict[str, str] = field(default_factory=dict)       # مکان/جزئیاتِ امشب
+    # ── نسخه ۷: شبِ منتظرِ همه ──
+    grace_day: int = -1                          # روزی که فرصتِ اضافه‌ی شب داده شد
 
     def alive_players(self) -> List[Player]:
         return [p for p in self.players.values() if p.in_game]

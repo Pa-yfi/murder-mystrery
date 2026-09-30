@@ -135,7 +135,7 @@ def _player(chat: int, uid: int):
 
 
 # فرمان‌هایی که به بازی وابسته نیستند و در پیوی همان‌جا اجرا می‌شوند
-GLOBAL_CMDS = {"start", "menu", "back", "help", "roles", "tutorial", "share",
+GLOBAL_CMDS = {"start", "menu", "back", "fullmenu", "help", "roles", "tutorial", "share",
                "balance",
                "sharelink", "top", "league", "season", "missions", "achv",
                "new", "blitz", "table",
@@ -213,7 +213,7 @@ def _ensure(chat: int, uid: int, name: str) -> Game:
 
 
 # فرمان‌هایی که نرخ‌محدود نمی‌شوند (خواندنی/بی‌ضرر)
-_NO_RATE = {"status", "dashboard", "tick", "help", "roles", "menu", "back", "profile"}
+_NO_RATE = {"status", "dashboard", "tick", "help", "roles", "menu", "back", "profile", "fullmenu"}
 
 
 def handle(cmd: str, chat: int, uid: int = 0, name: str = "", arg: str = "") -> Dict:
@@ -290,10 +290,48 @@ def h_start(chat, uid, name, arg):
             except RuleError as e:
                 return _err(str(e))
         return _ok(ui.newbie_guide() + "\n\n" + ui.lobby_screen(g.s), ui.back_only())
+    live = _live_game(chat, uid)
+    if live is not None:                        # وسط بازی: بازیِ جاری، نه منوی ربات
+        return _live_panel(live, uid, _private(chat, uid))
     return _ok(ui.first_screen(_private(chat, uid)), ui.first_kb(chat, _private(chat, uid), _is_admin(uid)))
 
 
+def _live_game(chat: int, uid: int) -> Optional[int]:
+    """بازیِ جاری‌ای که این فراخوانی باید نشانش بدهد (گروه: همان گروه؛ پیوی: میزِ خودِ کاربر)."""
+    g = GAMES.get(chat)
+    if g and g.s.phase is not Phase.END and (not _private(chat, uid) or uid in g.s.players):
+        return chat
+    if _private(chat, uid):
+        pinned = _ACTIVE_TABLE.get(uid)
+        if pinned in GAMES and uid in GAMES[pinned].s.players and GAMES[pinned].s.phase is not Phase.END:
+            return pinned
+        found = games_of(uid)
+        if found:
+            return found[-1]
+    return None
+
+
+def _live_panel(game_chat: int, uid: int, private: bool) -> Dict:
+    """🎮 بازیِ جاری: فاز، روز، مهلت و دکمه‌ی کارِ بعدی — به‌جای منوی ربات."""
+    g = GAMES[game_chat]
+    if g.s.phase is Phase.LOBBY:
+        return _ok("🎮 *بازیِ جاری — لابی*\n" + ui.lobby_screen(g.s), ui.lobby_kb(game_chat))
+    p = g.s.players.get(uid)
+    head = f"🎮 *بازیِ جاری*\n{ui.clock_text(g)}\n{ui.DIV}\n"
+    if private and p is not None:
+        return _ok(head + ui.personal_panel(g, p), ui.personal_kb(g, p), private=True)
+    return _ok(head + ui.dashboard(g.s, g.remaining(), g.pending_actors(), g.next_step()),
+               ui.live_kb(g.s))
+
+
 def h_menu(chat, uid, name, arg):
+    live = _live_game(chat, uid)
+    if live is not None:
+        return _live_panel(live, uid, _private(chat, uid))
+    return h_fullmenu(chat, uid, name, arg)
+
+
+def h_fullmenu(chat, uid, name, arg):
     return _ok("🏠 *منوی اصلی*", ui.main_menu(_private(chat, uid), _is_admin(uid)))
 
 
@@ -372,8 +410,10 @@ def _gate(g: Game, uid: int, step: str) -> None:
     full = config.PHASE_SECONDS.get(g.s.phase.value) or 0
     if g.blitz:
         full //= 2
-    if host and step in ("dawn", "closevote", "closejury") and full and left <= full // 2:
-        return                                     # میزبان بعد از نیمه‌ی مهلت می‌تواند ببندد (غایبِ دائمی)
+    if host and step in ("closevote", "closejury") and full and left <= full // 2:
+        return                                     # میزبان بعد از نیمه‌ی مهلت می‌تواند رای را ببندد (غایبِ دائمی)
+    if step == "dawn":
+        return                                     # شب را فقط «تصمیمِ همه» یا مهلت + فرصتِ اضافه می‌بندد (advance_night)
     if step in ("dawn", "closevote", "closejury") and g.pending_actors() and left > 0:
         waiting = {"dawn": "همه‌ی نقش‌های شبانه اکشن نداده‌اند",
                    "closevote": "همه رای نداده‌اند (ممتنع هم رای است)",
@@ -432,9 +472,11 @@ def h_act(chat, uid, name, arg):
     if arg:
         res = g.night_action(uid, int(arg))
         tgt = g.s.players[int(arg)].name
-        return _ok(f"✅ ثبت شد — هدف: *{tgt}*\n{res}",
-                   ui.action_kb(g.s, p, g.legal_targets(uid), chosen=int(arg)),
-                   private=True)
+        out = _ok(f"✅ ثبت شد — هدف: *{tgt}*\n{res}",
+                  ui.action_kb(g.s, p, g.legal_targets(uid), chosen=int(arg)),
+                  private=True)
+        _dawn_if_all_decided(g, chat)
+        return out
     chosen = g.chosen_target(uid)
     ab = g.ability_of(p)
     if ab == "hunter":
@@ -443,9 +485,41 @@ def h_act(chat, uid, name, arg):
         chosen = p.hunter_target
     else:
         targets = g.legal_targets(uid)
+    passed = g.passed(uid)
     return _ok(ui.action_panel(g.s, p, chosen, ab, targets if g.s.phase in
-                               (Phase.NIGHT, Phase.INTERROGATION) and p.free else None),
-               ui.action_kb(g.s, p, targets, chosen), private=True)
+                               (Phase.NIGHT, Phase.INTERROGATION) and p.free else None, passed=passed),
+               ui.action_kb(g.s, p, targets, chosen, passed=passed), private=True)
+
+
+def h_pass(chat, uid, name, arg):
+    """🙅 امشب کاری نمی‌کنم — شب منتظرِ این نفر نمی‌ماند."""
+    g, p = _player(chat, uid)
+    msg = g.night_pass(uid)
+    out = _ok(msg, ui.action_kb(g.s, p, g.legal_targets(uid), passed=True), private=True)
+    _dawn_if_all_decided(g, chat)
+    return out
+
+
+def _dawn_if_all_decided(g: Game, chat: int) -> None:
+    """آخرین نقش تصمیم گرفت → صبح همین حالا در گروه، بی‌معطلیِ تایمر."""
+    if not g.all_decided():
+        return
+    since = len(g.s.log)
+    ev = g.advance_night()
+    res = _morning(g, ev["result"], since)
+    _post(chat, "🌅 همه‌ی نقش‌ها تصمیمشان را گرفتند؛ شب تمام شد.\n\n" + res["text"], res.get("keyboard"))
+
+
+def _grace_notice(g: Game, ev: Dict) -> Dict:
+    """مهلت شب تمام شد و هنوز کسی تصمیم نگرفته: یادآوری خصوصی + اعلامِ بی‌نام در گروه."""
+    for u in ev["pending"]:
+        p = g.s.players[u]
+        _post(u, f"⏳ *شب منتظرِ توست!* {ev['left']} ثانیه فرصت داری: تصمیمت را بگیر "
+                 "(هدف، «🙅 امشب کاری نمی‌کنم» یا برای بازجو «✅ بازجویی تمام شد»).",
+              ui.personal_kb(g, p))
+    return _ok(f"⏳ مهلت شب تمام شد، ولی هنوز همه‌ی نقش‌ها تصمیم نگرفته‌اند. {ev['left']} ثانیه فرصتِ اضافه؛ "
+               "بعد از آن هر کس تصمیم نگرفته «کاری نکرد» حساب می‌شود.",
+               ui.dashboard_kb(g.s), announce=True)
 
 
 def h_night(chat, uid, name, arg):
@@ -478,7 +552,10 @@ def h_dawn(chat, uid, name, arg):
     g = _g(chat)
     _gate(g, uid, "dawn")
     since = len(g.s.log)
-    return _morning(g, g.resolve_night(), since)
+    ev = g.advance_night(force=not uid)          # uid=0 = سیستم/آزمون
+    if ev["kind"] == "grace":
+        return _grace_notice(g, ev)
+    return _morning(g, ev["result"], since)
 
 
 def _discussion_open(g: Game) -> Dict:
@@ -559,6 +636,7 @@ def h_hints(chat, uid, name, arg):
 def _officer_tools(g: Game) -> Dict:
     sus = g.s.suspect_uid
     return ui.kb([[("💬 پرسش بعدی", "ask"), ("🔦 سرنخ‌ها", "hints")],
+                  [("✅ بازجویی تمام شد", "pass")],
                   [("🔒 حبس موقت", f"verdict:{sus}:1"), ("🔓 آزادی", f"verdict:{sus}:0")]])
 
 
@@ -763,6 +841,11 @@ def h_tick(chat, uid, name, arg):
         return res
     ev = g.last_event or {}
     kind = ev.get("kind")
+    if kind == "grace":
+        res = dict(_grace_notice(g, ev))
+        res["text"] = f"{msg}\n\n{res['text']}"
+        res["advanced"] = True
+        return res
     if kind == "dawn":
         res = _morning(g, ev["result"], since)
     elif kind == "vote_open":
@@ -782,6 +865,16 @@ def h_tick(chat, uid, name, arg):
     # advanced=True یعنی فاز واقعاً جلو رفت — آداپتور فقط این را پخش می‌کند.
     res["advanced"] = True
     return res
+
+
+def clock_view(chat: int) -> Optional[Dict]:
+    """پیامِ ساعتِ فاز برای گروه: {"key", "text", "keyboard"} — آداپتور برای هر key یک پیام
+    می‌فرستد و بعد همان را مدام ویرایش می‌کند. None یعنی ساعتی لازم نیست (لابی/پایان)."""
+    g = GAMES.get(chat)
+    if g is None or g.s.phase in (Phase.LOBBY, Phase.END):
+        return None
+    key = f"{g.s.phase.value}:{g.s.day}:{int(g.s.tie_break)}:{int(getattr(g.s, 'grace_day', -1) == g.s.day)}"
+    return {"key": key, "text": ui.clock_text(g, detail=True), "keyboard": ui.live_kb(g.s)}
 
 
 def h_dashboard(chat, uid, name, arg):            # ایده ۲۶ + بهبود ۳
@@ -906,8 +999,10 @@ def h_expose(chat, uid, name, arg):
         return _ok("🔍 *کدام سرنخ را راستی‌آزمایی کنم؟*\nاین کار اکشن شبانه‌ات را خرج می‌کند؛ نتیجه فقط به تو.",
                    menus.evidence_kb(g.s, "expose"), private=True)
     code = arg.upper()
-    return _ok(f"🔍 سرنخ {code}: {g.expose(uid, code)}",
-               menus.evidence_kb(g.s, "expose"), private=True)
+    out = _ok(f"🔍 سرنخ {code}: {g.expose(uid, code)}",
+              menus.evidence_kb(g.s, "expose"), private=True)
+    _dawn_if_all_decided(g, chat)            # راستی‌آزمایی هم «تصمیمِ امشب» است
+    return out
 
 
 def h_board(chat, uid, name, arg):
@@ -1115,7 +1210,8 @@ def h_cancel(chat, uid, name, arg):
 
 
 _ROUTES = {
-    "start": h_start, "menu": h_menu, "back": h_menu, "new": h_new,
+    "start": h_start, "menu": h_menu, "back": h_menu, "fullmenu": h_fullmenu, "pass": h_pass,
+    "new": h_new,
     "join": h_join, "leave": h_leave, "startgame": h_startgame, "myrole": h_myrole,
     "night": h_night, "dawn": h_dawn, "discuss": h_discuss, "vote": h_vote,
     "castvote": h_castvote, "closevote": h_closevote, "hints": h_hints, "ask": h_ask,

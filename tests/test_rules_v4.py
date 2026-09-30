@@ -128,11 +128,17 @@ def test_host_waits_for_pending_actions_until_deadline():
     assert handle("dawn", CHAT, 1)["ok"]
 
 
-def test_everyone_acted_means_any_player_can_end_the_night():
+def test_everyone_decided_ends_the_night_by_itself():
+    """نسخه ۷: آخرین تصمیم (هدف یا «🙅») خودش صبح را می‌آورد و پیام صبح به گروه می‌رود."""
     g = _started()
-    for u in list(g.pending_actors()):
+    pend = list(g.pending_actors())
+    for u in pend[:-1]:
         handle("act", CHAT, u, arg=str(g.legal_targets(u)[0]))
-    assert handle("dawn", CHAT, 2)["ok"]
+    assert g.s.phase is Phase.NIGHT
+    assert not handle("dawn", CHAT, 2)["ok"]            # هنوز یکی تصمیم نگرفته
+    r = handle("pass", CHAT, pend[-1])                 # آخرین نفر: «امشب کاری نمی‌کنم»
+    assert r["ok"] and g.s.phase is Phase.MORNING
+    assert any(m["chat"] == CHAT and "صبح روز" in m["text"] for m in r["outbox"])
 
 
 def test_paused_game_cannot_be_advanced_by_buttons():
@@ -432,6 +438,9 @@ def test_timer_dawn_posts_the_full_morning_message():
     g = _started(7)
     g.s.deadline = 0
     r = handle("tick", CHAT)
+    assert r["advanced"] and "فرصتِ اضافه" in r["text"] and g.s.phase is Phase.NIGHT
+    g.s.deadline = 0
+    r = handle("tick", CHAT)
     assert r["advanced"] and "کشته‌شده" in r["text"] and "سرنخ" in r["text"]
 
 
@@ -499,6 +508,7 @@ def test_announcement_pressed_in_private_goes_to_the_group():
         effective_user=SimpleNamespace(id=1, first_name="Host"),
         callback_query=None, get_bot=lambda: _Bot())
     g.s.deadline = 0
+    g.s.grace_day = g.s.day                                         # فرصتِ اضافه هم مصرف شده
     res = telegram_app._dispatch(upd, "dawn", "")
     asyncio.run(telegram_app._reply(upd, res))
     assert any(c == CHAT and "صبح روز" in t for c, t in sent)      # پیام صبح در گروه

@@ -28,10 +28,24 @@ def _started(chat=850, n=6):
 class _Ctx:
     def __init__(self):
         self.sent = []
-        self.bot = SimpleNamespace(send_message=self._send)
+        self.edits = []
+        self.bot = SimpleNamespace(send_message=self._send, edit_message_text=self._edit)
+        self._mid = 100
 
     async def _send(self, chat_id, text, **kw):
         self.sent.append((chat_id, text))
+        self._mid += 1
+        return SimpleNamespace(message_id=self._mid)
+
+    async def _edit(self, chat_id=None, message_id=None, text="", **kw):
+        self.edits.append((chat_id, message_id, text))
+
+
+@pytest.fixture(autouse=True)
+def _clean_clocks():
+    telegram_app.CLOCKS.clear()
+    yield
+    telegram_app.CLOCKS.clear()
 
 
 def _snapshot_phase(chat):
@@ -43,8 +57,11 @@ def test_timer_persists_phase_change():
     chat = 850
     g = _started(chat)
     assert _snapshot_phase(chat) is Phase.NIGHT
-    g.s.deadline = 0                      # مهلت شب گذشته
+    g.s.deadline = 0                      # مهلت شب گذشته → فرصتِ اضافه
     ctx = _Ctx()
+    asyncio.run(telegram_app._timer_job(ctx))
+    assert g.s.phase is Phase.NIGHT
+    g.s.deadline = 0                      # فرصت هم گذشت → صبح
     asyncio.run(telegram_app._timer_job(ctx))
     assert g.s.phase is Phase.MORNING
     assert _snapshot_phase(chat) is Phase.MORNING     # حافظه و اسنپ‌شات هم‌قدم‌اند
@@ -56,7 +73,30 @@ def test_timer_is_quiet_when_nothing_expires():
     _started(chat)
     ctx = _Ctx()
     asyncio.run(telegram_app._timer_job(ctx))
-    assert ctx.sent == []                 # هر ۱۵ ثانیه پیام نمی‌دهد
+    assert len(ctx.sent) == 1 and "شبِ ۱" in ctx.sent[0][1]   # فقط پیامِ ساعتِ همین فاز
+    asyncio.run(telegram_app._timer_job(ctx))
+    assert len(ctx.sent) == 1                                  # پیام تازه نمی‌دهد…
+
+
+def test_clock_message_edits_itself_and_renews_per_phase(monkeypatch):
+    """نسخه ۷: ساعتِ شب یک پیام است که خودش را ویرایش می‌کند؛ فاز عوض شد → پیامِ تازه."""
+    import karagah.engine as eng
+    chat = 853
+    g = _started(chat)
+    now = [1_000_000.0]
+    monkeypatch.setattr(eng._time, "time", lambda: now[0])
+    g._arm()
+    ctx = _Ctx()
+    asyncio.run(telegram_app._timer_job(ctx))
+    first = telegram_app.CLOCKS[chat]["mid"]
+    now[0] += 7
+    asyncio.run(telegram_app._timer_job(ctx))
+    assert len(ctx.sent) == 1 and ctx.edits and ctx.edits[-1][1] == first      # همان پیام ویرایش شد
+    assert "۰:۵۳" in ctx.edits[-1][2]
+    handle("dawn", chat)                                   # سیستم شب را می‌بندد → صبح
+    asyncio.run(telegram_app._timer_job(ctx))
+    assert telegram_app.CLOCKS[chat]["mid"] != first and "صبحِ روز ۱" in ctx.sent[-1][1]
+    assert any("تمام شد" in e[2] for e in ctx.edits if e[1] == first)       # ساعتِ شب بسته شد
 
 
 def test_timer_finalises_a_game_that_ends_on_a_tick():
@@ -66,8 +106,9 @@ def test_timer_finalises_a_game_that_ends_on_a_tick():
     for p in g.s.players.values():
         if p.align is Align.KILLER:
             p.custody = Custody.LIFE_JAIL
-    g.s.deadline = 0
-    asyncio.run(telegram_app._timer_job(_Ctx()))
+    for _ in range(2):                    # مهلت، بعد فرصتِ اضافه
+        g.s.deadline = 0
+        asyncio.run(telegram_app._timer_job(_Ctx()))
     assert g.s.phase is Phase.END
     assert g.s.finalized                  # نتیجه ثبت شد، نه اینکه از قلم بیفتد
     snap = db.load_snapshots()[chat]      # نسخه ۴: برای افشا بعد از ری‌استارت می‌ماند

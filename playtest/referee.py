@@ -21,12 +21,17 @@ class Referee:
         self.poison_due: Dict[int, int] = {}      # هدف → شبِ مرگ
         self.frame_until: Dict[int, int] = {}
         self.temp_nights: Dict[int, int] = {}     # زندانی موقت → شب‌های گذرانده
+        self.track_custody = True
+        self.track_intents = True                 # شلوغ‌کار دکمه‌ی اکشن را خارج از night_turn هم می‌زند
+        self.watching = False                 # شلوغ‌کار شب‌ها را از مسیرِ دیگری هم می‌گذراند؛ خودش می‌شمارد
         self.intents: Dict[int, tuple] = {}       # uid → (ability, target) امشب
         self.before: Dict[int, tuple] = {}
         self.night_day = 0
         self.suspect_at_night: Optional[int] = None
         self.mode = ""                            # «دکمه در گروه» / «تایمر» / «پیوی»
         self.poisoner: Dict[int, int] = {}        # هدفِ سم → سم‌ساز (از دکمه‌هایی که زده شد)
+        from karagah import engine as _engine
+        _engine.NIGHT_OBSERVERS.append(self.on_resolve)
         self.rumors = [0, 0]                      # [شایعه‌ی درست، کل]
 
     @property
@@ -64,7 +69,11 @@ class Referee:
 
     # ── شب ──
     def begin_night(self) -> None:
-        self.intents = {}
+        self.watching = True                      # این شب را Session جلو می‌برد → intentها کامل‌اند
+        from karagah.bot import GAMES
+        cur = GAMES.get(self.g.s.chat_id, self.g)  # بعد از ری‌استارت، شبِ نیمه‌کاره اکشن‌های قبلی را دارد
+        self.intents = {a: (ab, t) for ab, pairs in cur._committed_actions().items()
+                        for a, t in pairs.items()}
         self.night_day = self.s.day
         self.suspect_at_night = self.s.suspect_uid
         self.before = {u: (p.alive, p.custody, p.custody_nights, p.in_game, p.cleared)
@@ -73,9 +82,16 @@ class Referee:
     def intent(self, uid: int, ability: str, target: int) -> None:
         self.intents[uid] = (ability, target)
 
-    def pre_dawn(self) -> None:
+    def on_resolve(self, game, acts) -> None:
+        """موتور درست پیش از حلِ شب صدا می‌زند (هر که شب را بسته باشد: دکمه، تایمر، آخرین تصمیم)."""
+        if game.s.chat_id == self.g.s.chat_id and self.watching and self.track_intents:
+            self.watching = False
+            self.pre_dawn(acts)
+
+    def pre_dawn(self, acts=None) -> None:
         """درست پیش از «پایان شب»: آنچه agentها زدند = آنچه موتور ثبت کرده؟"""
-        committed = {actor: (ab, t) for ab, pairs in self.g._committed_actions().items()
+        acts = self.g._committed_actions() if acts is None else acts
+        committed = {actor: (ab, t) for ab, pairs in acts.items()
                      for actor, t in pairs.items() if ab != "expose"}
         mine = {u: v for u, v in self.intents.items() if v[0] != "expose"}
         if committed != mine:
@@ -138,7 +154,7 @@ class Referee:
                             f"({'، '.join(self.name(u) for u in died)}) و قاتل‌ها به برابری رسیدند. "
                             "در ترکیب ۱۰ نفره دو قاتلِ مستقل (قاتل + جانی سریالی) + زوج سرنوشت + شلیک شکارچی "
                             "می‌توانند ۴ نفر را در یک شب ببرند؛ ۳ قاتل در برابر ۷ نفر فقط ۴ مرگ تا برابری فاصله دارند.", key="first-dawn-end")
-        if died != set(expect):
+        if died != set(expect) and self.track_intents:   # شلوغ‌کار اکشن‌ها را بیرون از intentها هم می‌زند
             detail = (f"شب {day}: انتظار مرگ {[self.name(u) for u in expect]} — "
                       f"ربات: {[self.name(u) for u in died]} | اکشن‌ها: "
                       + ", ".join(f"{self.name(u)}:{ab}→{self.name(t)}"
@@ -192,7 +208,7 @@ class Referee:
         # بازداشت
         for u, b in self.before.items():
             p = s.players[u]
-            if b[1] is Custody.TEMP_JAIL and b[3]:
+            if b[1] is Custody.TEMP_JAIL and b[3] and self.track_custody:
                 self.temp_nights[u] = self.temp_nights.get(u, 0) + 1
                 want = Custody.LIFE_JAIL if self.temp_nights[u] >= self.g.temp_jail_nights else Custody.TEMP_JAIL
                 if p.custody is not want and p.alive:

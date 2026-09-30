@@ -17,7 +17,7 @@ import math
 import time as _time
 from .config import (MIN_PLAYERS, MAX_PLAYERS, INTERROGATION_NIGHTS,
                      TEMP_JAIL_NIGHTS, JURY_ACQUIT_PERCENT, JURY_MIN_REQUESTS,
-                     PHASE_SECONDS, MAX_DAYS)
+                     PHASE_SECONDS, MAX_DAYS, NIGHT_GRACE_SECONDS)
 
 MIN_P, MAX_P = MIN_PLAYERS, MAX_PLAYERS
 
@@ -37,6 +37,10 @@ def _fa(n) -> str:
 
 class RuleError(Exception):
     pass
+
+
+# ناظرهای «درست پیش از حلِ شب» (داورِ playtest) — fn(game, committed_actions)
+NIGHT_OBSERVERS: List = []
 
 
 class Game:
@@ -113,7 +117,10 @@ class Game:
             return None
         ph = self.s.phase
         if ph in (Phase.NIGHT, Phase.INTERROGATION):
-            self.last_event = {"kind": "dawn", "result": self.resolve_night()}
+            ev = self.advance_night()
+            self.last_event = ev
+            if ev["kind"] == "grace":
+                return f"⏳ مهلت شب تمام شد، ولی هنوز همه تصمیم نگرفته‌اند — {ev['left']} ثانیه فرصتِ اضافه."
             return "⏰ شب به پایان رسید."
         if ph is Phase.DISCUSSION:
             self.open_vote()
@@ -359,6 +366,7 @@ class Game:
 
     def night_action(self, uid: int, target: int) -> str:
         ab = self.check_night_action(uid, target)
+        self.s.night_actions.pop(f"_pass:{uid}", None)  # «امشب کاری نمی‌کنم» را پس گرفت
         self.s.night_actions[f"{ab}:{uid}"] = target   # اکشن دوباره = ویرایش اکشن
         if ab == "protect":
             self.s.night_actions["_last_protect"] = target
@@ -369,14 +377,86 @@ class Game:
             return f"ثبت شد: {self.s.players[target].name} — نتیجه سحر به دفترچه‌ات می‌رسد."
         return "ثبت شد"
 
+    def night_pass(self, uid: int) -> str:
+        """«🙅 امشب کاری نمی‌کنم» — تصمیمِ آگاهانه؛ شب دیگر منتظرِ این نفر نمی‌ماند.
+        اکشنِ ثبت‌شده‌ی امشبش (اگر بود) لغو می‌شود؛ تا سحر می‌تواند دوباره هدف بزند."""
+        s = self.s
+        if s.phase not in (Phase.NIGHT, Phase.INTERROGATION):
+            raise RuleError("الان شب نیست.")
+        p = s.players.get(uid)
+        if not p or not p.in_game:
+            raise RuleError("تو از بازی خارج شده‌ای.")
+        if not p.free:
+            raise RuleError("در بازداشتی؛ امشب اکشنی نداری.")
+        if self._officer_on_duty(uid):
+            s.night_actions[f"_pass:{uid}"] = 1
+            if self.ability_of(p) in ("", "hunter"):
+                return "✅ بازجویی امشب تمام شد؛ حکم صبح با توست."
+        if self.ability_of(p) in ("", "hunter"):
+            raise RuleError("نقش تو اکشن شبانه ندارد؛ لازم نیست کاری بکنی.")
+        for k in [k for k in s.night_actions if not k.startswith("_") and k.endswith(f":{uid}")]:
+            del s.night_actions[k]
+        if s.night_actions.get("_last_protect") is not None and self.ability_of(p) == "protect":
+            s.night_actions.pop("_last_protect", None)
+        s.night_actions[f"_pass:{uid}"] = 1
+        return "🙅 ثبت شد: امشب کاری نمی‌کنی. تا سحر می‌توانی نظرت را عوض کنی."
+
+    def _officer_on_duty(self, uid: int) -> bool:
+        """شبِ بازجویی: بازجوی آزاد (که خودش متهم نیست) باید «✅ بازجویی تمام شد» بزند
+        تا شب بسته شود — وگرنه آخرین نقش شب را پیش از اولین پرسش می‌بست."""
+        s = self.s
+        p = s.players.get(uid)
+        return (s.phase is Phase.INTERROGATION and uid == s.officer_uid and p is not None
+                and p.in_game and p.free and s.suspect_uid not in (None, uid))
+
+    def passed(self, uid: int) -> bool:
+        return f"_pass:{uid}" in self.s.night_actions
+
+    def all_decided(self) -> bool:
+        """شب: همه‌ی نقش‌های اکشن‌دار یا هدف زده‌اند یا گفته‌اند «کاری نمی‌کنم»."""
+        return self.s.phase in (Phase.NIGHT, Phase.INTERROGATION) and not self.pending_actors()
+
+    def advance_night(self, force: bool = False) -> Dict:
+        """تنها راهِ بستنِ شب (دکمه‌ی سحر، تایمر، آخرین تصمیم). خروجی:
+        {"kind": "dawn", "result": …} یا {"kind": "grace", "pending": […], "left": ثانیه}.
+        قاعده: شب بسته نمی‌شود تا همه تصمیم بگیرند؛ اگر مهلت تمام شد، یک بار فرصتِ اضافه
+        (و یادآوری به پیوی) داده می‌شود؛ بعد از آن، تصمیم‌نگرفته‌ها «کاری نکرد» حساب می‌شوند."""
+        s = self.s
+        if s.phase not in (Phase.NIGHT, Phase.INTERROGATION):
+            raise RuleError("الان شب نیست.")
+        pending = self.pending_actors()
+        if pending and force:                      # فقط سیستم/آزمون (uid=0): بی‌انتظار
+            for u in pending:
+                s.night_actions[f"_pass:{u}"] = 0
+            pending = []
+        if pending:
+            left = self.remaining() or 0
+            if left > 0 or s.paused:
+                raise RuleError(f"⏳ هنوز همه‌ی نقش‌های شبانه تصمیم نگرفته‌اند؛ {left} ثانیه تا پایان مهلت.")
+            if getattr(s, "grace_day", -1) != s.day and NIGHT_GRACE_SECONDS > 0:
+                s.grace_day = s.day
+                sec = NIGHT_GRACE_SECONDS // 2 if self.blitz else NIGHT_GRACE_SECONDS
+                s.deadline = _time.time() + sec
+                s.log.append("⏳ مهلت شب تمام شد ولی هنوز کسی تصمیم نگرفته؛ فرصتِ اضافه.")
+                return {"kind": "grace", "pending": pending, "left": sec}
+            for u in pending:                      # فرصت هم تمام شد: «کاری نکرد»
+                s.night_actions[f"_pass:{u}"] = 0
+        return {"kind": "dawn", "result": self.resolve_night()}
+
     def pending_actors(self) -> List[int]:
         """چه کسانی هنوز کاری که این فاز از آن‌ها می‌خواهد انجام نداده‌اند."""
         if self.s.phase in (Phase.NIGHT, Phase.INTERROGATION):
             acted = {a for pairs in self._committed_actions().values() for a in pairs}
+            acted |= {int(k.split(":", 1)[1]) for k in self.s.night_actions if k.startswith("_pass:")}
             # کسی که امشب هیچ هدفِ مجازی ندارد (بقیه بازداشت‌اند/هم‌تیمی‌اند) منتظرش نمی‌مانیم
-            return [p.uid for p in self.s.alive_players()
-                    if p.free and self.ability_of(p) not in ("", "hunter")
-                    and p.uid not in acted and self.legal_targets(p.uid)]
+            out = [p.uid for p in self.s.alive_players()
+                   if p.free and self.ability_of(p) not in ("", "hunter")
+                   and p.uid not in acted and self.legal_targets(p.uid)]
+            off = self.s.officer_uid
+            if off is not None and self._officer_on_duty(off) and f"_pass:{off}" not in self.s.night_actions \
+                    and off not in out:
+                out.append(off)                  # بازجو هنوز «بازجویی تمام شد» نزده
+            return out
         if self.s.phase is Phase.VOTE:
             return [p.uid for p in self.s.alive_players()
                     if p.can_vote and p.uid not in self.s.votes]
@@ -392,7 +472,8 @@ class Game:
             n = len(self.s.players)
             return ("منتظر بازیکن بیشتر" if n < MIN_P else "میزبان «🎬 شروع بازی» را بزند")
         if ph in (Phase.NIGHT, Phase.INTERROGATION):
-            return "نقش‌های شبانه اکشنشان را بدهند؛ بعد (یا با پایان مهلت) «🌙 پایان شب»"
+            return ("نقش‌های شبانه هدف بزنند یا «🙅 کاری نمی‌کنم»؛ وقتی همه تصمیم گرفتند، "
+                    "صبح خودکار می‌رسد")
         if ph is Phase.MORNING:
             if self.awaiting_verdict():
                 sus = self.s.players[self.s.suspect_uid].name
@@ -560,6 +641,8 @@ class Game:
         if s.phase not in (Phase.NIGHT, Phase.INTERROGATION):
             raise RuleError("الان شب نیست.")
         night_suspect = s.suspect_uid
+        for fn in list(NIGHT_OBSERVERS):
+            fn(self, self._committed_actions())
         # ایده ۴: رویداد تصادفی شبانه (قطعی بر اساس seed+روز)
         ev_rng = random.Random(s.chat_id * 1000 + s.day)
         roll = ev_rng.random()

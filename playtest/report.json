@@ -8,7 +8,7 @@
    "case": "#5",
    "winner": "شهر 🕵️",
    "days": 5,
-   "presses": 143,
+   "presses": 139,
    "finished": true,
    "stuck": "",
    "roles": {
@@ -22,13 +22,13 @@
     "lies": 2,
     "lies_caught": 0,
     "honest_claims": 10,
-    "fake_detective": 0,
-    "fake_forensic": 1,
+    "fake_detective": 1,
+    "fake_forensic": 0,
     "frame_push": 0,
     "vouch": 0,
-    "counter_claims": 0,
-    "lies_countered": 0,
-    "city_votes": 7,
+    "counter_claims": 1,
+    "lies_countered": 1,
+    "city_votes": 6,
     "city_votes_on_killer": 5,
     "bot_replied_to_chat": 0,
     "chat_swallowed": 0
@@ -36,7 +36,7 @@
    "arrests": {
     "interrogated": 2,
     "interrogated_evil": 1,
-    "jailed": 1,
+    "jailed": 2,
     "jailed_evil": 1
    },
    "clues": {
@@ -65,7 +65,7 @@
    "case": "#5",
    "winner": "قاتل‌ها 🔪",
    "days": 2,
-   "presses": 65,
+   "presses": 66,
    "finished": true,
    "stuck": "",
    "roles": {
@@ -122,7 +122,7 @@
    "case": "#37",
    "winner": "شهر 🕵️",
    "days": 5,
-   "presses": 171,
+   "presses": 164,
    "finished": true,
    "stuck": "",
    "roles": {
@@ -178,8 +178,8 @@
    "scenario": "کلاسیک",
    "case": "#16",
    "winner": "شهر 🕵️",
-   "days": 13,
-   "presses": 408,
+   "days": 7,
+   "presses": 209,
    "finished": true,
    "stuck": "",
    "roles": {
@@ -189,18 +189,18 @@
     "دنیا": "بازجو"
    },
    "talk": {
-    "messages": 48,
-    "lies": 6,
-    "lies_caught": 1,
-    "honest_claims": 41,
+    "messages": 26,
+    "lies": 3,
+    "lies_caught": 0,
+    "honest_claims": 23,
     "fake_detective": 1,
-    "fake_forensic": 1,
+    "fake_forensic": 0,
     "frame_push": 0,
     "vouch": 0,
     "counter_claims": 1,
     "lies_countered": 1,
-    "city_votes": 30,
-    "city_votes_on_killer": 17,
+    "city_votes": 20,
+    "city_votes_on_killer": 7,
     "bot_replied_to_chat": 0,
     "chat_swallowed": 0
    },
@@ -214,8 +214,8 @@
     "total": 3,
     "true": 2,
     "false": 1,
-    "verified": 3,
-    "verified_right": 3,
+    "verified": 2,
+    "verified_right": 2,
     "by_source": {
      "case": 2,
      "herring": 1
@@ -233,9 +233,9 @@
    "mode": "تایمر",
    "scenario": "کلاسیک",
    "case": "#16",
-   "winner": "قاتل‌ها 🔪",
-   "days": 4,
-   "presses": 91,
+   "winner": "شهر 🕵️",
+   "days": 7,
+   "presses": 202,
    "finished": true,
    "stuck": "",
    "roles": {
@@ -245,44 +245,43 @@
     "دنیا": "بازجو"
    },
    "talk": {
-    "messages": 7,
+    "messages": 25,
     "lies": 3,
     "lies_caught": 0,
-    "honest_claims": 4,
-    "fake_detective": 0,
-    "fake_forensic": 1,
+    "honest_claims": 22,
+    "fake_detective": 1,
+    "fake_forensic": 0,
     "frame_push": 0,
     "vouch": 0,
-    "counter_claims": 0,
-    "lies_countered": 0,
-    "city_votes": 5,
-    "city_votes_on_killer": 5,
+    "counter_claims": 1,
+    "lies_countered": 1,
+    "city_votes": 14,
+    "city_votes_on_killer": 7,
     "bot_replied_to_chat": 0,
     "chat_swallowed": 0
    },
    "arrests": {
-    "interrogated": 1,
+    "interrogated": 2,
     "interrogated_evil": 1,
-    "jailed": 0,
-    "jailed_evil": 0
+    "jailed": 1,
+    "jailed_evil": 1
    },
    "clues": {
-    "total": 5,
-    "true": 3,
-    "false": 2,
-    "verified": 0,
-    "verified_right": 0,
+    "total": 3,
+    "true": 2,
+    "false": 1,
+    "verified": 2,
+    "verified_right": 2,
     "by_source": {
      "case": 2,
-     "herring": 2,
-     "kill": 1
+     "herring": 1
     }
    },
    "rumors": [
     0,
     0
    ],
-   "winner_team": "killers"
+   "winner_team": "city"
   },
   {
    "players": 4,
@@ -292,7 +291,7 @@
    "case": "#17",
    "winner": "شهر 🕵️",
    "days": 5,
-   "presses": 164,
+   "presses": 147,
    "finished": true,
    "stuck": "",
    "roles": {
@@ -302,17 +301,17 @@
     "دنیا": "بازجو"
    },
    "talk": {
-    "messages": 9,
+    "messages": 11,
     "lies": 2,
     "lies_caught": 0,
-    "honest_claims": 7,
+    "honest_claims": 9,
     "fake_detective": 0,
     "fake_forensic": 1,
     "frame_push": 0,
     "vouch": 0,
     "counter_claims": 0,
     "lies_countered": 0,
-    "city_votes": 6,
+    "city_votes": 8,
     "city_votes_on_killer": 4,
     "bot_replied_to_chat": 0,
     "chat_swallowed": 0
@@ -349,7 +348,7 @@
    "case": "#1",
    "winner": "شهر 🕵️",
    "days": 4,
-   "presses": 96,
+   "presses": 88,
    "finished": true,
    "stuck": "",
    "roles": {
@@ -359,17 +358,17 @@
     "دنیا": "شهروند"
    },
    "talk": {
-    "messages": 7,
+    "messages": 4,
     "lies": 1,
     "lies_caught": 0,
-    "honest_claims": 6,
+    "honest_claims": 3,
     "fake_detective": 0,
     "fake_forensic": 1,
     "frame_push": 0,
     "vouch": 0,
     "counter_claims": 0,
     "lies_countered": 0,
-    "city_votes": 7,
+    "city_votes": 4,
     "city_votes_on_killer": 2,
     "bot_replied_to_chat": 0,
     "chat_swallowed": 0
@@ -416,17 +415,17 @@
     "دنیا": "شهروند"
    },
    "talk": {
-    "messages": 7,
+    "messages": 4,
     "lies": 1,
     "lies_caught": 0,
-    "honest_claims": 6,
+    "honest_claims": 3,
     "fake_detective": 0,
     "fake_forensic": 1,
     "frame_push": 0,
     "vouch": 0,
     "counter_claims": 0,
     "lies_countered": 0,
-    "city_votes": 5,
+    "city_votes": 4,
     "city_votes_on_killer": 2,
     "bot_replied_to_chat": 0,
     "chat_swallowed": 0
@@ -463,7 +462,7 @@
    "case": "#17",
    "winner": "شهر 🕵️",
    "days": 4,
-   "presses": 148,
+   "presses": 144,
    "finished": true,
    "stuck": "",
    "roles": {
@@ -473,23 +472,23 @@
     "دنیا": "بازجو"
    },
    "talk": {
-    "messages": 8,
+    "messages": 7,
     "lies": 1,
     "lies_caught": 1,
-    "honest_claims": 6,
+    "honest_claims": 5,
     "fake_detective": 0,
     "fake_forensic": 1,
     "frame_push": 0,
     "vouch": 0,
     "counter_claims": 0,
     "lies_countered": 0,
-    "city_votes": 8,
+    "city_votes": 6,
     "city_votes_on_killer": 2,
     "bot_replied_to_chat": 0,
     "chat_swallowed": 0
    },
    "arrests": {
-    "interrogated": 1,
+    "interrogated": 2,
     "interrogated_evil": 1,
     "jailed": 1,
     "jailed_evil": 1
@@ -520,7 +519,7 @@
    "case": "#20",
    "winner": "قاتل‌ها 🔪",
    "days": 2,
-   "presses": 56,
+   "presses": 48,
    "finished": true,
    "stuck": "",
    "roles": {
@@ -577,7 +576,7 @@
    "case": "#20",
    "winner": "قاتل‌ها 🔪",
    "days": 2,
-   "presses": 52,
+   "presses": 48,
    "finished": true,
    "stuck": "",
    "roles": {
@@ -632,9 +631,9 @@
    "mode": "دکمه از پیوی",
    "scenario": "کلاسیک",
    "case": "#20",
-   "winner": "قاتل‌ها 🔪",
-   "days": 2,
-   "presses": 68,
+   "winner": "شهر 🕵️",
+   "days": 5,
+   "presses": 182,
    "finished": true,
    "stuck": "",
    "roles": {
@@ -644,44 +643,44 @@
     "دنیا": "شهروند"
    },
    "talk": {
-    "messages": 2,
-    "lies": 1,
-    "lies_caught": 0,
-    "honest_claims": 1,
+    "messages": 15,
+    "lies": 2,
+    "lies_caught": 1,
+    "honest_claims": 12,
     "fake_detective": 0,
     "fake_forensic": 1,
     "frame_push": 0,
     "vouch": 0,
     "counter_claims": 0,
     "lies_countered": 0,
-    "city_votes": 2,
-    "city_votes_on_killer": 2,
+    "city_votes": 9,
+    "city_votes_on_killer": 6,
     "bot_replied_to_chat": 0,
     "chat_swallowed": 0
    },
    "arrests": {
-    "interrogated": 0,
-    "interrogated_evil": 0,
-    "jailed": 0,
-    "jailed_evil": 0
+    "interrogated": 2,
+    "interrogated_evil": 1,
+    "jailed": 1,
+    "jailed_evil": 1
    },
    "clues": {
-    "total": 5,
-    "true": 4,
+    "total": 4,
+    "true": 3,
     "false": 1,
-    "verified": 0,
-    "verified_right": 0,
+    "verified": 2,
+    "verified_right": 2,
     "by_source": {
      "herring": 1,
      "case": 2,
-     "kill": 2
+     "kill": 1
     }
    },
    "rumors": [
     0,
     0
    ],
-   "winner_team": "killers"
+   "winner_team": "city"
   },
   {
    "players": 5,
@@ -691,7 +690,7 @@
    "case": "#37",
    "winner": "شهر 🕵️",
    "days": 3,
-   "presses": 118,
+   "presses": 112,
    "finished": true,
    "stuck": "",
    "roles": {
@@ -749,7 +748,7 @@
    "case": "#37",
    "winner": "شهر 🕵️",
    "days": 3,
-   "presses": 110,
+   "presses": 111,
    "finished": true,
    "stuck": "",
    "roles": {
@@ -807,7 +806,7 @@
    "case": "#17",
    "winner": "شهر 🕵️",
    "days": 7,
-   "presses": 314,
+   "presses": 295,
    "finished": true,
    "stuck": "",
    "roles": {
@@ -865,7 +864,7 @@
    "case": "#7",
    "winner": "شهر 🕵️",
    "days": 4,
-   "presses": 143,
+   "presses": 142,
    "finished": true,
    "stuck": "",
    "roles": {
@@ -923,7 +922,7 @@
    "case": "#7",
    "winner": "شهر 🕵️",
    "days": 4,
-   "presses": 133,
+   "presses": 142,
    "finished": true,
    "stuck": "",
    "roles": {
@@ -981,7 +980,7 @@
    "case": "#39",
    "winner": "قاتل‌ها 🔪",
    "days": 4,
-   "presses": 163,
+   "presses": 153,
    "finished": true,
    "stuck": "",
    "roles": {
@@ -1098,7 +1097,7 @@
    "case": "#20",
    "winner": "شهر 🕵️",
    "days": 6,
-   "presses": 169,
+   "presses": 183,
    "finished": true,
    "stuck": "",
    "roles": {
@@ -1156,7 +1155,7 @@
    "case": "#11",
    "winner": "شهر 🕵️",
    "days": 4,
-   "presses": 148,
+   "presses": 132,
    "finished": true,
    "stuck": "",
    "roles": {
@@ -1177,13 +1176,13 @@
     "vouch": 0,
     "counter_claims": 0,
     "lies_countered": 0,
-    "city_votes": 8,
+    "city_votes": 7,
     "city_votes_on_killer": 2,
     "bot_replied_to_chat": 0,
     "chat_swallowed": 0
    },
    "arrests": {
-    "interrogated": 3,
+    "interrogated": 2,
     "interrogated_evil": 1,
     "jailed": 2,
     "jailed_evil": 1
@@ -1214,7 +1213,7 @@
    "case": "#39",
    "winner": "قاتل‌ها 🔪",
    "days": 3,
-   "presses": 105,
+   "presses": 104,
    "finished": true,
    "stuck": "",
    "roles": {
@@ -1225,10 +1224,10 @@
     "سهراب": "شهروند"
    },
    "talk": {
-    "messages": 7,
+    "messages": 6,
     "lies": 2,
     "lies_caught": 0,
-    "honest_claims": 5,
+    "honest_claims": 4,
     "fake_detective": 0,
     "fake_forensic": 0,
     "frame_push": 0,
@@ -1272,7 +1271,7 @@
    "case": "#39",
    "winner": "قاتل‌ها 🔪",
    "days": 3,
-   "presses": 94,
+   "presses": 99,
    "finished": true,
    "stuck": "",
    "roles": {
@@ -1283,10 +1282,10 @@
     "سهراب": "شهروند"
    },
    "talk": {
-    "messages": 7,
+    "messages": 6,
     "lies": 2,
     "lies_caught": 0,
-    "honest_claims": 5,
+    "honest_claims": 4,
     "fake_detective": 0,
     "fake_forensic": 0,
     "frame_push": 0,
@@ -1330,7 +1329,7 @@
    "case": "#17",
    "winner": "شهر 🕵️",
    "days": 7,
-   "presses": 260,
+   "presses": 249,
    "finished": true,
    "stuck": "",
    "roles": {
@@ -1388,7 +1387,7 @@
    "case": "#13",
    "winner": "سپر بلا 🎭",
    "days": 6,
-   "presses": 279,
+   "presses": 278,
    "finished": true,
    "stuck": "",
    "roles": {
@@ -1446,7 +1445,7 @@
    "case": "#13",
    "winner": "سپر بلا 🎭",
    "days": 6,
-   "presses": 262,
+   "presses": 277,
    "finished": true,
    "stuck": "",
    "roles": {
@@ -1504,7 +1503,7 @@
    "case": "#4",
    "winner": "شهر 🕵️",
    "days": 5,
-   "presses": 222,
+   "presses": 211,
    "finished": true,
    "stuck": "",
    "roles": {
@@ -1563,7 +1562,7 @@
    "case": "#40",
    "winner": "شهر 🕵️",
    "days": 4,
-   "presses": 153,
+   "presses": 137,
    "finished": true,
    "stuck": "",
    "roles": {
@@ -1575,25 +1574,25 @@
     "مهسا": "پزشک"
    },
    "talk": {
-    "messages": 14,
+    "messages": 16,
     "lies": 1,
     "lies_caught": 0,
-    "honest_claims": 13,
+    "honest_claims": 15,
     "fake_detective": 0,
     "fake_forensic": 0,
     "frame_push": 0,
     "vouch": 0,
     "counter_claims": 0,
     "lies_countered": 0,
-    "city_votes": 13,
+    "city_votes": 14,
     "city_votes_on_killer": 4,
     "bot_replied_to_chat": 0,
     "chat_swallowed": 0
    },
    "arrests": {
-    "interrogated": 2,
+    "interrogated": 3,
     "interrogated_evil": 1,
-    "jailed": 2,
+    "jailed": 1,
     "jailed_evil": 1
    },
    "clues": {
@@ -1622,7 +1621,7 @@
    "case": "#40",
    "winner": "شهر 🕵️",
    "days": 4,
-   "presses": 142,
+   "presses": 136,
    "finished": true,
    "stuck": "",
    "roles": {
@@ -1634,25 +1633,25 @@
     "مهسا": "پزشک"
    },
    "talk": {
-    "messages": 14,
+    "messages": 16,
     "lies": 1,
     "lies_caught": 0,
-    "honest_claims": 13,
+    "honest_claims": 15,
     "fake_detective": 0,
     "fake_forensic": 0,
     "frame_push": 0,
     "vouch": 0,
     "counter_claims": 0,
     "lies_countered": 0,
-    "city_votes": 13,
+    "city_votes": 14,
     "city_votes_on_killer": 4,
     "bot_replied_to_chat": 0,
     "chat_swallowed": 0
    },
    "arrests": {
-    "interrogated": 2,
+    "interrogated": 3,
     "interrogated_evil": 1,
-    "jailed": 2,
+    "jailed": 1,
     "jailed_evil": 1
    },
    "clues": {
@@ -1681,7 +1680,7 @@
    "case": "#16",
    "winner": "قاتل‌ها 🔪",
    "days": 6,
-   "presses": 240,
+   "presses": 224,
    "finished": true,
    "stuck": "",
    "roles": {
@@ -1693,10 +1692,10 @@
     "مهسا": "کارآگاه"
    },
    "talk": {
-    "messages": 11,
+    "messages": 12,
     "lies": 5,
     "lies_caught": 1,
-    "honest_claims": 5,
+    "honest_claims": 6,
     "fake_detective": 1,
     "fake_forensic": 1,
     "frame_push": 0,
@@ -1740,7 +1739,7 @@
    "case": "#11",
    "winner": "شهر 🕵️",
    "days": 4,
-   "presses": 159,
+   "presses": 149,
    "finished": true,
    "stuck": "",
    "roles": {
@@ -1858,7 +1857,7 @@
    "case": "#25",
    "winner": "سپر بلا 🎭",
    "days": 4,
-   "presses": 132,
+   "presses": 125,
    "finished": true,
    "stuck": "",
    "roles": {
@@ -1918,7 +1917,7 @@
    "case": "#5",
    "winner": "شهر 🕵️",
    "days": 6,
-   "presses": 234,
+   "presses": 233,
    "finished": true,
    "stuck": "",
    "roles": {
@@ -1977,7 +1976,7 @@
    "case": "#5",
    "winner": "شهر 🕵️",
    "days": 6,
-   "presses": 217,
+   "presses": 232,
    "finished": true,
    "stuck": "",
    "roles": {
@@ -2036,7 +2035,7 @@
    "case": "#25",
    "winner": "سپر بلا 🎭",
    "days": 5,
-   "presses": 230,
+   "presses": 171,
    "finished": true,
    "stuck": "",
    "roles": {
@@ -2049,32 +2048,32 @@
    },
    "talk": {
     "messages": 12,
-    "lies": 3,
+    "lies": 4,
     "lies_caught": 0,
-    "honest_claims": 9,
-    "fake_detective": 0,
+    "honest_claims": 8,
+    "fake_detective": 1,
     "fake_forensic": 1,
     "frame_push": 0,
     "vouch": 0,
     "counter_claims": 0,
     "lies_countered": 0,
-    "city_votes": 14,
-    "city_votes_on_killer": 9,
+    "city_votes": 13,
+    "city_votes_on_killer": 10,
     "bot_replied_to_chat": 0,
     "chat_swallowed": 0
    },
    "arrests": {
-    "interrogated": 3,
+    "interrogated": 2,
     "interrogated_evil": 1,
-    "jailed": 2,
-    "jailed_evil": 1
+    "jailed": 1,
+    "jailed_evil": 0
    },
    "clues": {
     "total": 4,
     "true": 3,
     "false": 1,
-    "verified": 2,
-    "verified_right": 2,
+    "verified": 0,
+    "verified_right": 0,
     "by_source": {
      "herring": 1,
      "case": 2,
@@ -2095,7 +2094,7 @@
    "case": "#13",
    "winner": "شهر 🕵️",
    "days": 8,
-   "presses": 273,
+   "presses": 251,
    "finished": true,
    "stuck": "",
    "roles": {
@@ -2108,33 +2107,33 @@
     "نیما": "کالبدشکاف"
    },
    "talk": {
-    "messages": 16,
+    "messages": 22,
     "lies": 8,
-    "lies_caught": 2,
-    "honest_claims": 7,
+    "lies_caught": 1,
+    "honest_claims": 13,
     "fake_detective": 1,
     "fake_forensic": 2,
     "frame_push": 3,
     "vouch": 1,
     "counter_claims": 0,
     "lies_countered": 0,
-    "city_votes": 19,
+    "city_votes": 17,
     "city_votes_on_killer": 8,
     "bot_replied_to_chat": 0,
     "chat_swallowed": 0
    },
    "arrests": {
-    "interrogated": 5,
+    "interrogated": 6,
     "interrogated_evil": 2,
-    "jailed": 3,
+    "jailed": 4,
     "jailed_evil": 2
    },
    "clues": {
     "total": 10,
     "true": 5,
     "false": 5,
-    "verified": 4,
-    "verified_right": 4,
+    "verified": 3,
+    "verified_right": 3,
     "by_source": {
      "case": 2,
      "herring": 1,
@@ -2157,7 +2156,7 @@
    "case": "#13",
    "winner": "قاتل‌ها 🔪",
    "days": 3,
-   "presses": 110,
+   "presses": 114,
    "finished": true,
    "stuck": "",
    "roles": {
@@ -2219,7 +2218,7 @@
    "case": "#16",
    "winner": "قاتل‌ها 🔪",
    "days": 2,
-   "presses": 88,
+   "presses": 80,
    "finished": true,
    "stuck": "",
    "roles": {
@@ -2280,7 +2279,7 @@
    "case": "#37",
    "winner": "قاتل‌ها 🔪",
    "days": 3,
-   "presses": 139,
+   "presses": 138,
    "finished": true,
    "stuck": "",
    "roles": {
@@ -2341,7 +2340,7 @@
    "case": "#37",
    "winner": "قاتل‌ها 🔪",
    "days": 3,
-   "presses": 131,
+   "presses": 137,
    "finished": true,
    "stuck": "",
    "roles": {
@@ -2402,7 +2401,7 @@
    "case": "#4",
    "winner": "قاتل‌ها 🔪",
    "days": 2,
-   "presses": 115,
+   "presses": 104,
    "finished": true,
    "stuck": "",
    "roles": {
@@ -2461,9 +2460,9 @@
    "mode": "دکمه در گروه",
    "scenario": "کلاسیک",
    "case": "#11",
-   "winner": "شهر 🕵️",
-   "days": 9,
-   "presses": 331,
+   "winner": "قاتل‌ها 🔪",
+   "days": 7,
+   "presses": 237,
    "finished": true,
    "stuck": "",
    "roles": {
@@ -2476,46 +2475,46 @@
     "نیما": "کالبدشکاف"
    },
    "talk": {
-    "messages": 27,
+    "messages": 24,
     "lies": 8,
     "lies_caught": 1,
-    "honest_claims": 18,
+    "honest_claims": 15,
     "fake_detective": 0,
     "fake_forensic": 1,
-    "frame_push": 3,
+    "frame_push": 5,
     "vouch": 0,
     "counter_claims": 0,
     "lies_countered": 0,
-    "city_votes": 32,
-    "city_votes_on_killer": 13,
+    "city_votes": 22,
+    "city_votes_on_killer": 8,
     "bot_replied_to_chat": 0,
     "chat_swallowed": 0
    },
    "arrests": {
     "interrogated": 4,
-    "interrogated_evil": 2,
-    "jailed": 5,
-    "jailed_evil": 2
+    "interrogated_evil": 1,
+    "jailed": 4,
+    "jailed_evil": 1
    },
    "clues": {
-    "total": 12,
-    "true": 6,
-    "false": 6,
-    "verified": 3,
-    "verified_right": 3,
+    "total": 15,
+    "true": 8,
+    "false": 7,
+    "verified": 2,
+    "verified_right": 2,
     "by_source": {
      "case": 2,
      "herring": 2,
-     "kill": 3,
-     "frame": 4,
-     "witness": 1
+     "kill": 4,
+     "frame": 5,
+     "witness": 2
     }
    },
    "rumors": [
     0,
     0
    ],
-   "winner_team": "city"
+   "winner_team": "killers"
   },
   {
    "players": 7,
@@ -2525,7 +2524,7 @@
    "case": "#11",
    "winner": "شهر 🕵️",
    "days": 9,
-   "presses": 291,
+   "presses": 285,
    "finished": true,
    "stuck": "",
    "roles": {
@@ -2538,38 +2537,38 @@
     "نیما": "کالبدشکاف"
    },
    "talk": {
-    "messages": 27,
+    "messages": 26,
     "lies": 8,
     "lies_caught": 1,
-    "honest_claims": 18,
+    "honest_claims": 17,
     "fake_detective": 0,
     "fake_forensic": 1,
-    "frame_push": 3,
+    "frame_push": 4,
     "vouch": 0,
     "counter_claims": 0,
     "lies_countered": 0,
-    "city_votes": 27,
-    "city_votes_on_killer": 13,
+    "city_votes": 24,
+    "city_votes_on_killer": 9,
     "bot_replied_to_chat": 0,
     "chat_swallowed": 0
    },
    "arrests": {
-    "interrogated": 4,
+    "interrogated": 5,
     "interrogated_evil": 2,
-    "jailed": 4,
+    "jailed": 5,
     "jailed_evil": 2
    },
    "clues": {
-    "total": 12,
+    "total": 13,
     "true": 6,
-    "false": 6,
+    "false": 7,
     "verified": 3,
     "verified_right": 3,
     "by_source": {
      "case": 2,
      "herring": 2,
      "kill": 3,
-     "frame": 4,
+     "frame": 5,
      "witness": 1
     }
    },
@@ -2587,7 +2586,7 @@
    "case": "#1",
    "winner": "قاتل‌ها 🔪",
    "days": 3,
-   "presses": 158,
+   "presses": 151,
    "finished": true,
    "stuck": "",
    "roles": {
@@ -2647,8 +2646,8 @@
    "scenario": "کلاسیک",
    "case": "#1",
    "winner": "قاتل‌ها 🔪",
-   "days": 4,
-   "presses": 177,
+   "days": 3,
+   "presses": 123,
    "finished": true,
    "stuck": "",
    "roles": {
@@ -2661,37 +2660,37 @@
     "نیما": "کالبدشکاف"
    },
    "talk": {
-    "messages": 15,
-    "lies": 5,
+    "messages": 8,
+    "lies": 4,
     "lies_caught": 0,
-    "honest_claims": 10,
+    "honest_claims": 4,
     "fake_detective": 0,
-    "fake_forensic": 1,
+    "fake_forensic": 2,
     "frame_push": 1,
     "vouch": 0,
     "counter_claims": 0,
     "lies_countered": 0,
-    "city_votes": 9,
-    "city_votes_on_killer": 5,
+    "city_votes": 5,
+    "city_votes_on_killer": 3,
     "bot_replied_to_chat": 0,
     "chat_swallowed": 0
    },
    "arrests": {
-    "interrogated": 3,
+    "interrogated": 2,
     "interrogated_evil": 1,
-    "jailed": 2,
-    "jailed_evil": 1
+    "jailed": 1,
+    "jailed_evil": 0
    },
    "clues": {
-    "total": 11,
-    "true": 6,
-    "false": 5,
+    "total": 8,
+    "true": 5,
+    "false": 3,
     "verified": 1,
     "verified_right": 1,
     "by_source": {
      "case": 2,
-     "herring": 3,
-     "kill": 4,
+     "herring": 1,
+     "kill": 3,
      "frame": 2
     }
    },
@@ -2708,8 +2707,8 @@
    "scenario": "کلاسیک",
    "case": "#1",
    "winner": "قاتل‌ها 🔪",
-   "days": 4,
-   "presses": 166,
+   "days": 3,
+   "presses": 122,
    "finished": true,
    "stuck": "",
    "roles": {
@@ -2722,37 +2721,37 @@
     "نیما": "کالبدشکاف"
    },
    "talk": {
-    "messages": 15,
-    "lies": 5,
+    "messages": 8,
+    "lies": 4,
     "lies_caught": 0,
-    "honest_claims": 10,
+    "honest_claims": 4,
     "fake_detective": 0,
-    "fake_forensic": 1,
+    "fake_forensic": 2,
     "frame_push": 1,
     "vouch": 0,
     "counter_claims": 0,
     "lies_countered": 0,
-    "city_votes": 9,
-    "city_votes_on_killer": 5,
+    "city_votes": 5,
+    "city_votes_on_killer": 3,
     "bot_replied_to_chat": 0,
     "chat_swallowed": 0
    },
    "arrests": {
-    "interrogated": 3,
+    "interrogated": 2,
     "interrogated_evil": 1,
-    "jailed": 2,
-    "jailed_evil": 1
+    "jailed": 1,
+    "jailed_evil": 0
    },
    "clues": {
-    "total": 11,
-    "true": 6,
-    "false": 5,
+    "total": 8,
+    "true": 5,
+    "false": 3,
     "verified": 1,
     "verified_right": 1,
     "by_source": {
      "case": 2,
-     "herring": 3,
-     "kill": 4,
+     "herring": 1,
+     "kill": 3,
      "frame": 2
     }
    },
@@ -2770,7 +2769,7 @@
    "case": "#17",
    "winner": "قاتل‌ها 🔪",
    "days": 4,
-   "presses": 207,
+   "presses": 192,
    "finished": true,
    "stuck": "",
    "roles": {
@@ -2832,7 +2831,7 @@
    "case": "#7",
    "winner": "شهر 🕵️",
    "days": 6,
-   "presses": 315,
+   "presses": 310,
    "finished": true,
    "stuck": "",
    "roles": {
@@ -2894,7 +2893,7 @@
    "case": "#7",
    "winner": "شهر 🕵️",
    "days": 6,
-   "presses": 294,
+   "presses": 304,
    "finished": true,
    "stuck": "",
    "roles": {
@@ -2956,7 +2955,7 @@
    "case": "#4",
    "winner": "شهر 🕵️",
    "days": 6,
-   "presses": 272,
+   "presses": 255,
    "finished": true,
    "stuck": "",
    "roles": {
@@ -2970,10 +2969,10 @@
     "رویا": "قاتل"
    },
    "talk": {
-    "messages": 16,
+    "messages": 18,
     "lies": 4,
     "lies_caught": 1,
-    "honest_claims": 11,
+    "honest_claims": 13,
     "fake_detective": 0,
     "fake_forensic": 1,
     "frame_push": 1,
@@ -3017,7 +3016,7 @@
    "case": "#40",
    "winner": "شهر 🕵️",
    "days": 6,
-   "presses": 292,
+   "presses": 291,
    "finished": true,
    "stuck": "",
    "roles": {
@@ -3078,7 +3077,7 @@
    "case": "#40",
    "winner": "شهر 🕵️",
    "days": 6,
-   "presses": 274,
+   "presses": 289,
    "finished": true,
    "stuck": "",
    "roles": {
@@ -3139,7 +3138,7 @@
    "case": "#5",
    "winner": "شهر 🕵️",
    "days": 7,
-   "presses": 354,
+   "presses": 316,
    "finished": true,
    "stuck": "",
    "roles": {
@@ -3153,18 +3152,18 @@
     "رویا": "بازجو"
    },
    "talk": {
-    "messages": 19,
+    "messages": 20,
     "lies": 7,
     "lies_caught": 2,
-    "honest_claims": 10,
+    "honest_claims": 11,
     "fake_detective": 1,
     "fake_forensic": 2,
     "frame_push": 0,
     "vouch": 1,
     "counter_claims": 0,
     "lies_countered": 0,
-    "city_votes": 23,
-    "city_votes_on_killer": 6,
+    "city_votes": 22,
+    "city_votes_on_killer": 5,
     "bot_replied_to_chat": 0,
     "chat_swallowed": 0
    },
@@ -3201,7 +3200,7 @@
    "case": "#25",
    "winner": "قاتل‌ها 🔪",
    "days": 3,
-   "presses": 121,
+   "presses": 120,
    "finished": true,
    "stuck": "",
    "roles": {
@@ -3263,7 +3262,7 @@
    "case": "#25",
    "winner": "قاتل‌ها 🔪",
    "days": 3,
-   "presses": 114,
+   "presses": 120,
    "finished": true,
    "stuck": "",
    "roles": {
@@ -3325,7 +3324,7 @@
    "case": "#20",
    "winner": "شهر 🕵️",
    "days": 7,
-   "presses": 392,
+   "presses": 377,
    "finished": true,
    "stuck": "",
    "roles": {
@@ -3385,9 +3384,9 @@
    "mode": "دکمه در گروه",
    "scenario": "کلاسیک",
    "case": "#40",
-   "winner": "سپر بلا 🎭",
-   "days": 5,
-   "presses": 236,
+   "winner": "شهر 🕵️",
+   "days": 9,
+   "presses": 391,
    "finished": true,
    "stuck": "",
    "roles": {
@@ -3401,45 +3400,45 @@
     "رویا": "کارآگاه"
    },
    "talk": {
-    "messages": 23,
+    "messages": 43,
     "lies": 7,
     "lies_caught": 0,
-    "honest_claims": 16,
+    "honest_claims": 36,
     "fake_detective": 0,
-    "fake_forensic": 2,
-    "frame_push": 3,
+    "fake_forensic": 1,
+    "frame_push": 5,
     "vouch": 0,
     "counter_claims": 0,
     "lies_countered": 0,
-    "city_votes": 15,
-    "city_votes_on_killer": 4,
+    "city_votes": 32,
+    "city_votes_on_killer": 10,
     "bot_replied_to_chat": 0,
     "chat_swallowed": 0
    },
    "arrests": {
-    "interrogated": 4,
-    "interrogated_evil": 1,
-    "jailed": 3,
-    "jailed_evil": 1
+    "interrogated": 5,
+    "interrogated_evil": 2,
+    "jailed": 4,
+    "jailed_evil": 2
    },
    "clues": {
-    "total": 12,
-    "true": 5,
-    "false": 7,
-    "verified": 1,
-    "verified_right": 1,
+    "total": 10,
+    "true": 4,
+    "false": 6,
+    "verified": 3,
+    "verified_right": 3,
     "by_source": {
      "case": 2,
      "herring": 2,
-     "kill": 3,
-     "frame": 5
+     "kill": 2,
+     "frame": 4
     }
    },
    "rumors": [
     0,
     0
    ],
-   "winner_team": "scapegoat"
+   "winner_team": "city"
   },
   {
    "players": 8,
@@ -3447,9 +3446,9 @@
    "mode": "تایمر",
    "scenario": "کلاسیک",
    "case": "#40",
-   "winner": "سپر بلا 🎭",
-   "days": 5,
-   "presses": 220,
+   "winner": "قاتل‌ها 🔪",
+   "days": 8,
+   "presses": 338,
    "finished": true,
    "stuck": "",
    "roles": {
@@ -3463,45 +3462,45 @@
     "رویا": "کارآگاه"
    },
    "talk": {
-    "messages": 23,
-    "lies": 7,
+    "messages": 37,
+    "lies": 8,
     "lies_caught": 0,
-    "honest_claims": 16,
+    "honest_claims": 29,
     "fake_detective": 0,
-    "fake_forensic": 2,
-    "frame_push": 3,
+    "fake_forensic": 1,
+    "frame_push": 5,
     "vouch": 0,
     "counter_claims": 0,
     "lies_countered": 0,
-    "city_votes": 15,
-    "city_votes_on_killer": 4,
+    "city_votes": 20,
+    "city_votes_on_killer": 8,
     "bot_replied_to_chat": 0,
     "chat_swallowed": 0
    },
    "arrests": {
     "interrogated": 4,
-    "interrogated_evil": 1,
+    "interrogated_evil": 2,
     "jailed": 3,
     "jailed_evil": 1
    },
    "clues": {
     "total": 12,
-    "true": 5,
-    "false": 7,
-    "verified": 1,
-    "verified_right": 1,
+    "true": 6,
+    "false": 6,
+    "verified": 2,
+    "verified_right": 2,
     "by_source": {
      "case": 2,
      "herring": 2,
-     "kill": 3,
-     "frame": 5
+     "kill": 4,
+     "frame": 4
     }
    },
    "rumors": [
     0,
     0
    ],
-   "winner_team": "scapegoat"
+   "winner_team": "killers"
   },
   {
    "players": 8,
@@ -3510,8 +3509,8 @@
    "scenario": "کلاسیک",
    "case": "#20",
    "winner": "شهر 🕵️",
-   "days": 6,
-   "presses": 332,
+   "days": 5,
+   "presses": 206,
    "finished": true,
    "stuck": "",
    "roles": {
@@ -3525,37 +3524,37 @@
     "رویا": "همدست"
    },
    "talk": {
-    "messages": 32,
-    "lies": 5,
+    "messages": 16,
+    "lies": 3,
     "lies_caught": 1,
-    "honest_claims": 27,
-    "fake_detective": 1,
-    "fake_forensic": 1,
+    "honest_claims": 13,
+    "fake_detective": 0,
+    "fake_forensic": 2,
     "frame_push": 0,
-    "vouch": 1,
-    "counter_claims": 1,
-    "lies_countered": 1,
-    "city_votes": 24,
-    "city_votes_on_killer": 10,
+    "vouch": 0,
+    "counter_claims": 0,
+    "lies_countered": 0,
+    "city_votes": 14,
+    "city_votes_on_killer": 7,
     "bot_replied_to_chat": 0,
     "chat_swallowed": 0
    },
    "arrests": {
     "interrogated": 4,
     "interrogated_evil": 2,
-    "jailed": 4,
+    "jailed": 3,
     "jailed_evil": 2
    },
    "clues": {
     "total": 8,
-    "true": 5,
-    "false": 3,
-    "verified": 2,
-    "verified_right": 2,
+    "true": 4,
+    "false": 4,
+    "verified": 1,
+    "verified_right": 1,
     "by_source": {
      "case": 2,
-     "herring": 2,
-     "kill": 3,
+     "herring": 3,
+     "kill": 2,
      "frame": 1
     }
    },
@@ -3573,7 +3572,7 @@
    "case": "#8",
    "winner": "شهر 🕵️",
    "days": 9,
-   "presses": 404,
+   "presses": 403,
    "finished": true,
    "stuck": "",
    "roles": {
@@ -3635,7 +3634,7 @@
    "case": "#8",
    "winner": "شهر 🕵️",
    "days": 9,
-   "presses": 376,
+   "presses": 400,
    "finished": true,
    "stuck": "",
    "roles": {
@@ -3696,8 +3695,8 @@
    "scenario": "کلاسیک",
    "case": "#13",
    "winner": "شهر 🕵️",
-   "days": 9,
-   "presses": 532,
+   "days": 12,
+   "presses": 691,
    "finished": true,
    "stuck": "",
    "roles": {
@@ -3712,23 +3711,23 @@
     "پویا": "شکارچی"
    },
    "talk": {
-    "messages": 34,
-    "lies": 8,
+    "messages": 47,
+    "lies": 12,
     "lies_caught": 2,
-    "honest_claims": 24,
-    "fake_detective": 0,
+    "honest_claims": 33,
+    "fake_detective": 1,
     "fake_forensic": 2,
-    "frame_push": 4,
-    "vouch": 0,
+    "frame_push": 3,
+    "vouch": 1,
     "counter_claims": 0,
     "lies_countered": 0,
-    "city_votes": 41,
-    "city_votes_on_killer": 21,
+    "city_votes": 56,
+    "city_votes_on_killer": 36,
     "bot_replied_to_chat": 0,
     "chat_swallowed": 0
    },
    "arrests": {
-    "interrogated": 5,
+    "interrogated": 6,
     "interrogated_evil": 2,
     "jailed": 4,
     "jailed_evil": 2
@@ -3737,8 +3736,8 @@
     "total": 10,
     "true": 5,
     "false": 5,
-    "verified": 4,
-    "verified_right": 4,
+    "verified": 6,
+    "verified_right": 6,
     "by_source": {
      "case": 2,
      "herring": 1,
@@ -3761,7 +3760,7 @@
    "case": "#25",
    "winner": "سپر بلا 🎭",
    "days": 7,
-   "presses": 374,
+   "presses": 344,
    "finished": true,
    "stuck": "",
    "roles": {
@@ -3786,7 +3785,7 @@
     "vouch": 0,
     "counter_claims": 1,
     "lies_countered": 1,
-    "city_votes": 35,
+    "city_votes": 36,
     "city_votes_on_killer": 11,
     "bot_replied_to_chat": 0,
     "chat_swallowed": 0
@@ -3794,7 +3793,7 @@
    "arrests": {
     "interrogated": 5,
     "interrogated_evil": 2,
-    "jailed": 4,
+    "jailed": 3,
     "jailed_evil": 2
    },
    "clues": {
@@ -3824,7 +3823,7 @@
    "case": "#25",
    "winner": "سپر بلا 🎭",
    "days": 7,
-   "presses": 353,
+   "presses": 342,
    "finished": true,
    "stuck": "",
    "roles": {
@@ -3849,7 +3848,7 @@
     "vouch": 0,
     "counter_claims": 1,
     "lies_countered": 1,
-    "city_votes": 35,
+    "city_votes": 36,
     "city_votes_on_killer": 11,
     "bot_replied_to_chat": 0,
     "chat_swallowed": 0
@@ -3857,7 +3856,7 @@
    "arrests": {
     "interrogated": 5,
     "interrogated_evil": 2,
-    "jailed": 4,
+    "jailed": 3,
     "jailed_evil": 2
    },
    "clues": {
@@ -3887,7 +3886,7 @@
    "case": "#39",
    "winner": "شهر 🕵️",
    "days": 6,
-   "presses": 305,
+   "presses": 292,
    "finished": true,
    "stuck": "",
    "roles": {
@@ -3950,7 +3949,7 @@
    "case": "#5",
    "winner": "سپر بلا 🎭",
    "days": 4,
-   "presses": 198,
+   "presses": 197,
    "finished": true,
    "stuck": "",
    "roles": {
@@ -4014,7 +4013,7 @@
    "case": "#5",
    "winner": "سپر بلا 🎭",
    "days": 4,
-   "presses": 188,
+   "presses": 197,
    "finished": true,
    "stuck": "",
    "roles": {
@@ -4077,8 +4076,8 @@
    "scenario": "کلاسیک",
    "case": "#40",
    "winner": "سپر بلا 🎭",
-   "days": 6,
-   "presses": 295,
+   "days": 5,
+   "presses": 252,
    "finished": true,
    "stuck": "",
    "roles": {
@@ -4093,38 +4092,38 @@
     "پویا": "همدست"
    },
    "talk": {
-    "messages": 14,
-    "lies": 6,
+    "messages": 15,
+    "lies": 8,
     "lies_caught": 0,
-    "honest_claims": 8,
+    "honest_claims": 7,
     "fake_detective": 0,
-    "fake_forensic": 0,
+    "fake_forensic": 2,
     "frame_push": 2,
     "vouch": 0,
     "counter_claims": 0,
     "lies_countered": 0,
-    "city_votes": 14,
-    "city_votes_on_killer": 3,
+    "city_votes": 16,
+    "city_votes_on_killer": 4,
     "bot_replied_to_chat": 0,
     "chat_swallowed": 0
    },
    "arrests": {
-    "interrogated": 4,
-    "interrogated_evil": 1,
-    "jailed": 5,
-    "jailed_evil": 2
+    "interrogated": 3,
+    "interrogated_evil": 0,
+    "jailed": 2,
+    "jailed_evil": 0
    },
    "clues": {
-    "total": 8,
-    "true": 4,
-    "false": 4,
-    "verified": 3,
-    "verified_right": 3,
+    "total": 11,
+    "true": 5,
+    "false": 6,
+    "verified": 2,
+    "verified_right": 2,
     "by_source": {
      "case": 2,
-     "herring": 1,
-     "kill": 2,
-     "frame": 3
+     "herring": 2,
+     "kill": 3,
+     "frame": 4
     }
    },
    "rumors": [
@@ -4141,7 +4140,7 @@
    "case": "#8",
    "winner": "قاتل‌ها 🔪",
    "days": 6,
-   "presses": 316,
+   "presses": 315,
    "finished": true,
    "stuck": "",
    "roles": {
@@ -4205,7 +4204,7 @@
    "case": "#8",
    "winner": "قاتل‌ها 🔪",
    "days": 6,
-   "presses": 298,
+   "presses": 313,
    "finished": true,
    "stuck": "",
    "roles": {
@@ -4269,7 +4268,7 @@
    "case": "#25",
    "winner": "شهر 🕵️",
    "days": 7,
-   "presses": 391,
+   "presses": 377,
    "finished": true,
    "stuck": "",
    "roles": {
@@ -4284,10 +4283,10 @@
     "پویا": "سپر بلا"
    },
    "talk": {
-    "messages": 30,
+    "messages": 29,
     "lies": 7,
     "lies_caught": 0,
-    "honest_claims": 23,
+    "honest_claims": 22,
     "fake_detective": 2,
     "fake_forensic": 1,
     "frame_push": 2,
@@ -4332,7 +4331,7 @@
    "case": "#1",
    "winner": "قاتل‌ها 🔪",
    "days": 3,
-   "presses": 171,
+   "presses": 170,
    "finished": true,
    "stuck": "",
    "roles": {
@@ -4396,7 +4395,7 @@
    "case": "#1",
    "winner": "قاتل‌ها 🔪",
    "days": 3,
-   "presses": 159,
+   "presses": 163,
    "finished": true,
    "stuck": "",
    "roles": {
@@ -4460,7 +4459,7 @@
    "case": "#7",
    "winner": "قاتل‌ها 🔪",
    "days": 4,
-   "presses": 274,
+   "presses": 243,
    "finished": true,
    "stuck": "",
    "roles": {
@@ -4476,17 +4475,17 @@
     "شیرین": "کالبدشکاف"
    },
    "talk": {
-    "messages": 23,
+    "messages": 22,
     "lies": 10,
     "lies_caught": 0,
-    "honest_claims": 13,
+    "honest_claims": 12,
     "fake_detective": 2,
     "fake_forensic": 2,
-    "frame_push": 0,
+    "frame_push": 1,
     "vouch": 2,
     "counter_claims": 0,
     "lies_countered": 0,
-    "city_votes": 15,
+    "city_votes": 13,
     "city_votes_on_killer": 5,
     "bot_replied_to_chat": 0,
     "chat_swallowed": 0
@@ -4494,19 +4493,19 @@
    "arrests": {
     "interrogated": 3,
     "interrogated_evil": 1,
-    "jailed": 2,
+    "jailed": 3,
     "jailed_evil": 1
    },
    "clues": {
-    "total": 14,
+    "total": 13,
     "true": 8,
-    "false": 6,
-    "verified": 1,
-    "verified_right": 1,
+    "false": 5,
+    "verified": 0,
+    "verified_right": 0,
     "by_source": {
      "case": 2,
      "herring": 2,
-     "frame": 4,
+     "frame": 3,
      "kill": 4,
      "witness": 1,
      "poison": 1
@@ -4526,7 +4525,7 @@
    "case": "#16",
    "winner": "قاتل‌ها 🔪",
    "days": 4,
-   "presses": 213,
+   "presses": 212,
    "finished": true,
    "stuck": "",
    "roles": {
@@ -4591,7 +4590,7 @@
    "case": "#16",
    "winner": "قاتل‌ها 🔪",
    "days": 4,
-   "presses": 203,
+   "presses": 212,
    "finished": true,
    "stuck": "",
    "roles": {
@@ -4656,7 +4655,7 @@
    "case": "#1",
    "winner": "شهر 🕵️",
    "days": 8,
-   "presses": 473,
+   "presses": 445,
    "finished": true,
    "stuck": "",
    "roles": {
@@ -4720,7 +4719,7 @@
    "case": "#20",
    "winner": "قاتل‌ها 🔪",
    "days": 5,
-   "presses": 295,
+   "presses": 294,
    "finished": true,
    "stuck": "",
    "roles": {
@@ -4785,7 +4784,7 @@
    "case": "#20",
    "winner": "قاتل‌ها 🔪",
    "days": 5,
-   "presses": 281,
+   "presses": 293,
    "finished": true,
    "stuck": "",
    "roles": {
@@ -4850,7 +4849,7 @@
    "case": "#39",
    "winner": "قاتل‌ها 🔪",
    "days": 4,
-   "presses": 209,
+   "presses": 191,
    "finished": true,
    "stuck": "",
    "roles": {
@@ -4871,8 +4870,8 @@
     "lies_caught": 0,
     "honest_claims": 6,
     "fake_detective": 0,
-    "fake_forensic": 0,
-    "frame_push": 3,
+    "fake_forensic": 3,
+    "frame_push": 2,
     "vouch": 0,
     "counter_claims": 0,
     "lies_countered": 0,
@@ -4914,7 +4913,7 @@
    "case": "#40",
    "winner": "قاتل‌ها 🔪",
    "days": 3,
-   "presses": 155,
+   "presses": 140,
    "finished": true,
    "stuck": "",
    "roles": {
@@ -4930,10 +4929,10 @@
     "شیرین": "کارآگاه"
    },
    "talk": {
-    "messages": 8,
+    "messages": 11,
     "lies": 5,
     "lies_caught": 0,
-    "honest_claims": 3,
+    "honest_claims": 6,
     "fake_detective": 0,
     "fake_forensic": 2,
     "frame_push": 0,
@@ -4978,7 +4977,7 @@
    "case": "#40",
    "winner": "قاتل‌ها 🔪",
    "days": 3,
-   "presses": 147,
+   "presses": 139,
    "finished": true,
    "stuck": "",
    "roles": {
@@ -4994,10 +4993,10 @@
     "شیرین": "کارآگاه"
    },
    "talk": {
-    "messages": 8,
+    "messages": 11,
     "lies": 5,
     "lies_caught": 0,
-    "honest_claims": 3,
+    "honest_claims": 6,
     "fake_detective": 0,
     "fake_forensic": 2,
     "frame_push": 0,
@@ -5042,7 +5041,7 @@
    "case": "#13",
    "winner": "قاتل‌ها 🔪",
    "days": 4,
-   "presses": 221,
+   "presses": 209,
    "finished": true,
    "stuck": "",
    "roles": {
@@ -5107,7 +5106,7 @@
    "case": "#10",
    "winner": "شهر 🕵️",
    "days": 6,
-   "presses": 204,
+   "presses": 197,
    "finished": true,
    "stuck": "",
    "roles": {
@@ -5117,23 +5116,23 @@
     "دنیا": "قاتل"
    },
    "talk": {
-    "messages": 17,
+    "messages": 16,
     "lies": 2,
     "lies_caught": 1,
-    "honest_claims": 14,
+    "honest_claims": 13,
     "fake_detective": 0,
     "fake_forensic": 1,
     "frame_push": 0,
     "vouch": 0,
     "counter_claims": 0,
     "lies_countered": 0,
-    "city_votes": 11,
+    "city_votes": 8,
     "city_votes_on_killer": 4,
     "bot_replied_to_chat": 0,
     "chat_swallowed": 0
    },
    "arrests": {
-    "interrogated": 2,
+    "interrogated": 3,
     "interrogated_evil": 1,
     "jailed": 1,
     "jailed_evil": 1
@@ -5165,7 +5164,7 @@
    "case": "#10",
    "winner": "شهر 🕵️",
    "days": 6,
-   "presses": 175,
+   "presses": 191,
    "finished": true,
    "stuck": "",
    "roles": {
@@ -5175,17 +5174,17 @@
     "دنیا": "قاتل"
    },
    "talk": {
-    "messages": 17,
+    "messages": 16,
     "lies": 2,
     "lies_caught": 1,
-    "honest_claims": 14,
+    "honest_claims": 13,
     "fake_detective": 0,
     "fake_forensic": 1,
     "frame_push": 0,
     "vouch": 0,
     "counter_claims": 0,
     "lies_countered": 0,
-    "city_votes": 8,
+    "city_votes": 7,
     "city_votes_on_killer": 4,
     "bot_replied_to_chat": 0,
     "chat_swallowed": 0
@@ -5193,15 +5192,15 @@
    "arrests": {
     "interrogated": 2,
     "interrogated_evil": 1,
-    "jailed": 1,
+    "jailed": 2,
     "jailed_evil": 1
    },
    "clues": {
     "total": 5,
     "true": 4,
     "false": 1,
-    "verified": 4,
-    "verified_right": 4,
+    "verified": 5,
+    "verified_right": 5,
     "by_source": {
      "herring": 1,
      "case": 2,
@@ -5223,7 +5222,7 @@
    "case": "#21",
    "winner": "شهر 🕵️",
    "days": 4,
-   "presses": 149,
+   "presses": 137,
    "finished": true,
    "stuck": "",
    "roles": {
@@ -5233,23 +5232,23 @@
     "دنیا": "کارآگاه"
    },
    "talk": {
-    "messages": 8,
+    "messages": 4,
     "lies": 1,
-    "lies_caught": 1,
-    "honest_claims": 6,
+    "lies_caught": 0,
+    "honest_claims": 3,
     "fake_detective": 0,
-    "fake_forensic": 1,
+    "fake_forensic": 0,
     "frame_push": 0,
     "vouch": 0,
     "counter_claims": 0,
     "lies_countered": 0,
-    "city_votes": 6,
-    "city_votes_on_killer": 2,
+    "city_votes": 11,
+    "city_votes_on_killer": 3,
     "bot_replied_to_chat": 0,
     "chat_swallowed": 0
    },
    "arrests": {
-    "interrogated": 2,
+    "interrogated": 1,
     "interrogated_evil": 1,
     "jailed": 1,
     "jailed_evil": 1
@@ -5258,8 +5257,8 @@
     "total": 5,
     "true": 4,
     "false": 1,
-    "verified": 3,
-    "verified_right": 3,
+    "verified": 2,
+    "verified_right": 2,
     "by_source": {
      "case": 2,
      "herring": 1,
@@ -5281,7 +5280,7 @@
    "case": "#21",
    "winner": "شهر 🕵️",
    "days": 5,
-   "presses": 141,
+   "presses": 139,
    "finished": true,
    "stuck": "",
    "roles": {
@@ -5338,7 +5337,7 @@
    "case": "#21",
    "winner": "شهر 🕵️",
    "days": 5,
-   "presses": 122,
+   "presses": 132,
    "finished": true,
    "stuck": "",
    "roles": {
@@ -5395,7 +5394,7 @@
    "case": "#22",
    "winner": "شهر 🕵️",
    "days": 5,
-   "presses": 177,
+   "presses": 166,
    "finished": true,
    "stuck": "",
    "roles": {
@@ -5453,7 +5452,7 @@
    "case": "#14",
    "winner": "شهر 🕵️",
    "days": 4,
-   "presses": 124,
+   "presses": 123,
    "finished": true,
    "stuck": "",
    "roles": {
@@ -5509,7 +5508,7 @@
    "case": "#14",
    "winner": "شهر 🕵️",
    "days": 4,
-   "presses": 113,
+   "presses": 122,
    "finished": true,
    "stuck": "",
    "roles": {
@@ -5565,7 +5564,7 @@
    "case": "#21",
    "winner": "شهر 🕵️",
    "days": 4,
-   "presses": 139,
+   "presses": 132,
    "finished": true,
    "stuck": "",
    "roles": {
@@ -5622,7 +5621,7 @@
    "case": "#14",
    "winner": "شهر 🕵️",
    "days": 5,
-   "presses": 137,
+   "presses": 152,
    "finished": true,
    "stuck": "",
    "roles": {
@@ -5632,17 +5631,17 @@
     "دنیا": "قاتل"
    },
    "talk": {
-    "messages": 11,
+    "messages": 14,
     "lies": 2,
     "lies_caught": 0,
-    "honest_claims": 9,
-    "fake_detective": 0,
+    "honest_claims": 12,
+    "fake_detective": 1,
     "fake_forensic": 0,
     "frame_push": 0,
     "vouch": 0,
-    "counter_claims": 0,
-    "lies_countered": 0,
-    "city_votes": 8,
+    "counter_claims": 1,
+    "lies_countered": 1,
+    "city_votes": 9,
     "city_votes_on_killer": 4,
     "bot_replied_to_chat": 0,
     "chat_swallowed": 0
@@ -5657,8 +5656,8 @@
     "total": 4,
     "true": 3,
     "false": 1,
-    "verified": 1,
-    "verified_right": 1,
+    "verified": 4,
+    "verified_right": 4,
     "by_source": {
      "herring": 1,
      "case": 2,
@@ -5679,7 +5678,7 @@
    "case": "#14",
    "winner": "قاتل‌ها 🔪",
    "days": 2,
-   "presses": 65,
+   "presses": 66,
    "finished": true,
    "stuck": "",
    "roles": {
@@ -5734,9 +5733,9 @@
    "mode": "دکمه از پیوی",
    "scenario": "دادگاه",
    "case": "#12",
-   "winner": "قاتل‌ها 🔪",
-   "days": 2,
-   "presses": 73,
+   "winner": "شهر 🕵️",
+   "days": 4,
+   "presses": 131,
    "finished": true,
    "stuck": "",
    "roles": {
@@ -5746,44 +5745,44 @@
     "دنیا": "قاتل"
    },
    "talk": {
-    "messages": 2,
+    "messages": 8,
     "lies": 1,
-    "lies_caught": 0,
-    "honest_claims": 1,
+    "lies_caught": 1,
+    "honest_claims": 6,
     "fake_detective": 0,
     "fake_forensic": 1,
     "frame_push": 0,
     "vouch": 0,
     "counter_claims": 0,
     "lies_countered": 0,
-    "city_votes": 2,
-    "city_votes_on_killer": 2,
+    "city_votes": 5,
+    "city_votes_on_killer": 3,
     "bot_replied_to_chat": 0,
     "chat_swallowed": 0
    },
    "arrests": {
-    "interrogated": 0,
-    "interrogated_evil": 0,
-    "jailed": 0,
-    "jailed_evil": 0
+    "interrogated": 2,
+    "interrogated_evil": 1,
+    "jailed": 1,
+    "jailed_evil": 1
    },
    "clues": {
-    "total": 5,
-    "true": 4,
+    "total": 4,
+    "true": 3,
     "false": 1,
     "verified": 1,
     "verified_right": 1,
     "by_source": {
      "herring": 1,
      "case": 2,
-     "kill": 2
+     "kill": 1
     }
    },
    "rumors": [
     0,
     0
    ],
-   "winner_team": "killers"
+   "winner_team": "city"
   },
   {
    "players": 5,
@@ -5792,8 +5791,8 @@
    "scenario": "دادگاه",
    "case": "#3",
    "winner": "شهر 🕵️",
-   "days": 5,
-   "presses": 156,
+   "days": 4,
+   "presses": 122,
    "finished": true,
    "stuck": "",
    "roles": {
@@ -5804,18 +5803,18 @@
     "سهراب": "خبرنگار"
    },
    "talk": {
-    "messages": 8,
-    "lies": 2,
-    "lies_caught": 1,
-    "honest_claims": 5,
+    "messages": 5,
+    "lies": 1,
+    "lies_caught": 0,
+    "honest_claims": 4,
     "fake_detective": 0,
-    "fake_forensic": 1,
+    "fake_forensic": 0,
     "frame_push": 0,
     "vouch": 0,
     "counter_claims": 0,
     "lies_countered": 0,
-    "city_votes": 10,
-    "city_votes_on_killer": 6,
+    "city_votes": 6,
+    "city_votes_on_killer": 2,
     "bot_replied_to_chat": 0,
     "chat_swallowed": 0
    },
@@ -5850,8 +5849,8 @@
    "scenario": "دادگاه",
    "case": "#3",
    "winner": "شهر 🕵️",
-   "days": 5,
-   "presses": 141,
+   "days": 4,
+   "presses": 119,
    "finished": true,
    "stuck": "",
    "roles": {
@@ -5862,18 +5861,18 @@
     "سهراب": "خبرنگار"
    },
    "talk": {
-    "messages": 8,
-    "lies": 2,
-    "lies_caught": 1,
-    "honest_claims": 5,
+    "messages": 5,
+    "lies": 1,
+    "lies_caught": 0,
+    "honest_claims": 4,
     "fake_detective": 0,
-    "fake_forensic": 1,
+    "fake_forensic": 0,
     "frame_push": 0,
     "vouch": 0,
     "counter_claims": 0,
     "lies_countered": 0,
-    "city_votes": 10,
-    "city_votes_on_killer": 6,
+    "city_votes": 6,
+    "city_votes_on_killer": 2,
     "bot_replied_to_chat": 0,
     "chat_swallowed": 0
    },
@@ -5909,7 +5908,7 @@
    "case": "#33",
    "winner": "شهر 🕵️",
    "days": 8,
-   "presses": 297,
+   "presses": 284,
    "finished": true,
    "stuck": "",
    "roles": {
@@ -5968,7 +5967,7 @@
    "case": "#22",
    "winner": "شهر 🕵️",
    "days": 5,
-   "presses": 149,
+   "presses": 146,
    "finished": true,
    "stuck": "",
    "roles": {
@@ -5979,18 +5978,18 @@
     "سهراب": "قاتل"
    },
    "talk": {
-    "messages": 4,
+    "messages": 5,
     "lies": 2,
-    "lies_caught": 0,
+    "lies_caught": 1,
     "honest_claims": 2,
     "fake_detective": 0,
-    "fake_forensic": 0,
+    "fake_forensic": 1,
     "frame_push": 0,
     "vouch": 0,
     "counter_claims": 0,
     "lies_countered": 0,
-    "city_votes": 13,
-    "city_votes_on_killer": 6,
+    "city_votes": 14,
+    "city_votes_on_killer": 5,
     "bot_replied_to_chat": 0,
     "chat_swallowed": 0
    },
@@ -6004,8 +6003,8 @@
     "total": 4,
     "true": 3,
     "false": 1,
-    "verified": 1,
-    "verified_right": 1,
+    "verified": 2,
+    "verified_right": 2,
     "by_source": {
      "case": 2,
      "herring": 1,
@@ -6026,7 +6025,7 @@
    "case": "#22",
    "winner": "شهر 🕵️",
    "days": 5,
-   "presses": 132,
+   "presses": 145,
    "finished": true,
    "stuck": "",
    "roles": {
@@ -6037,33 +6036,33 @@
     "سهراب": "قاتل"
    },
    "talk": {
-    "messages": 4,
+    "messages": 6,
     "lies": 2,
-    "lies_caught": 0,
-    "honest_claims": 2,
+    "lies_caught": 1,
+    "honest_claims": 3,
     "fake_detective": 0,
-    "fake_forensic": 0,
+    "fake_forensic": 1,
     "frame_push": 0,
     "vouch": 0,
     "counter_claims": 0,
     "lies_countered": 0,
-    "city_votes": 11,
-    "city_votes_on_killer": 6,
+    "city_votes": 10,
+    "city_votes_on_killer": 5,
     "bot_replied_to_chat": 0,
     "chat_swallowed": 0
    },
    "arrests": {
     "interrogated": 2,
     "interrogated_evil": 1,
-    "jailed": 2,
+    "jailed": 1,
     "jailed_evil": 1
    },
    "clues": {
     "total": 4,
     "true": 3,
     "false": 1,
-    "verified": 1,
-    "verified_right": 1,
+    "verified": 3,
+    "verified_right": 3,
     "by_source": {
      "case": 2,
      "herring": 1,
@@ -6084,7 +6083,7 @@
    "case": "#29",
    "winner": "شهر 🕵️",
    "days": 6,
-   "presses": 254,
+   "presses": 230,
    "finished": true,
    "stuck": "",
    "roles": {
@@ -6095,23 +6094,23 @@
     "سهراب": "خبرنگار"
    },
    "talk": {
-    "messages": 9,
+    "messages": 11,
     "lies": 2,
     "lies_caught": 1,
-    "honest_claims": 6,
+    "honest_claims": 8,
     "fake_detective": 0,
     "fake_forensic": 1,
     "frame_push": 0,
     "vouch": 0,
     "counter_claims": 0,
     "lies_countered": 0,
-    "city_votes": 16,
+    "city_votes": 13,
     "city_votes_on_killer": 6,
     "bot_replied_to_chat": 0,
     "chat_swallowed": 0
    },
    "arrests": {
-    "interrogated": 3,
+    "interrogated": 4,
     "interrogated_evil": 1,
     "jailed": 3,
     "jailed_evil": 1
@@ -6120,8 +6119,8 @@
     "total": 6,
     "true": 5,
     "false": 1,
-    "verified": 4,
-    "verified_right": 4,
+    "verified": 3,
+    "verified_right": 3,
     "by_source": {
      "herring": 1,
      "case": 2,
@@ -6144,7 +6143,7 @@
    "case": "#33",
    "winner": "شهر 🕵️",
    "days": 6,
-   "presses": 201,
+   "presses": 195,
    "finished": true,
    "stuck": "",
    "roles": {
@@ -6155,10 +6154,10 @@
     "سهراب": "کارآگاه"
    },
    "talk": {
-    "messages": 12,
+    "messages": 14,
     "lies": 2,
     "lies_caught": 0,
-    "honest_claims": 10,
+    "honest_claims": 12,
     "fake_detective": 0,
     "fake_forensic": 0,
     "frame_push": 0,
@@ -6166,7 +6165,7 @@
     "counter_claims": 0,
     "lies_countered": 0,
     "city_votes": 16,
-    "city_votes_on_killer": 7,
+    "city_votes_on_killer": 6,
     "bot_replied_to_chat": 0,
     "chat_swallowed": 0
    },
@@ -6180,8 +6179,8 @@
     "total": 5,
     "true": 4,
     "false": 1,
-    "verified": 4,
-    "verified_right": 4,
+    "verified": 3,
+    "verified_right": 3,
     "by_source": {
      "case": 2,
      "herring": 1,
@@ -6203,7 +6202,7 @@
    "case": "#33",
    "winner": "شهر 🕵️",
    "days": 6,
-   "presses": 183,
+   "presses": 195,
    "finished": true,
    "stuck": "",
    "roles": {
@@ -6214,10 +6213,10 @@
     "سهراب": "کارآگاه"
    },
    "talk": {
-    "messages": 12,
+    "messages": 14,
     "lies": 2,
     "lies_caught": 0,
-    "honest_claims": 10,
+    "honest_claims": 12,
     "fake_detective": 0,
     "fake_forensic": 0,
     "frame_push": 0,
@@ -6225,7 +6224,7 @@
     "counter_claims": 0,
     "lies_countered": 0,
     "city_votes": 16,
-    "city_votes_on_killer": 7,
+    "city_votes_on_killer": 6,
     "bot_replied_to_chat": 0,
     "chat_swallowed": 0
    },
@@ -6239,8 +6238,8 @@
     "total": 5,
     "true": 4,
     "false": 1,
-    "verified": 4,
-    "verified_right": 4,
+    "verified": 3,
+    "verified_right": 3,
     "by_source": {
      "case": 2,
      "herring": 1,
@@ -6262,7 +6261,7 @@
    "case": "#14",
    "winner": "شهر 🕵️",
    "days": 5,
-   "presses": 194,
+   "presses": 165,
    "finished": true,
    "stuck": "",
    "roles": {
@@ -6273,17 +6272,17 @@
     "سهراب": "بازجو"
    },
    "talk": {
-    "messages": 9,
+    "messages": 10,
     "lies": 2,
     "lies_caught": 0,
-    "honest_claims": 7,
+    "honest_claims": 8,
     "fake_detective": 0,
     "fake_forensic": 0,
     "frame_push": 0,
     "vouch": 0,
     "counter_claims": 0,
     "lies_countered": 0,
-    "city_votes": 15,
+    "city_votes": 13,
     "city_votes_on_killer": 6,
     "bot_replied_to_chat": 0,
     "chat_swallowed": 0
@@ -6298,8 +6297,8 @@
     "total": 5,
     "true": 3,
     "false": 2,
-    "verified": 2,
-    "verified_right": 2,
+    "verified": 1,
+    "verified_right": 1,
     "by_source": {
      "case": 2,
      "herring": 2,
@@ -6320,7 +6319,7 @@
    "case": "#12",
    "winner": "شهر 🕵️",
    "days": 5,
-   "presses": 163,
+   "presses": 152,
    "finished": true,
    "stuck": "",
    "roles": {
@@ -6379,7 +6378,7 @@
    "case": "#12",
    "winner": "شهر 🕵️",
    "days": 6,
-   "presses": 164,
+   "presses": 150,
    "finished": true,
    "stuck": "",
    "roles": {
@@ -6390,10 +6389,10 @@
     "سهراب": "خبرنگار"
    },
    "talk": {
-    "messages": 7,
+    "messages": 9,
     "lies": 3,
     "lies_caught": 1,
-    "honest_claims": 3,
+    "honest_claims": 5,
     "fake_detective": 0,
     "fake_forensic": 1,
     "frame_push": 0,
@@ -6415,8 +6414,8 @@
     "total": 7,
     "true": 5,
     "false": 2,
-    "verified": 4,
-    "verified_right": 4,
+    "verified": 5,
+    "verified_right": 5,
     "by_source": {
      "herring": 2,
      "case": 2,
@@ -6438,7 +6437,7 @@
    "case": "#30",
    "winner": "شهر 🕵️",
    "days": 4,
-   "presses": 162,
+   "presses": 155,
    "finished": true,
    "stuck": "",
    "roles": {
@@ -6449,23 +6448,23 @@
     "سهراب": "خبرنگار"
    },
    "talk": {
-    "messages": 9,
+    "messages": 12,
     "lies": 1,
     "lies_caught": 0,
-    "honest_claims": 8,
+    "honest_claims": 11,
     "fake_detective": 0,
     "fake_forensic": 0,
     "frame_push": 0,
     "vouch": 0,
     "counter_claims": 0,
     "lies_countered": 0,
-    "city_votes": 9,
+    "city_votes": 10,
     "city_votes_on_killer": 3,
     "bot_replied_to_chat": 0,
     "chat_swallowed": 0
    },
    "arrests": {
-    "interrogated": 2,
+    "interrogated": 3,
     "interrogated_evil": 1,
     "jailed": 1,
     "jailed_evil": 1
@@ -6474,8 +6473,8 @@
     "total": 5,
     "true": 4,
     "false": 1,
-    "verified": 4,
-    "verified_right": 4,
+    "verified": 3,
+    "verified_right": 3,
     "by_source": {
      "case": 2,
      "herring": 1,
@@ -6497,7 +6496,7 @@
    "case": "#29",
    "winner": "شهر 🕵️",
    "days": 4,
-   "presses": 162,
+   "presses": 145,
    "finished": true,
    "stuck": "",
    "roles": {
@@ -6509,17 +6508,17 @@
     "مهسا": "قاتل"
    },
    "talk": {
-    "messages": 12,
+    "messages": 6,
     "lies": 1,
     "lies_caught": 0,
-    "honest_claims": 11,
+    "honest_claims": 5,
     "fake_detective": 0,
     "fake_forensic": 0,
     "frame_push": 0,
     "vouch": 0,
     "counter_claims": 0,
     "lies_countered": 0,
-    "city_votes": 12,
+    "city_votes": 13,
     "city_votes_on_killer": 3,
     "bot_replied_to_chat": 0,
     "chat_swallowed": 0
@@ -6534,8 +6533,8 @@
     "total": 4,
     "true": 3,
     "false": 1,
-    "verified": 2,
-    "verified_right": 2,
+    "verified": 1,
+    "verified_right": 1,
     "by_source": {
      "case": 2,
      "herring": 1,
@@ -6556,7 +6555,7 @@
    "case": "#29",
    "winner": "شهر 🕵️",
    "days": 4,
-   "presses": 150,
+   "presses": 137,
    "finished": true,
    "stuck": "",
    "roles": {
@@ -6568,10 +6567,10 @@
     "مهسا": "قاتل"
    },
    "talk": {
-    "messages": 9,
+    "messages": 7,
     "lies": 1,
     "lies_caught": 0,
-    "honest_claims": 8,
+    "honest_claims": 6,
     "fake_detective": 0,
     "fake_forensic": 0,
     "frame_push": 0,
@@ -6593,8 +6592,8 @@
     "total": 4,
     "true": 3,
     "false": 1,
-    "verified": 2,
-    "verified_right": 2,
+    "verified": 1,
+    "verified_right": 1,
     "by_source": {
      "case": 2,
      "herring": 1,
@@ -6615,7 +6614,7 @@
    "case": "#33",
    "winner": "شهر 🕵️",
    "days": 5,
-   "presses": 217,
+   "presses": 173,
    "finished": true,
    "stuck": "",
    "roles": {
@@ -6627,25 +6626,25 @@
     "مهسا": "کارآگاه"
    },
    "talk": {
-    "messages": 9,
+    "messages": 8,
     "lies": 2,
     "lies_caught": 0,
-    "honest_claims": 7,
+    "honest_claims": 6,
     "fake_detective": 0,
     "fake_forensic": 0,
     "frame_push": 0,
     "vouch": 0,
     "counter_claims": 0,
     "lies_countered": 0,
-    "city_votes": 11,
-    "city_votes_on_killer": 4,
+    "city_votes": 6,
+    "city_votes_on_killer": 2,
     "bot_replied_to_chat": 0,
     "chat_swallowed": 0
    },
    "arrests": {
     "interrogated": 3,
     "interrogated_evil": 1,
-    "jailed": 2,
+    "jailed": 3,
     "jailed_evil": 1
    },
    "clues": {
@@ -6674,7 +6673,7 @@
    "case": "#10",
    "winner": "سپر بلا 🎭",
    "days": 4,
-   "presses": 140,
+   "presses": 123,
    "finished": true,
    "stuck": "",
    "roles": {
@@ -6686,8 +6685,8 @@
     "مهسا": "قاتل"
    },
    "talk": {
-    "messages": 7,
-    "lies": 3,
+    "messages": 6,
+    "lies": 2,
     "lies_caught": 0,
     "honest_claims": 4,
     "fake_detective": 0,
@@ -6696,16 +6695,16 @@
     "vouch": 0,
     "counter_claims": 0,
     "lies_countered": 0,
-    "city_votes": 3,
-    "city_votes_on_killer": 1,
+    "city_votes": 4,
+    "city_votes_on_killer": 2,
     "bot_replied_to_chat": 0,
     "chat_swallowed": 0
    },
    "arrests": {
     "interrogated": 2,
-    "interrogated_evil": 0,
+    "interrogated_evil": 1,
     "jailed": 3,
-    "jailed_evil": 0
+    "jailed_evil": 1
    },
    "clues": {
     "total": 5,
@@ -6733,7 +6732,7 @@
    "case": "#10",
    "winner": "سپر بلا 🎭",
    "days": 4,
-   "presses": 127,
+   "presses": 118,
    "finished": true,
    "stuck": "",
    "roles": {
@@ -6745,8 +6744,8 @@
     "مهسا": "قاتل"
    },
    "talk": {
-    "messages": 7,
-    "lies": 3,
+    "messages": 6,
+    "lies": 2,
     "lies_caught": 0,
     "honest_claims": 4,
     "fake_detective": 0,
@@ -6755,16 +6754,16 @@
     "vouch": 0,
     "counter_claims": 0,
     "lies_countered": 0,
-    "city_votes": 3,
-    "city_votes_on_killer": 1,
+    "city_votes": 4,
+    "city_votes_on_killer": 2,
     "bot_replied_to_chat": 0,
     "chat_swallowed": 0
    },
    "arrests": {
     "interrogated": 2,
-    "interrogated_evil": 0,
+    "interrogated_evil": 1,
     "jailed": 3,
-    "jailed_evil": 0
+    "jailed_evil": 1
    },
    "clues": {
     "total": 5,
@@ -6792,7 +6791,7 @@
    "case": "#26",
    "winner": "شهر 🕵️",
    "days": 4,
-   "presses": 166,
+   "presses": 157,
    "finished": true,
    "stuck": "",
    "roles": {
@@ -6850,7 +6849,7 @@
    "case": "#14",
    "winner": "شهر 🕵️",
    "days": 4,
-   "presses": 155,
+   "presses": 142,
    "finished": true,
    "stuck": "",
    "roles": {
@@ -6909,7 +6908,7 @@
    "case": "#14",
    "winner": "شهر 🕵️",
    "days": 4,
-   "presses": 144,
+   "presses": 141,
    "finished": true,
    "stuck": "",
    "roles": {
@@ -6967,8 +6966,8 @@
    "scenario": "دادگاه",
    "case": "#33",
    "winner": "شهر 🕵️",
-   "days": 6,
-   "presses": 281,
+   "days": 4,
+   "presses": 144,
    "finished": true,
    "stuck": "",
    "roles": {
@@ -6980,33 +6979,33 @@
     "مهسا": "کارآگاه"
    },
    "talk": {
-    "messages": 16,
-    "lies": 2,
+    "messages": 11,
+    "lies": 1,
     "lies_caught": 0,
-    "honest_claims": 14,
+    "honest_claims": 10,
     "fake_detective": 0,
     "fake_forensic": 0,
     "frame_push": 0,
     "vouch": 0,
     "counter_claims": 0,
     "lies_countered": 0,
-    "city_votes": 15,
-    "city_votes_on_killer": 7,
+    "city_votes": 13,
+    "city_votes_on_killer": 4,
     "bot_replied_to_chat": 0,
     "chat_swallowed": 0
    },
    "arrests": {
-    "interrogated": 3,
+    "interrogated": 2,
     "interrogated_evil": 1,
-    "jailed": 3,
+    "jailed": 1,
     "jailed_evil": 1
    },
    "clues": {
     "total": 5,
     "true": 4,
     "false": 1,
-    "verified": 3,
-    "verified_right": 3,
+    "verified": 1,
+    "verified_right": 1,
     "by_source": {
      "herring": 1,
      "case": 2,
@@ -7028,7 +7027,7 @@
    "case": "#14",
    "winner": "سپر بلا 🎭",
    "days": 4,
-   "presses": 129,
+   "presses": 128,
    "finished": true,
    "stuck": "",
    "roles": {
@@ -7041,32 +7040,32 @@
    },
    "talk": {
     "messages": 5,
-    "lies": 2,
+    "lies": 3,
     "lies_caught": 0,
-    "honest_claims": 3,
+    "honest_claims": 2,
     "fake_detective": 0,
     "fake_forensic": 0,
     "frame_push": 0,
     "vouch": 0,
     "counter_claims": 0,
     "lies_countered": 0,
-    "city_votes": 6,
-    "city_votes_on_killer": 3,
+    "city_votes": 8,
+    "city_votes_on_killer": 6,
     "bot_replied_to_chat": 0,
     "chat_swallowed": 0
    },
    "arrests": {
-    "interrogated": 3,
+    "interrogated": 2,
     "interrogated_evil": 1,
-    "jailed": 2,
-    "jailed_evil": 1
+    "jailed": 1,
+    "jailed_evil": 0
    },
    "clues": {
     "total": 5,
     "true": 4,
     "false": 1,
-    "verified": 1,
-    "verified_right": 1,
+    "verified": 0,
+    "verified_right": 0,
     "by_source": {
      "herring": 1,
      "case": 2,
@@ -7087,7 +7086,7 @@
    "case": "#14",
    "winner": "سپر بلا 🎭",
    "days": 4,
-   "presses": 119,
+   "presses": 108,
    "finished": true,
    "stuck": "",
    "roles": {
@@ -7100,36 +7099,36 @@
    },
    "talk": {
     "messages": 5,
-    "lies": 2,
+    "lies": 3,
     "lies_caught": 0,
-    "honest_claims": 3,
+    "honest_claims": 2,
     "fake_detective": 0,
     "fake_forensic": 0,
     "frame_push": 0,
     "vouch": 0,
     "counter_claims": 0,
     "lies_countered": 0,
-    "city_votes": 6,
+    "city_votes": 5,
     "city_votes_on_killer": 3,
     "bot_replied_to_chat": 0,
     "chat_swallowed": 0
    },
    "arrests": {
-    "interrogated": 3,
-    "interrogated_evil": 1,
-    "jailed": 2,
-    "jailed_evil": 1
+    "interrogated": 1,
+    "interrogated_evil": 0,
+    "jailed": 1,
+    "jailed_evil": 0
    },
    "clues": {
-    "total": 5,
-    "true": 4,
-    "false": 1,
-    "verified": 1,
-    "verified_right": 1,
+    "total": 9,
+    "true": 6,
+    "false": 3,
+    "verified": 0,
+    "verified_right": 0,
     "by_source": {
-     "herring": 1,
+     "herring": 3,
      "case": 2,
-     "kill": 2
+     "kill": 4
     }
    },
    "rumors": [
@@ -7146,7 +7145,7 @@
    "case": "#3",
    "winner": "شهر 🕵️",
    "days": 6,
-   "presses": 305,
+   "presses": 224,
    "finished": true,
    "stuck": "",
    "roles": {
@@ -7158,33 +7157,33 @@
     "مهسا": "وکیل"
    },
    "talk": {
-    "messages": 25,
+    "messages": 20,
     "lies": 2,
-    "lies_caught": 1,
-    "honest_claims": 22,
-    "fake_detective": 0,
-    "fake_forensic": 1,
+    "lies_caught": 0,
+    "honest_claims": 18,
+    "fake_detective": 1,
+    "fake_forensic": 0,
     "frame_push": 0,
     "vouch": 0,
-    "counter_claims": 0,
-    "lies_countered": 0,
-    "city_votes": 16,
-    "city_votes_on_killer": 6,
+    "counter_claims": 1,
+    "lies_countered": 1,
+    "city_votes": 18,
+    "city_votes_on_killer": 7,
     "bot_replied_to_chat": 0,
     "chat_swallowed": 0
    },
    "arrests": {
-    "interrogated": 2,
+    "interrogated": 3,
     "interrogated_evil": 1,
-    "jailed": 1,
+    "jailed": 2,
     "jailed_evil": 1
    },
    "clues": {
     "total": 4,
     "true": 3,
     "false": 1,
-    "verified": 3,
-    "verified_right": 3,
+    "verified": 2,
+    "verified_right": 2,
     "by_source": {
      "herring": 1,
      "case": 2,
@@ -7204,8 +7203,8 @@
    "scenario": "دادگاه",
    "case": "#3",
    "winner": "شهر 🕵️",
-   "days": 5,
-   "presses": 220,
+   "days": 7,
+   "presses": 264,
    "finished": true,
    "stuck": "",
    "roles": {
@@ -7218,38 +7217,38 @@
     "نیما": "خبرنگار"
    },
    "talk": {
-    "messages": 18,
-    "lies": 3,
+    "messages": 31,
+    "lies": 5,
     "lies_caught": 0,
-    "honest_claims": 15,
+    "honest_claims": 26,
     "fake_detective": 0,
     "fake_forensic": 1,
-    "frame_push": 1,
+    "frame_push": 3,
     "vouch": 0,
     "counter_claims": 0,
     "lies_countered": 0,
-    "city_votes": 10,
-    "city_votes_on_killer": 6,
+    "city_votes": 22,
+    "city_votes_on_killer": 12,
     "bot_replied_to_chat": 0,
     "chat_swallowed": 0
    },
    "arrests": {
-    "interrogated": 3,
+    "interrogated": 5,
     "interrogated_evil": 2,
     "jailed": 3,
     "jailed_evil": 2
    },
    "clues": {
-    "total": 8,
+    "total": 10,
     "true": 4,
-    "false": 4,
-    "verified": 4,
-    "verified_right": 4,
+    "false": 6,
+    "verified": 6,
+    "verified_right": 6,
     "by_source": {
      "case": 2,
      "herring": 2,
      "kill": 1,
-     "frame": 2,
+     "frame": 4,
      "reporter": 1
     }
    },
@@ -7265,9 +7264,9 @@
    "mode": "تایمر",
    "scenario": "دادگاه",
    "case": "#3",
-   "winner": "شهر 🕵️",
+   "winner": "قاتل‌ها 🔪",
    "days": 5,
-   "presses": 203,
+   "presses": 172,
    "finished": true,
    "stuck": "",
    "roles": {
@@ -7280,38 +7279,38 @@
     "نیما": "خبرنگار"
    },
    "talk": {
-    "messages": 18,
-    "lies": 3,
+    "messages": 26,
+    "lies": 5,
     "lies_caught": 0,
-    "honest_claims": 15,
-    "fake_detective": 0,
+    "honest_claims": 21,
+    "fake_detective": 1,
     "fake_forensic": 1,
-    "frame_push": 1,
+    "frame_push": 2,
     "vouch": 0,
     "counter_claims": 0,
     "lies_countered": 0,
-    "city_votes": 10,
-    "city_votes_on_killer": 6,
+    "city_votes": 12,
+    "city_votes_on_killer": 8,
     "bot_replied_to_chat": 0,
     "chat_swallowed": 0
    },
    "arrests": {
     "interrogated": 3,
-    "interrogated_evil": 2,
-    "jailed": 3,
-    "jailed_evil": 2
+    "interrogated_evil": 1,
+    "jailed": 2,
+    "jailed_evil": 1
    },
    "clues": {
-    "total": 8,
-    "true": 4,
-    "false": 4,
-    "verified": 4,
-    "verified_right": 4,
+    "total": 11,
+    "true": 5,
+    "false": 6,
+    "verified": 3,
+    "verified_right": 3,
     "by_source": {
      "case": 2,
      "herring": 2,
-     "kill": 1,
-     "frame": 2,
+     "kill": 2,
+     "frame": 4,
      "reporter": 1
     }
    },
@@ -7319,7 +7318,7 @@
     0,
     0
    ],
-   "winner_team": "city"
+   "winner_team": "killers"
   },
   {
    "players": 7,
@@ -7329,7 +7328,7 @@
    "case": "#10",
    "winner": "قاتل‌ها 🔪",
    "days": 3,
-   "presses": 146,
+   "presses": 138,
    "finished": true,
    "stuck": "",
    "roles": {
@@ -7389,9 +7388,9 @@
    "mode": "دکمه در گروه",
    "scenario": "دادگاه",
    "case": "#14",
-   "winner": "قاتل‌ها 🔪",
-   "days": 9,
-   "presses": 382,
+   "winner": "شهر 🕵️",
+   "days": 6,
+   "presses": 212,
    "finished": true,
    "stuck": "",
    "roles": {
@@ -7404,37 +7403,37 @@
     "نیما": "کارآگاه"
    },
    "talk": {
-    "messages": 27,
-    "lies": 11,
+    "messages": 17,
+    "lies": 5,
     "lies_caught": 1,
-    "honest_claims": 15,
-    "fake_detective": 1,
-    "fake_forensic": 2,
-    "frame_push": 1,
-    "vouch": 1,
+    "honest_claims": 11,
+    "fake_detective": 0,
+    "fake_forensic": 1,
+    "frame_push": 2,
+    "vouch": 0,
     "counter_claims": 0,
     "lies_countered": 0,
-    "city_votes": 27,
-    "city_votes_on_killer": 19,
+    "city_votes": 16,
+    "city_votes_on_killer": 7,
     "bot_replied_to_chat": 0,
     "chat_swallowed": 0
    },
    "arrests": {
     "interrogated": 4,
     "interrogated_evil": 2,
-    "jailed": 2,
+    "jailed": 3,
     "jailed_evil": 2
    },
    "clues": {
-    "total": 10,
-    "true": 5,
-    "false": 5,
-    "verified": 5,
-    "verified_right": 5,
+    "total": 8,
+    "true": 4,
+    "false": 4,
+    "verified": 4,
+    "verified_right": 4,
     "by_source": {
      "case": 2,
-     "herring": 2,
-     "kill": 3,
+     "herring": 1,
+     "kill": 2,
      "frame": 3
     }
    },
@@ -7442,7 +7441,7 @@
     0,
     0
    ],
-   "winner_team": "killers"
+   "winner_team": "city"
   },
   {
    "players": 7,
@@ -7450,9 +7449,9 @@
    "mode": "تایمر",
    "scenario": "دادگاه",
    "case": "#14",
-   "winner": "قاتل‌ها 🔪",
-   "days": 9,
-   "presses": 346,
+   "winner": "شهر 🕵️",
+   "days": 6,
+   "presses": 205,
    "finished": true,
    "stuck": "",
    "roles": {
@@ -7465,37 +7464,37 @@
     "نیما": "کارآگاه"
    },
    "talk": {
-    "messages": 27,
-    "lies": 11,
+    "messages": 17,
+    "lies": 5,
     "lies_caught": 1,
-    "honest_claims": 15,
-    "fake_detective": 1,
-    "fake_forensic": 2,
-    "frame_push": 1,
-    "vouch": 1,
+    "honest_claims": 11,
+    "fake_detective": 0,
+    "fake_forensic": 1,
+    "frame_push": 2,
+    "vouch": 0,
     "counter_claims": 0,
     "lies_countered": 0,
-    "city_votes": 24,
-    "city_votes_on_killer": 18,
+    "city_votes": 14,
+    "city_votes_on_killer": 7,
     "bot_replied_to_chat": 0,
     "chat_swallowed": 0
    },
    "arrests": {
-    "interrogated": 3,
+    "interrogated": 4,
     "interrogated_evil": 2,
-    "jailed": 2,
+    "jailed": 3,
     "jailed_evil": 2
    },
    "clues": {
-    "total": 10,
-    "true": 5,
-    "false": 5,
-    "verified": 5,
-    "verified_right": 5,
+    "total": 8,
+    "true": 4,
+    "false": 4,
+    "verified": 4,
+    "verified_right": 4,
     "by_source": {
      "case": 2,
-     "herring": 2,
-     "kill": 3,
+     "herring": 1,
+     "kill": 2,
      "frame": 3
     }
    },
@@ -7503,7 +7502,7 @@
     0,
     0
    ],
-   "winner_team": "killers"
+   "winner_team": "city"
   },
   {
    "players": 7,
@@ -7513,7 +7512,7 @@
    "case": "#29",
    "winner": "قاتل‌ها 🔪",
    "days": 3,
-   "presses": 167,
+   "presses": 160,
    "finished": true,
    "stuck": "",
    "roles": {
@@ -7574,7 +7573,7 @@
    "case": "#21",
    "winner": "شهر 🕵️",
    "days": 6,
-   "presses": 230,
+   "presses": 208,
    "finished": true,
    "stuck": "",
    "roles": {
@@ -7587,23 +7586,23 @@
     "نیما": "همدست"
    },
    "talk": {
-    "messages": 28,
+    "messages": 29,
     "lies": 4,
     "lies_caught": 0,
-    "honest_claims": 24,
+    "honest_claims": 25,
     "fake_detective": 0,
     "fake_forensic": 1,
     "frame_push": 0,
     "vouch": 0,
     "counter_claims": 1,
     "lies_countered": 1,
-    "city_votes": 16,
+    "city_votes": 17,
     "city_votes_on_killer": 6,
     "bot_replied_to_chat": 0,
     "chat_swallowed": 0
    },
    "arrests": {
-    "interrogated": 4,
+    "interrogated": 3,
     "interrogated_evil": 2,
     "jailed": 3,
     "jailed_evil": 2
@@ -7636,7 +7635,7 @@
    "case": "#21",
    "winner": "شهر 🕵️",
    "days": 7,
-   "presses": 198,
+   "presses": 197,
    "finished": true,
    "stuck": "",
    "roles": {
@@ -7649,9 +7648,9 @@
     "نیما": "همدست"
    },
    "talk": {
-    "messages": 40,
+    "messages": 39,
     "lies": 5,
-    "lies_caught": 1,
+    "lies_caught": 0,
     "honest_claims": 34,
     "fake_detective": 1,
     "fake_forensic": 1,
@@ -7674,8 +7673,8 @@
     "total": 9,
     "true": 4,
     "false": 5,
-    "verified": 2,
-    "verified_right": 2,
+    "verified": 1,
+    "verified_right": 1,
     "by_source": {
      "case": 2,
      "herring": 1,
@@ -7698,7 +7697,7 @@
    "case": "#30",
    "winner": "شهر 🕵️",
    "days": 5,
-   "presses": 238,
+   "presses": 220,
    "finished": true,
    "stuck": "",
    "roles": {
@@ -7711,23 +7710,23 @@
     "نیما": "قاتل"
    },
    "talk": {
-    "messages": 17,
+    "messages": 18,
     "lies": 3,
     "lies_caught": 0,
-    "honest_claims": 14,
+    "honest_claims": 15,
     "fake_detective": 0,
-    "fake_forensic": 0,
-    "frame_push": 2,
+    "fake_forensic": 1,
+    "frame_push": 1,
     "vouch": 0,
     "counter_claims": 0,
     "lies_countered": 0,
-    "city_votes": 11,
+    "city_votes": 10,
     "city_votes_on_killer": 6,
     "bot_replied_to_chat": 0,
     "chat_swallowed": 0
    },
    "arrests": {
-    "interrogated": 3,
+    "interrogated": 4,
     "interrogated_evil": 2,
     "jailed": 3,
     "jailed_evil": 2
@@ -7736,8 +7735,8 @@
     "total": 7,
     "true": 4,
     "false": 3,
-    "verified": 2,
-    "verified_right": 2,
+    "verified": 3,
+    "verified_right": 3,
     "by_source": {
      "case": 2,
      "herring": 1,
@@ -7760,7 +7759,7 @@
    "case": "#12",
    "winner": "قاتل‌ها 🔪",
    "days": 8,
-   "presses": 316,
+   "presses": 314,
    "finished": true,
    "stuck": "",
    "roles": {
@@ -7821,7 +7820,7 @@
    "case": "#12",
    "winner": "قاتل‌ها 🔪",
    "days": 8,
-   "presses": 290,
+   "presses": 309,
    "finished": true,
    "stuck": "",
    "roles": {
@@ -7882,7 +7881,7 @@
    "case": "#10",
    "winner": "قاتل‌ها 🔪",
    "days": 3,
-   "presses": 137,
+   "presses": 130,
    "finished": true,
    "stuck": "",
    "roles": {
@@ -7943,7 +7942,7 @@
    "case": "#3",
    "winner": "قاتل‌ها 🔪",
    "days": 4,
-   "presses": 156,
+   "presses": 158,
    "finished": true,
    "stuck": "",
    "roles": {
@@ -7957,37 +7956,37 @@
     "رویا": "وکیل"
    },
    "talk": {
-    "messages": 18,
+    "messages": 16,
     "lies": 5,
     "lies_caught": 0,
-    "honest_claims": 13,
+    "honest_claims": 11,
     "fake_detective": 0,
     "fake_forensic": 0,
-    "frame_push": 2,
+    "frame_push": 1,
     "vouch": 0,
     "counter_claims": 0,
     "lies_countered": 0,
-    "city_votes": 11,
-    "city_votes_on_killer": 9,
+    "city_votes": 12,
+    "city_votes_on_killer": 8,
     "bot_replied_to_chat": 0,
     "chat_swallowed": 0
    },
    "arrests": {
-    "interrogated": 3,
-    "interrogated_evil": 2,
+    "interrogated": 2,
+    "interrogated_evil": 1,
     "jailed": 2,
     "jailed_evil": 1
    },
    "clues": {
-    "total": 8,
+    "total": 9,
     "true": 4,
-    "false": 4,
-    "verified": 0,
-    "verified_right": 0,
+    "false": 5,
+    "verified": 1,
+    "verified_right": 1,
     "by_source": {
      "herring": 1,
      "case": 2,
-     "frame": 3,
+     "frame": 4,
      "kill": 2
     }
    },
@@ -8005,7 +8004,7 @@
    "case": "#3",
    "winner": "قاتل‌ها 🔪",
    "days": 3,
-   "presses": 116,
+   "presses": 114,
    "finished": true,
    "stuck": "",
    "roles": {
@@ -8065,9 +8064,9 @@
    "mode": "دکمه از پیوی",
    "scenario": "دادگاه",
    "case": "#35",
-   "winner": "قاتل‌ها 🔪",
-   "days": 7,
-   "presses": 370,
+   "winner": "شهر 🕵️",
+   "days": 9,
+   "presses": 407,
    "finished": true,
    "stuck": "",
    "roles": {
@@ -8081,37 +8080,37 @@
     "رویا": "بازجو"
    },
    "talk": {
-    "messages": 27,
-    "lies": 8,
+    "messages": 28,
+    "lies": 7,
     "lies_caught": 0,
-    "honest_claims": 19,
+    "honest_claims": 21,
     "fake_detective": 0,
     "fake_forensic": 1,
-    "frame_push": 4,
+    "frame_push": 3,
     "vouch": 0,
     "counter_claims": 0,
     "lies_countered": 0,
-    "city_votes": 21,
-    "city_votes_on_killer": 8,
+    "city_votes": 28,
+    "city_votes_on_killer": 14,
     "bot_replied_to_chat": 0,
     "chat_swallowed": 0
    },
    "arrests": {
     "interrogated": 4,
-    "interrogated_evil": 1,
+    "interrogated_evil": 2,
     "jailed": 3,
-    "jailed_evil": 1
+    "jailed_evil": 2
    },
    "clues": {
-    "total": 11,
+    "total": 9,
     "true": 4,
-    "false": 7,
-    "verified": 2,
-    "verified_right": 2,
+    "false": 5,
+    "verified": 5,
+    "verified_right": 5,
     "by_source": {
      "case": 2,
      "herring": 1,
-     "frame": 6,
+     "frame": 4,
      "kill": 2
     }
    },
@@ -8119,7 +8118,7 @@
     0,
     0
    ],
-   "winner_team": "killers"
+   "winner_team": "city"
   },
   {
    "players": 8,
@@ -8129,7 +8128,7 @@
    "case": "#30",
    "winner": "قاتل‌ها 🔪",
    "days": 3,
-   "presses": 153,
+   "presses": 152,
    "finished": true,
    "stuck": "",
    "roles": {
@@ -8191,7 +8190,7 @@
    "case": "#30",
    "winner": "قاتل‌ها 🔪",
    "days": 3,
-   "presses": 146,
+   "presses": 152,
    "finished": true,
    "stuck": "",
    "roles": {
@@ -8252,8 +8251,8 @@
    "scenario": "دادگاه",
    "case": "#2",
    "winner": "قاتل‌ها 🔪",
-   "days": 8,
-   "presses": 395,
+   "days": 7,
+   "presses": 298,
    "finished": true,
    "stuck": "",
    "roles": {
@@ -8267,39 +8266,38 @@
     "رویا": "پزشک قانونی"
    },
    "talk": {
-    "messages": 28,
-    "lies": 8,
-    "lies_caught": 1,
-    "honest_claims": 19,
-    "fake_detective": 0,
+    "messages": 25,
+    "lies": 7,
+    "lies_caught": 0,
+    "honest_claims": 18,
+    "fake_detective": 1,
     "fake_forensic": 1,
-    "frame_push": 6,
+    "frame_push": 4,
     "vouch": 0,
     "counter_claims": 0,
     "lies_countered": 0,
-    "city_votes": 27,
-    "city_votes_on_killer": 7,
+    "city_votes": 14,
+    "city_votes_on_killer": 6,
     "bot_replied_to_chat": 0,
     "chat_swallowed": 0
    },
    "arrests": {
-    "interrogated": 3,
-    "interrogated_evil": 1,
-    "jailed": 3,
+    "interrogated": 5,
+    "interrogated_evil": 2,
+    "jailed": 4,
     "jailed_evil": 1
    },
    "clues": {
-    "total": 12,
-    "true": 8,
+    "total": 8,
+    "true": 4,
     "false": 4,
-    "verified": 6,
-    "verified_right": 6,
+    "verified": 2,
+    "verified_right": 2,
     "by_source": {
      "case": 2,
      "herring": 1,
-     "kill": 5,
-     "frame": 3,
-     "reporter": 1
+     "kill": 2,
+     "frame": 3
     }
    },
    "rumors": [
@@ -8315,8 +8313,8 @@
    "scenario": "دادگاه",
    "case": "#26",
    "winner": "قاتل‌ها 🔪",
-   "days": 4,
-   "presses": 183,
+   "days": 5,
+   "presses": 208,
    "finished": true,
    "stuck": "",
    "roles": {
@@ -8330,38 +8328,39 @@
     "رویا": "همدست"
    },
    "talk": {
-    "messages": 14,
-    "lies": 6,
-    "lies_caught": 1,
-    "honest_claims": 7,
-    "fake_detective": 0,
+    "messages": 20,
+    "lies": 9,
+    "lies_caught": 0,
+    "honest_claims": 11,
+    "fake_detective": 1,
     "fake_forensic": 2,
-    "frame_push": 1,
-    "vouch": 0,
+    "frame_push": 2,
+    "vouch": 1,
     "counter_claims": 0,
     "lies_countered": 0,
-    "city_votes": 12,
-    "city_votes_on_killer": 10,
+    "city_votes": 18,
+    "city_votes_on_killer": 12,
     "bot_replied_to_chat": 0,
     "chat_swallowed": 0
    },
    "arrests": {
     "interrogated": 3,
-    "interrogated_evil": 2,
+    "interrogated_evil": 1,
     "jailed": 1,
     "jailed_evil": 0
    },
    "clues": {
-    "total": 7,
-    "true": 4,
-    "false": 3,
-    "verified": 2,
-    "verified_right": 2,
+    "total": 11,
+    "true": 6,
+    "false": 5,
+    "verified": 1,
+    "verified_right": 1,
     "by_source": {
      "herring": 1,
      "case": 2,
-     "frame": 2,
-     "kill": 2
+     "frame": 4,
+     "kill": 3,
+     "witness": 1
     }
    },
    "rumors": [
@@ -8377,8 +8376,8 @@
    "scenario": "دادگاه",
    "case": "#26",
    "winner": "قاتل‌ها 🔪",
-   "days": 4,
-   "presses": 172,
+   "days": 5,
+   "presses": 200,
    "finished": true,
    "stuck": "",
    "roles": {
@@ -8392,38 +8391,39 @@
     "رویا": "همدست"
    },
    "talk": {
-    "messages": 14,
-    "lies": 6,
-    "lies_caught": 1,
-    "honest_claims": 7,
-    "fake_detective": 0,
+    "messages": 20,
+    "lies": 9,
+    "lies_caught": 0,
+    "honest_claims": 11,
+    "fake_detective": 1,
     "fake_forensic": 2,
-    "frame_push": 1,
-    "vouch": 0,
+    "frame_push": 2,
+    "vouch": 1,
     "counter_claims": 0,
     "lies_countered": 0,
-    "city_votes": 12,
+    "city_votes": 16,
     "city_votes_on_killer": 10,
     "bot_replied_to_chat": 0,
     "chat_swallowed": 0
    },
    "arrests": {
     "interrogated": 3,
-    "interrogated_evil": 2,
+    "interrogated_evil": 1,
     "jailed": 1,
     "jailed_evil": 0
    },
    "clues": {
-    "total": 7,
-    "true": 4,
-    "false": 3,
-    "verified": 2,
-    "verified_right": 2,
+    "total": 11,
+    "true": 6,
+    "false": 5,
+    "verified": 1,
+    "verified_right": 1,
     "by_source": {
      "herring": 1,
      "case": 2,
-     "frame": 2,
-     "kill": 2
+     "frame": 4,
+     "kill": 3,
+     "witness": 1
     }
    },
    "rumors": [
@@ -8438,9 +8438,9 @@
    "mode": "دکمه از پیوی",
    "scenario": "دادگاه",
    "case": "#2",
-   "winner": "شهر 🕵️",
-   "days": 8,
-   "presses": 393,
+   "winner": "قاتل‌ها 🔪",
+   "days": 7,
+   "presses": 320,
    "finished": true,
    "stuck": "",
    "roles": {
@@ -8454,45 +8454,45 @@
     "رویا": "وکیل"
    },
    "talk": {
-    "messages": 40,
-    "lies": 9,
+    "messages": 33,
+    "lies": 10,
     "lies_caught": 0,
-    "honest_claims": 31,
-    "fake_detective": 2,
+    "honest_claims": 23,
+    "fake_detective": 1,
     "fake_forensic": 2,
-    "frame_push": 2,
-    "vouch": 2,
-    "counter_claims": 2,
-    "lies_countered": 2,
-    "city_votes": 20,
-    "city_votes_on_killer": 9,
+    "frame_push": 4,
+    "vouch": 1,
+    "counter_claims": 1,
+    "lies_countered": 1,
+    "city_votes": 17,
+    "city_votes_on_killer": 11,
     "bot_replied_to_chat": 0,
     "chat_swallowed": 0
    },
    "arrests": {
-    "interrogated": 5,
-    "interrogated_evil": 2,
+    "interrogated": 4,
+    "interrogated_evil": 1,
     "jailed": 4,
-    "jailed_evil": 2
+    "jailed_evil": 1
    },
    "clues": {
-    "total": 9,
-    "true": 3,
-    "false": 6,
-    "verified": 5,
-    "verified_right": 5,
+    "total": 12,
+    "true": 5,
+    "false": 7,
+    "verified": 4,
+    "verified_right": 4,
     "by_source": {
      "case": 2,
      "herring": 1,
-     "kill": 1,
-     "frame": 5
+     "kill": 3,
+     "frame": 6
     }
    },
    "rumors": [
     0,
     0
    ],
-   "winner_team": "city"
+   "winner_team": "killers"
   },
   {
    "players": 8,
@@ -8501,8 +8501,8 @@
    "scenario": "دادگاه",
    "case": "#14",
    "winner": "شهر 🕵️",
-   "days": 7,
-   "presses": 268,
+   "days": 6,
+   "presses": 211,
    "finished": true,
    "stuck": "",
    "roles": {
@@ -8516,38 +8516,38 @@
     "رویا": "کالبدشکاف"
    },
    "talk": {
-    "messages": 25,
-    "lies": 6,
+    "messages": 18,
+    "lies": 4,
     "lies_caught": 0,
-    "honest_claims": 19,
-    "fake_detective": 1,
+    "honest_claims": 14,
+    "fake_detective": 0,
     "fake_forensic": 0,
-    "frame_push": 3,
-    "vouch": 1,
-    "counter_claims": 1,
-    "lies_countered": 1,
-    "city_votes": 21,
-    "city_votes_on_killer": 10,
+    "frame_push": 1,
+    "vouch": 0,
+    "counter_claims": 0,
+    "lies_countered": 0,
+    "city_votes": 16,
+    "city_votes_on_killer": 6,
     "bot_replied_to_chat": 0,
     "chat_swallowed": 0
    },
    "arrests": {
-    "interrogated": 4,
+    "interrogated": 3,
     "interrogated_evil": 2,
-    "jailed": 3,
+    "jailed": 4,
     "jailed_evil": 2
    },
    "clues": {
-    "total": 8,
+    "total": 7,
     "true": 3,
-    "false": 5,
-    "verified": 6,
-    "verified_right": 6,
+    "false": 4,
+    "verified": 2,
+    "verified_right": 2,
     "by_source": {
      "case": 2,
      "herring": 1,
      "kill": 1,
-     "frame": 4
+     "frame": 3
     }
    },
    "rumors": [
@@ -8563,8 +8563,8 @@
    "scenario": "دادگاه",
    "case": "#14",
    "winner": "شهر 🕵️",
-   "days": 9,
-   "presses": 307,
+   "days": 6,
+   "presses": 195,
    "finished": true,
    "stuck": "",
    "roles": {
@@ -8578,38 +8578,38 @@
     "رویا": "کالبدشکاف"
    },
    "talk": {
-    "messages": 39,
-    "lies": 7,
-    "lies_caught": 1,
-    "honest_claims": 31,
-    "fake_detective": 1,
-    "fake_forensic": 1,
-    "frame_push": 2,
-    "vouch": 1,
-    "counter_claims": 1,
-    "lies_countered": 1,
-    "city_votes": 21,
-    "city_votes_on_killer": 11,
+    "messages": 17,
+    "lies": 4,
+    "lies_caught": 0,
+    "honest_claims": 13,
+    "fake_detective": 0,
+    "fake_forensic": 0,
+    "frame_push": 1,
+    "vouch": 0,
+    "counter_claims": 0,
+    "lies_countered": 0,
+    "city_votes": 10,
+    "city_votes_on_killer": 6,
     "bot_replied_to_chat": 0,
     "chat_swallowed": 0
    },
    "arrests": {
-    "interrogated": 4,
+    "interrogated": 3,
     "interrogated_evil": 2,
-    "jailed": 3,
+    "jailed": 4,
     "jailed_evil": 2
    },
    "clues": {
-    "total": 8,
+    "total": 7,
     "true": 3,
-    "false": 5,
-    "verified": 8,
-    "verified_right": 8,
+    "false": 4,
+    "verified": 2,
+    "verified_right": 2,
     "by_source": {
      "case": 2,
      "herring": 1,
      "kill": 1,
-     "frame": 4
+     "frame": 3
     }
    },
    "rumors": [
@@ -8624,9 +8624,9 @@
    "mode": "دکمه از پیوی",
    "scenario": "دادگاه",
    "case": "#14",
-   "winner": "شهر 🕵️",
+   "winner": "قاتل‌ها 🔪",
    "days": 6,
-   "presses": 307,
+   "presses": 267,
    "finished": true,
    "stuck": "",
    "roles": {
@@ -8640,46 +8640,46 @@
     "رویا": "خبرنگار"
    },
    "talk": {
-    "messages": 29,
-    "lies": 6,
+    "messages": 32,
+    "lies": 7,
     "lies_caught": 0,
-    "honest_claims": 23,
+    "honest_claims": 25,
     "fake_detective": 2,
-    "fake_forensic": 0,
-    "frame_push": 0,
-    "vouch": 2,
-    "counter_claims": 2,
-    "lies_countered": 2,
+    "fake_forensic": 1,
+    "frame_push": 1,
+    "vouch": 1,
+    "counter_claims": 1,
+    "lies_countered": 1,
     "city_votes": 18,
-    "city_votes_on_killer": 8,
+    "city_votes_on_killer": 7,
     "bot_replied_to_chat": 0,
     "chat_swallowed": 0
    },
    "arrests": {
     "interrogated": 4,
-    "interrogated_evil": 2,
-    "jailed": 5,
-    "jailed_evil": 2
+    "interrogated_evil": 1,
+    "jailed": 3,
+    "jailed_evil": 1
    },
    "clues": {
-    "total": 8,
-    "true": 4,
-    "false": 4,
-    "verified": 4,
-    "verified_right": 4,
+    "total": 12,
+    "true": 6,
+    "false": 6,
+    "verified": 3,
+    "verified_right": 3,
     "by_source": {
      "case": 2,
-     "herring": 1,
+     "herring": 2,
      "witness": 1,
-     "frame": 3,
-     "kill": 1
+     "frame": 4,
+     "kill": 3
     }
    },
    "rumors": [
     0,
     0
    ],
-   "winner_team": "city"
+   "winner_team": "killers"
   },
   {
    "players": 9,
@@ -8689,7 +8689,7 @@
    "case": "#21",
    "winner": "شهر 🕵️",
    "days": 13,
-   "presses": 688,
+   "presses": 684,
    "finished": true,
    "stuck": "",
    "roles": {
@@ -8753,7 +8753,7 @@
    "case": "#21",
    "winner": "شهر 🕵️",
    "days": 13,
-   "presses": 649,
+   "presses": 682,
    "finished": true,
    "stuck": "",
    "roles": {
@@ -8815,9 +8815,9 @@
    "mode": "دکمه از پیوی",
    "scenario": "دادگاه",
    "case": "#3",
-   "winner": "شهر 🕵️",
-   "days": 11,
-   "presses": 574,
+   "winner": "قاتل‌ها 🔪",
+   "days": 4,
+   "presses": 236,
    "finished": true,
    "stuck": "",
    "roles": {
@@ -8832,45 +8832,46 @@
     "پویا": "همدست"
    },
    "talk": {
-    "messages": 49,
-    "lies": 12,
-    "lies_caught": 2,
-    "honest_claims": 35,
+    "messages": 28,
+    "lies": 10,
+    "lies_caught": 0,
+    "honest_claims": 18,
     "fake_detective": 2,
-    "fake_forensic": 2,
+    "fake_forensic": 3,
     "frame_push": 0,
     "vouch": 2,
     "counter_claims": 1,
     "lies_countered": 1,
-    "city_votes": 33,
-    "city_votes_on_killer": 27,
+    "city_votes": 16,
+    "city_votes_on_killer": 14,
     "bot_replied_to_chat": 0,
     "chat_swallowed": 0
    },
    "arrests": {
-    "interrogated": 5,
-    "interrogated_evil": 3,
-    "jailed": 5,
-    "jailed_evil": 3
+    "interrogated": 2,
+    "interrogated_evil": 1,
+    "jailed": 2,
+    "jailed_evil": 1
    },
    "clues": {
-    "total": 5,
-    "true": 3,
-    "false": 2,
-    "verified": 5,
-    "verified_right": 5,
+    "total": 10,
+    "true": 7,
+    "false": 3,
+    "verified": 3,
+    "verified_right": 3,
     "by_source": {
      "case": 2,
      "herring": 1,
-     "frame": 1,
-     "kill": 1
+     "frame": 2,
+     "kill": 3,
+     "witness": 2
     }
    },
    "rumors": [
     0,
     0
    ],
-   "winner_team": "city"
+   "winner_team": "killers"
   },
   {
    "players": 9,
@@ -8880,7 +8881,7 @@
    "case": "#38",
    "winner": "قاتل‌ها 🔪",
    "days": 3,
-   "presses": 193,
+   "presses": 192,
    "finished": true,
    "stuck": "",
    "roles": {
@@ -8943,7 +8944,7 @@
    "case": "#38",
    "winner": "قاتل‌ها 🔪",
    "days": 4,
-   "presses": 224,
+   "presses": 225,
    "finished": true,
    "stuck": "",
    "roles": {
@@ -8969,7 +8970,7 @@
     "counter_claims": 1,
     "lies_countered": 1,
     "city_votes": 11,
-    "city_votes_on_killer": 6,
+    "city_votes_on_killer": 7,
     "bot_replied_to_chat": 0,
     "chat_swallowed": 0
    },
@@ -9008,7 +9009,7 @@
    "case": "#21",
    "winner": "شهر 🕵️",
    "days": 8,
-   "presses": 468,
+   "presses": 420,
    "finished": true,
    "stuck": "",
    "roles": {
@@ -9023,17 +9024,17 @@
     "پویا": "پزشک قانونی"
    },
    "talk": {
-    "messages": 45,
-    "lies": 9,
-    "lies_caught": 2,
-    "honest_claims": 34,
-    "fake_detective": 0,
-    "fake_forensic": 2,
-    "frame_push": 1,
-    "vouch": 0,
+    "messages": 48,
+    "lies": 10,
+    "lies_caught": 1,
+    "honest_claims": 37,
+    "fake_detective": 1,
+    "fake_forensic": 3,
+    "frame_push": 2,
+    "vouch": 1,
     "counter_claims": 2,
     "lies_countered": 2,
-    "city_votes": 21,
+    "city_votes": 25,
     "city_votes_on_killer": 14,
     "bot_replied_to_chat": 0,
     "chat_swallowed": 0
@@ -9048,8 +9049,8 @@
     "total": 8,
     "true": 4,
     "false": 4,
-    "verified": 5,
-    "verified_right": 5,
+    "verified": 4,
+    "verified_right": 4,
     "by_source": {
      "case": 2,
      "herring": 1,
@@ -9072,7 +9073,7 @@
    "case": "#14",
    "winner": "قاتل‌ها 🔪",
    "days": 5,
-   "presses": 281,
+   "presses": 275,
    "finished": true,
    "stuck": "",
    "roles": {
@@ -9088,13 +9089,13 @@
    },
    "talk": {
     "messages": 24,
-    "lies": 13,
+    "lies": 12,
     "lies_caught": 0,
-    "honest_claims": 11,
-    "fake_detective": 2,
+    "honest_claims": 12,
+    "fake_detective": 1,
     "fake_forensic": 2,
-    "frame_push": 3,
-    "vouch": 2,
+    "frame_push": 2,
+    "vouch": 1,
     "counter_claims": 0,
     "lies_countered": 0,
     "city_votes": 17,
@@ -9112,8 +9113,8 @@
     "total": 14,
     "true": 7,
     "false": 7,
-    "verified": 4,
-    "verified_right": 4,
+    "verified": 3,
+    "verified_right": 3,
     "by_source": {
      "case": 2,
      "herring": 2,
@@ -9137,7 +9138,7 @@
    "case": "#14",
    "winner": "قاتل‌ها 🔪",
    "days": 5,
-   "presses": 265,
+   "presses": 272,
    "finished": true,
    "stuck": "",
    "roles": {
@@ -9153,13 +9154,13 @@
    },
    "talk": {
     "messages": 24,
-    "lies": 13,
+    "lies": 12,
     "lies_caught": 0,
-    "honest_claims": 11,
-    "fake_detective": 2,
+    "honest_claims": 12,
+    "fake_detective": 1,
     "fake_forensic": 2,
-    "frame_push": 3,
-    "vouch": 2,
+    "frame_push": 2,
+    "vouch": 1,
     "counter_claims": 0,
     "lies_countered": 0,
     "city_votes": 17,
@@ -9177,8 +9178,8 @@
     "total": 14,
     "true": 7,
     "false": 7,
-    "verified": 4,
-    "verified_right": 4,
+    "verified": 3,
+    "verified_right": 3,
     "by_source": {
      "case": 2,
      "herring": 2,
@@ -9202,7 +9203,7 @@
    "case": "#10",
    "winner": "قاتل‌ها 🔪",
    "days": 2,
-   "presses": 124,
+   "presses": 119,
    "finished": true,
    "stuck": "",
    "roles": {
@@ -9267,7 +9268,7 @@
    "case": "#21",
    "winner": "قاتل‌ها 🔪",
    "days": 2,
-   "presses": 109,
+   "presses": 108,
    "finished": true,
    "stuck": "",
    "roles": {
@@ -9331,7 +9332,7 @@
    "case": "#21",
    "winner": "قاتل‌ها 🔪",
    "days": 2,
-   "presses": 105,
+   "presses": 108,
    "finished": true,
    "stuck": "",
    "roles": {
@@ -9395,7 +9396,7 @@
    "case": "#35",
    "winner": "شهر 🕵️",
    "days": 8,
-   "presses": 416,
+   "presses": 388,
    "finished": true,
    "stuck": "",
    "roles": {
@@ -9456,8 +9457,8 @@
    "scenario": "دادگاه",
    "case": "#2",
    "winner": "قاتل‌ها 🔪",
-   "days": 5,
-   "presses": 283,
+   "days": 4,
+   "presses": 216,
    "finished": true,
    "stuck": "",
    "roles": {
@@ -9473,39 +9474,39 @@
     "شیرین": "قاتل"
    },
    "talk": {
-    "messages": 28,
-    "lies": 11,
-    "lies_caught": 0,
-    "honest_claims": 17,
+    "messages": 26,
+    "lies": 9,
+    "lies_caught": 1,
+    "honest_claims": 16,
     "fake_detective": 0,
-    "fake_forensic": 1,
-    "frame_push": 2,
+    "fake_forensic": 2,
+    "frame_push": 1,
     "vouch": 0,
-    "counter_claims": 0,
-    "lies_countered": 0,
-    "city_votes": 16,
+    "counter_claims": 1,
+    "lies_countered": 1,
+    "city_votes": 14,
     "city_votes_on_killer": 5,
     "bot_replied_to_chat": 0,
     "chat_swallowed": 0
    },
    "arrests": {
-    "interrogated": 4,
+    "interrogated": 3,
     "interrogated_evil": 1,
-    "jailed": 3,
-    "jailed_evil": 1
+    "jailed": 2,
+    "jailed_evil": 0
    },
    "clues": {
-    "total": 12,
-    "true": 6,
-    "false": 6,
+    "total": 13,
+    "true": 8,
+    "false": 5,
     "verified": 3,
     "verified_right": 3,
     "by_source": {
      "case": 2,
-     "herring": 1,
-     "frame": 5,
-     "kill": 3,
-     "reporter": 1
+     "herring": 2,
+     "frame": 3,
+     "kill": 4,
+     "reporter": 2
     }
    },
    "rumors": [
@@ -9521,8 +9522,8 @@
    "scenario": "دادگاه",
    "case": "#2",
    "winner": "قاتل‌ها 🔪",
-   "days": 5,
-   "presses": 267,
+   "days": 4,
+   "presses": 214,
    "finished": true,
    "stuck": "",
    "roles": {
@@ -9538,39 +9539,39 @@
     "شیرین": "قاتل"
    },
    "talk": {
-    "messages": 28,
-    "lies": 11,
-    "lies_caught": 0,
-    "honest_claims": 17,
+    "messages": 26,
+    "lies": 9,
+    "lies_caught": 1,
+    "honest_claims": 16,
     "fake_detective": 0,
-    "fake_forensic": 1,
-    "frame_push": 2,
+    "fake_forensic": 2,
+    "frame_push": 1,
     "vouch": 0,
-    "counter_claims": 0,
-    "lies_countered": 0,
-    "city_votes": 16,
+    "counter_claims": 1,
+    "lies_countered": 1,
+    "city_votes": 14,
     "city_votes_on_killer": 5,
     "bot_replied_to_chat": 0,
     "chat_swallowed": 0
    },
    "arrests": {
-    "interrogated": 4,
+    "interrogated": 3,
     "interrogated_evil": 1,
-    "jailed": 3,
-    "jailed_evil": 1
+    "jailed": 2,
+    "jailed_evil": 0
    },
    "clues": {
-    "total": 12,
-    "true": 6,
-    "false": 6,
+    "total": 13,
+    "true": 8,
+    "false": 5,
     "verified": 3,
     "verified_right": 3,
     "by_source": {
      "case": 2,
-     "herring": 1,
-     "frame": 5,
-     "kill": 3,
-     "reporter": 1
+     "herring": 2,
+     "frame": 3,
+     "kill": 4,
+     "reporter": 2
     }
    },
    "rumors": [
@@ -9587,7 +9588,7 @@
    "case": "#3",
    "winner": "سپر بلا 🎭",
    "days": 4,
-   "presses": 259,
+   "presses": 246,
    "finished": true,
    "stuck": "",
    "roles": {
@@ -9603,12 +9604,12 @@
     "شیرین": "کارآگاه"
    },
    "talk": {
-    "messages": 28,
+    "messages": 29,
     "lies": 9,
     "lies_caught": 1,
-    "honest_claims": 18,
+    "honest_claims": 19,
     "fake_detective": 0,
-    "fake_forensic": 2,
+    "fake_forensic": 3,
     "frame_push": 1,
     "vouch": 0,
     "counter_claims": 0,
@@ -9652,7 +9653,7 @@
    "case": "#38",
    "winner": "شهر 🕵️",
    "days": 8,
-   "presses": 467,
+   "presses": 466,
    "finished": true,
    "stuck": "",
    "roles": {
@@ -9715,7 +9716,7 @@
    "case": "#38",
    "winner": "شهر 🕵️",
    "days": 8,
-   "presses": 444,
+   "presses": 465,
    "finished": true,
    "stuck": "",
    "roles": {
@@ -9778,7 +9779,7 @@
    "case": "#14",
    "winner": "قاتل‌ها 🔪",
    "days": 5,
-   "presses": 294,
+   "presses": 284,
    "finished": true,
    "stuck": "",
    "roles": {
@@ -9843,7 +9844,7 @@
    "case": "#30",
    "winner": "قاتل‌ها 🔪",
    "days": 4,
-   "presses": 225,
+   "presses": 224,
    "finished": true,
    "stuck": "",
    "roles": {
@@ -9909,7 +9910,7 @@
    "case": "#30",
    "winner": "قاتل‌ها 🔪",
    "days": 4,
-   "presses": 214,
+   "presses": 223,
    "finished": true,
    "stuck": "",
    "roles": {
@@ -9973,9 +9974,9 @@
    "mode": "دکمه از پیوی",
    "scenario": "دادگاه",
    "case": "#21",
-   "winner": "شهر 🕵️",
-   "days": 8,
-   "presses": 420,
+   "winner": "سپر بلا 🎭",
+   "days": 6,
+   "presses": 329,
    "finished": true,
    "stuck": "",
    "roles": {
@@ -9991,45 +9992,45 @@
     "شیرین": "پزشک"
    },
    "talk": {
-    "messages": 36,
-    "lies": 12,
-    "lies_caught": 2,
-    "honest_claims": 22,
+    "messages": 34,
+    "lies": 13,
+    "lies_caught": 0,
+    "honest_claims": 21,
     "fake_detective": 1,
     "fake_forensic": 2,
-    "frame_push": 1,
+    "frame_push": 0,
     "vouch": 1,
     "counter_claims": 1,
     "lies_countered": 1,
-    "city_votes": 22,
+    "city_votes": 18,
     "city_votes_on_killer": 9,
     "bot_replied_to_chat": 0,
     "chat_swallowed": 0
    },
    "arrests": {
-    "interrogated": 7,
-    "interrogated_evil": 3,
-    "jailed": 6,
-    "jailed_evil": 3
+    "interrogated": 4,
+    "interrogated_evil": 1,
+    "jailed": 4,
+    "jailed_evil": 1
    },
    "clues": {
-    "total": 5,
-    "true": 3,
-    "false": 2,
-    "verified": 5,
-    "verified_right": 5,
+    "total": 7,
+    "true": 4,
+    "false": 3,
+    "verified": 2,
+    "verified_right": 2,
     "by_source": {
      "case": 2,
      "herring": 1,
-     "kill": 1,
-     "frame": 1
+     "kill": 2,
+     "frame": 2
     }
    },
    "rumors": [
     0,
     0
    ],
-   "winner_team": "city"
+   "winner_team": "scapegoat"
   },
   {
    "players": 10,
@@ -10039,7 +10040,7 @@
    "case": "#26",
    "winner": "قاتل‌ها 🔪",
    "days": 5,
-   "presses": 270,
+   "presses": 269,
    "finished": true,
    "stuck": "",
    "roles": {
@@ -10103,7 +10104,7 @@
    "case": "#26",
    "winner": "قاتل‌ها 🔪",
    "days": 5,
-   "presses": 256,
+   "presses": 268,
    "finished": true,
    "stuck": "",
    "roles": {
@@ -10167,7 +10168,7 @@
    "case": "#15",
    "winner": "شهر 🕵️",
    "days": 7,
-   "presses": 387,
+   "presses": 359,
    "finished": true,
    "stuck": "",
    "roles": {
@@ -10183,10 +10184,10 @@
     "شیرین": "خبرنگار"
    },
    "talk": {
-    "messages": 26,
+    "messages": 29,
     "lies": 8,
     "lies_caught": 2,
-    "honest_claims": 17,
+    "honest_claims": 20,
     "fake_detective": 1,
     "fake_forensic": 3,
     "frame_push": 0,
@@ -10233,7 +10234,7 @@
    "case": "#9",
    "winner": "قاتل‌ها 🔪",
    "days": 2,
-   "presses": 57,
+   "presses": 53,
    "finished": true,
    "stuck": "",
    "roles": {
@@ -10347,7 +10348,7 @@
    "case": "#36",
    "winner": "شهر 🕵️",
    "days": 8,
-   "presses": 339,
+   "presses": 322,
    "finished": true,
    "stuck": "",
    "roles": {
@@ -10414,10 +10415,10 @@
     "دنیا": "بازجو"
    },
    "talk": {
-    "messages": 10,
+    "messages": 11,
     "lies": 1,
     "lies_caught": 0,
-    "honest_claims": 9,
+    "honest_claims": 10,
     "fake_detective": 0,
     "fake_forensic": 1,
     "frame_push": 0,
@@ -10461,7 +10462,7 @@
    "case": "#31",
    "winner": "شهر 🕵️",
    "days": 4,
-   "presses": 91,
+   "presses": 97,
    "finished": true,
    "stuck": "",
    "roles": {
@@ -10518,7 +10519,7 @@
    "case": "#23",
    "winner": "قاتل‌ها 🔪",
    "days": 2,
-   "presses": 55,
+   "presses": 47,
    "finished": true,
    "stuck": "",
    "roles": {
@@ -10575,7 +10576,7 @@
    "case": "#24",
    "winner": "شهر 🕵️",
    "days": 4,
-   "presses": 113,
+   "presses": 118,
    "finished": true,
    "stuck": "",
    "roles": {
@@ -10585,17 +10586,17 @@
     "دنیا": "قاتل"
    },
    "talk": {
-    "messages": 9,
+    "messages": 10,
     "lies": 1,
     "lies_caught": 1,
-    "honest_claims": 7,
+    "honest_claims": 8,
     "fake_detective": 0,
     "fake_forensic": 1,
     "frame_push": 0,
     "vouch": 0,
     "counter_claims": 0,
     "lies_countered": 0,
-    "city_votes": 6,
+    "city_votes": 5,
     "city_votes_on_killer": 2,
     "bot_replied_to_chat": 0,
     "chat_swallowed": 0
@@ -10632,7 +10633,7 @@
    "case": "#24",
    "winner": "شهر 🕵️",
    "days": 4,
-   "presses": 101,
+   "presses": 112,
    "finished": true,
    "stuck": "",
    "roles": {
@@ -10642,10 +10643,10 @@
     "دنیا": "قاتل"
    },
    "talk": {
-    "messages": 9,
+    "messages": 10,
     "lies": 1,
     "lies_caught": 1,
-    "honest_claims": 7,
+    "honest_claims": 8,
     "fake_detective": 0,
     "fake_forensic": 1,
     "frame_push": 0,
@@ -10689,7 +10690,7 @@
    "case": "#23",
    "winner": "شهر 🕵️",
    "days": 5,
-   "presses": 199,
+   "presses": 180,
    "finished": true,
    "stuck": "",
    "roles": {
@@ -10699,23 +10700,23 @@
     "دنیا": "بقال محله"
    },
    "talk": {
-    "messages": 9,
+    "messages": 10,
     "lies": 2,
     "lies_caught": 1,
-    "honest_claims": 6,
+    "honest_claims": 7,
     "fake_detective": 0,
     "fake_forensic": 1,
     "frame_push": 0,
     "vouch": 0,
     "counter_claims": 0,
     "lies_countered": 0,
-    "city_votes": 12,
+    "city_votes": 11,
     "city_votes_on_killer": 4,
     "bot_replied_to_chat": 0,
     "chat_swallowed": 0
    },
    "arrests": {
-    "interrogated": 1,
+    "interrogated": 2,
     "interrogated_evil": 1,
     "jailed": 1,
     "jailed_evil": 1
@@ -10747,7 +10748,7 @@
    "case": "#23",
    "winner": "قاتل‌ها 🔪",
    "days": 4,
-   "presses": 126,
+   "presses": 124,
    "finished": true,
    "stuck": "",
    "roles": {
@@ -10804,7 +10805,7 @@
    "case": "#23",
    "winner": "قاتل‌ها 🔪",
    "days": 3,
-   "presses": 91,
+   "presses": 92,
    "finished": true,
    "stuck": "",
    "roles": {
@@ -10861,7 +10862,7 @@
    "case": "#28",
    "winner": "قاتل‌ها 🔪",
    "days": 2,
-   "presses": 68,
+   "presses": 63,
    "finished": true,
    "stuck": "",
    "roles": {
@@ -10914,64 +10915,6 @@
    "players": 5,
    "seed": 1,
    "mode": "دکمه در گروه",
-   "scenario": "آشوب",
-   "case": "#36",
-   "winner": "شهر 🕵️",
-   "days": 4,
-   "presses": 135,
-   "finished": true,
-   "stuck": "",
-   "roles": {
-    "آرش": "بازجو",
-    "بهار": "کارآگاه",
-    "کاوه": "بقال محله",
-    "دنیا": "قاتل",
-    "سهراب": "پزشک"
-   },
-   "talk": {
-    "messages": 14,
-    "lies": 1,
-    "lies_caught": 0,
-    "honest_claims": 13,
-    "fake_detective": 0,
-    "fake_forensic": 1,
-    "frame_push": 0,
-    "vouch": 0,
-    "counter_claims": 0,
-    "lies_countered": 0,
-    "city_votes": 8,
-    "city_votes_on_killer": 2,
-    "bot_replied_to_chat": 0,
-    "chat_swallowed": 0
-   },
-   "arrests": {
-    "interrogated": 2,
-    "interrogated_evil": 1,
-    "jailed": 1,
-    "jailed_evil": 1
-   },
-   "clues": {
-    "total": 4,
-    "true": 2,
-    "false": 2,
-    "verified": 1,
-    "verified_right": 1,
-    "by_source": {
-     "herring": 2,
-     "case": 1,
-     "kill": 1
-    }
-   },
-   "rumors": [
-    3,
-    3
-   ],
-   "winner_team": "city"
-  },
-  {
-   "players": 5,
-   "seed": 1,
-   "mode": "تایمر",
    "scenario": "آشوب",
    "case": "#36",
    "winner": "شهر 🕵️",
@@ -11029,12 +10972,70 @@
   {
    "players": 5,
    "seed": 1,
+   "mode": "تایمر",
+   "scenario": "آشوب",
+   "case": "#36",
+   "winner": "شهر 🕵️",
+   "days": 4,
+   "presses": 120,
+   "finished": true,
+   "stuck": "",
+   "roles": {
+    "آرش": "بازجو",
+    "بهار": "کارآگاه",
+    "کاوه": "بقال محله",
+    "دنیا": "قاتل",
+    "سهراب": "پزشک"
+   },
+   "talk": {
+    "messages": 14,
+    "lies": 1,
+    "lies_caught": 0,
+    "honest_claims": 13,
+    "fake_detective": 0,
+    "fake_forensic": 1,
+    "frame_push": 0,
+    "vouch": 0,
+    "counter_claims": 0,
+    "lies_countered": 0,
+    "city_votes": 8,
+    "city_votes_on_killer": 2,
+    "bot_replied_to_chat": 0,
+    "chat_swallowed": 0
+   },
+   "arrests": {
+    "interrogated": 2,
+    "interrogated_evil": 1,
+    "jailed": 1,
+    "jailed_evil": 1
+   },
+   "clues": {
+    "total": 4,
+    "true": 2,
+    "false": 2,
+    "verified": 1,
+    "verified_right": 1,
+    "by_source": {
+     "herring": 2,
+     "case": 1,
+     "kill": 1
+    }
+   },
+   "rumors": [
+    3,
+    3
+   ],
+   "winner_team": "city"
+  },
+  {
+   "players": 5,
+   "seed": 1,
    "mode": "دکمه از پیوی",
    "scenario": "آشوب",
    "case": "#36",
    "winner": "شهر 🕵️",
    "days": 11,
-   "presses": 474,
+   "presses": 451,
    "finished": true,
    "stuck": "",
    "roles": {
@@ -11092,7 +11093,7 @@
    "case": "#34",
    "winner": "شهر 🕵️",
    "days": 6,
-   "presses": 221,
+   "presses": 200,
    "finished": true,
    "stuck": "",
    "roles": {
@@ -11103,10 +11104,10 @@
     "سهراب": "بازجو"
    },
    "talk": {
-    "messages": 21,
+    "messages": 22,
     "lies": 3,
     "lies_caught": 1,
-    "honest_claims": 17,
+    "honest_claims": 18,
     "fake_detective": 0,
     "fake_forensic": 1,
     "frame_push": 0,
@@ -11128,8 +11129,8 @@
     "total": 7,
     "true": 4,
     "false": 3,
-    "verified": 3,
-    "verified_right": 3,
+    "verified": 2,
+    "verified_right": 2,
     "by_source": {
      "herring": 3,
      "case": 1,
@@ -11151,7 +11152,7 @@
    "case": "#34",
    "winner": "شهر 🕵️",
    "days": 6,
-   "presses": 199,
+   "presses": 188,
    "finished": true,
    "stuck": "",
    "roles": {
@@ -11162,10 +11163,10 @@
     "سهراب": "بازجو"
    },
    "talk": {
-    "messages": 21,
+    "messages": 23,
     "lies": 3,
     "lies_caught": 1,
-    "honest_claims": 17,
+    "honest_claims": 19,
     "fake_detective": 0,
     "fake_forensic": 1,
     "frame_push": 0,
@@ -11187,8 +11188,8 @@
     "total": 7,
     "true": 4,
     "false": 3,
-    "verified": 3,
-    "verified_right": 3,
+    "verified": 2,
+    "verified_right": 2,
     "by_source": {
      "herring": 3,
      "case": 1,
@@ -11210,7 +11211,7 @@
    "case": "#31",
    "winner": "شهر 🕵️",
    "days": 5,
-   "presses": 192,
+   "presses": 183,
    "finished": true,
    "stuck": "",
    "roles": {
@@ -11269,7 +11270,7 @@
    "case": "#23",
    "winner": "شهر 🕵️",
    "days": 4,
-   "presses": 142,
+   "presses": 141,
    "finished": true,
    "stuck": "",
    "roles": {
@@ -11326,7 +11327,7 @@
    "case": "#23",
    "winner": "شهر 🕵️",
    "days": 4,
-   "presses": 128,
+   "presses": 135,
    "finished": true,
    "stuck": "",
    "roles": {
@@ -11383,7 +11384,7 @@
    "case": "#6",
    "winner": "شهر 🕵️",
    "days": 6,
-   "presses": 254,
+   "presses": 241,
    "finished": true,
    "stuck": "",
    "roles": {
@@ -11441,7 +11442,7 @@
    "case": "#31",
    "winner": "شهر 🕵️",
    "days": 6,
-   "presses": 207,
+   "presses": 190,
    "finished": true,
    "stuck": "",
    "roles": {
@@ -11462,7 +11463,7 @@
     "vouch": 0,
     "counter_claims": 0,
     "lies_countered": 0,
-    "city_votes": 19,
+    "city_votes": 16,
     "city_votes_on_killer": 3,
     "bot_replied_to_chat": 0,
     "chat_swallowed": 0
@@ -11499,7 +11500,7 @@
    "case": "#31",
    "winner": "شهر 🕵️",
    "days": 6,
-   "presses": 174,
+   "presses": 188,
    "finished": true,
    "stuck": "",
    "roles": {
@@ -11557,7 +11558,7 @@
    "case": "#36",
    "winner": "شهر 🕵️",
    "days": 8,
-   "presses": 365,
+   "presses": 342,
    "finished": true,
    "stuck": "",
    "roles": {
@@ -11614,7 +11615,7 @@
    "case": "#19",
    "winner": "جانی سریالی 🩸",
    "days": 3,
-   "presses": 137,
+   "presses": 133,
    "finished": true,
    "stuck": "",
    "roles": {
@@ -11674,7 +11675,7 @@
    "case": "#19",
    "winner": "جانی سریالی 🩸",
    "days": 3,
-   "presses": 129,
+   "presses": 132,
    "finished": true,
    "stuck": "",
    "roles": {
@@ -11734,7 +11735,7 @@
    "case": "#23",
    "winner": "قاتل‌ها 🔪",
    "days": 4,
-   "presses": 161,
+   "presses": 154,
    "finished": true,
    "stuck": "",
    "roles": {
@@ -11793,7 +11794,7 @@
    "case": "#28",
    "winner": "شهر 🕵️",
    "days": 6,
-   "presses": 216,
+   "presses": 187,
    "finished": true,
    "stuck": "",
    "roles": {
@@ -11805,23 +11806,23 @@
     "مهسا": "قاچاقچی"
    },
    "talk": {
-    "messages": 8,
+    "messages": 11,
     "lies": 3,
-    "lies_caught": 0,
-    "honest_claims": 5,
+    "lies_caught": 1,
+    "honest_claims": 7,
     "fake_detective": 0,
-    "fake_forensic": 0,
+    "fake_forensic": 1,
     "frame_push": 0,
     "vouch": 0,
     "counter_claims": 0,
     "lies_countered": 0,
-    "city_votes": 14,
+    "city_votes": 12,
     "city_votes_on_killer": 4,
     "bot_replied_to_chat": 0,
     "chat_swallowed": 0
    },
    "arrests": {
-    "interrogated": 2,
+    "interrogated": 3,
     "interrogated_evil": 1,
     "jailed": 2,
     "jailed_evil": 2
@@ -11830,8 +11831,8 @@
     "total": 8,
     "true": 4,
     "false": 4,
-    "verified": 3,
-    "verified_right": 3,
+    "verified": 2,
+    "verified_right": 2,
     "by_source": {
      "case": 1,
      "herring": 4,
@@ -11854,7 +11855,7 @@
    "case": "#28",
    "winner": "شهر 🕵️",
    "days": 6,
-   "presses": 192,
+   "presses": 184,
    "finished": true,
    "stuck": "",
    "roles": {
@@ -11866,12 +11867,12 @@
     "مهسا": "قاچاقچی"
    },
    "talk": {
-    "messages": 8,
+    "messages": 11,
     "lies": 3,
-    "lies_caught": 0,
-    "honest_claims": 5,
+    "lies_caught": 1,
+    "honest_claims": 7,
     "fake_detective": 0,
-    "fake_forensic": 0,
+    "fake_forensic": 1,
     "frame_push": 0,
     "vouch": 0,
     "counter_claims": 0,
@@ -11891,8 +11892,8 @@
     "total": 8,
     "true": 4,
     "false": 4,
-    "verified": 3,
-    "verified_right": 3,
+    "verified": 2,
+    "verified_right": 2,
     "by_source": {
      "case": 1,
      "herring": 4,
@@ -11915,7 +11916,7 @@
    "case": "#34",
    "winner": "شهر 🕵️",
    "days": 3,
-   "presses": 143,
+   "presses": 136,
    "finished": true,
    "stuck": "",
    "roles": {
@@ -11976,7 +11977,7 @@
    "case": "#9",
    "winner": "شهر 🕵️",
    "days": 3,
-   "presses": 114,
+   "presses": 101,
    "finished": true,
    "stuck": "",
    "roles": {
@@ -12036,7 +12037,7 @@
    "case": "#9",
    "winner": "جانی سریالی 🩸",
    "days": 3,
-   "presses": 88,
+   "presses": 83,
    "finished": true,
    "stuck": "",
    "roles": {
@@ -12096,7 +12097,7 @@
    "case": "#18",
    "winner": "شهر 🕵️",
    "days": 2,
-   "presses": 88,
+   "presses": 77,
    "finished": true,
    "stuck": "",
    "roles": {
@@ -12154,8 +12155,8 @@
    "scenario": "آشوب",
    "case": "#28",
    "winner": "جانی سریالی 🩸",
-   "days": 6,
-   "presses": 233,
+   "days": 4,
+   "presses": 146,
    "finished": true,
    "stuck": "",
    "roles": {
@@ -12167,39 +12168,39 @@
     "مهسا": "پزشک"
    },
    "talk": {
-    "messages": 15,
-    "lies": 5,
+    "messages": 5,
+    "lies": 3,
     "lies_caught": 0,
-    "honest_claims": 10,
+    "honest_claims": 2,
     "fake_detective": 0,
-    "fake_forensic": 1,
+    "fake_forensic": 0,
     "frame_push": 0,
     "vouch": 0,
     "counter_claims": 0,
     "lies_countered": 0,
-    "city_votes": 15,
-    "city_votes_on_killer": 14,
+    "city_votes": 9,
+    "city_votes_on_killer": 8,
     "bot_replied_to_chat": 0,
     "chat_swallowed": 0
    },
    "arrests": {
     "interrogated": 2,
     "interrogated_evil": 2,
-    "jailed": 1,
-    "jailed_evil": 1
+    "jailed": 0,
+    "jailed_evil": 0
    },
    "clues": {
-    "total": 13,
-    "true": 8,
-    "false": 5,
-    "verified": 2,
-    "verified_right": 2,
+    "total": 8,
+    "true": 5,
+    "false": 3,
+    "verified": 1,
+    "verified_right": 1,
     "by_source": {
-     "herring": 5,
+     "herring": 3,
      "case": 1,
      "sk": 1,
-     "kill": 4,
-     "witness": 2
+     "kill": 2,
+     "witness": 1
     }
    },
    "rumors": [
@@ -12215,8 +12216,8 @@
    "scenario": "آشوب",
    "case": "#28",
    "winner": "جانی سریالی 🩸",
-   "days": 6,
-   "presses": 213,
+   "days": 4,
+   "presses": 145,
    "finished": true,
    "stuck": "",
    "roles": {
@@ -12228,39 +12229,39 @@
     "مهسا": "پزشک"
    },
    "talk": {
-    "messages": 15,
-    "lies": 5,
+    "messages": 5,
+    "lies": 3,
     "lies_caught": 0,
-    "honest_claims": 10,
+    "honest_claims": 2,
     "fake_detective": 0,
-    "fake_forensic": 1,
+    "fake_forensic": 0,
     "frame_push": 0,
     "vouch": 0,
     "counter_claims": 0,
     "lies_countered": 0,
-    "city_votes": 14,
-    "city_votes_on_killer": 13,
+    "city_votes": 9,
+    "city_votes_on_killer": 8,
     "bot_replied_to_chat": 0,
     "chat_swallowed": 0
    },
    "arrests": {
     "interrogated": 2,
     "interrogated_evil": 2,
-    "jailed": 1,
-    "jailed_evil": 1
+    "jailed": 0,
+    "jailed_evil": 0
    },
    "clues": {
-    "total": 13,
-    "true": 8,
-    "false": 5,
-    "verified": 2,
-    "verified_right": 2,
+    "total": 8,
+    "true": 5,
+    "false": 3,
+    "verified": 1,
+    "verified_right": 1,
     "by_source": {
-     "herring": 5,
+     "herring": 3,
      "case": 1,
      "sk": 1,
-     "kill": 4,
-     "witness": 2
+     "kill": 2,
+     "witness": 1
     }
    },
    "rumors": [
@@ -12277,7 +12278,7 @@
    "case": "#9",
    "winner": "جانی سریالی 🩸",
    "days": 4,
-   "presses": 163,
+   "presses": 138,
    "finished": true,
    "stuck": "",
    "roles": {
@@ -12289,37 +12290,37 @@
     "مهسا": "کارآگاه"
    },
    "talk": {
-    "messages": 6,
+    "messages": 5,
     "lies": 1,
     "lies_caught": 0,
-    "honest_claims": 5,
+    "honest_claims": 4,
     "fake_detective": 0,
     "fake_forensic": 1,
     "frame_push": 0,
     "vouch": 0,
     "counter_claims": 0,
     "lies_countered": 0,
-    "city_votes": 8,
-    "city_votes_on_killer": 3,
+    "city_votes": 7,
+    "city_votes_on_killer": 2,
     "bot_replied_to_chat": 0,
     "chat_swallowed": 0
    },
    "arrests": {
-    "interrogated": 2,
-    "interrogated_evil": 1,
+    "interrogated": 1,
+    "interrogated_evil": 0,
     "jailed": 1,
     "jailed_evil": 0
    },
    "clues": {
-    "total": 9,
-    "true": 6,
+    "total": 10,
+    "true": 7,
     "false": 3,
-    "verified": 1,
-    "verified_right": 1,
+    "verified": 0,
+    "verified_right": 0,
     "by_source": {
      "case": 1,
      "herring": 3,
-     "sk": 3,
+     "sk": 4,
      "kill": 2
     }
    },
@@ -12337,7 +12338,7 @@
    "case": "#27",
    "winner": "شهر 🕵️",
    "days": 7,
-   "presses": 265,
+   "presses": 264,
    "finished": true,
    "stuck": "",
    "roles": {
@@ -12398,7 +12399,7 @@
    "case": "#27",
    "winner": "شهر 🕵️",
    "days": 7,
-   "presses": 245,
+   "presses": 263,
    "finished": true,
    "stuck": "",
    "roles": {
@@ -12459,7 +12460,7 @@
    "case": "#31",
    "winner": "شهر 🕵️",
    "days": 7,
-   "presses": 345,
+   "presses": 325,
    "finished": true,
    "stuck": "",
    "roles": {
@@ -12520,7 +12521,7 @@
    "case": "#34",
    "winner": "قاتل‌ها 🔪",
    "days": 2,
-   "presses": 87,
+   "presses": 86,
    "finished": true,
    "stuck": "",
    "roles": {
@@ -12581,7 +12582,7 @@
    "case": "#34",
    "winner": "قاتل‌ها 🔪",
    "days": 2,
-   "presses": 83,
+   "presses": 86,
    "finished": true,
    "stuck": "",
    "roles": {
@@ -12642,7 +12643,7 @@
    "case": "#9",
    "winner": "قاتل‌ها 🔪",
    "days": 3,
-   "presses": 153,
+   "presses": 140,
    "finished": true,
    "stuck": "",
    "roles": {
@@ -12703,7 +12704,7 @@
    "case": "#36",
    "winner": "قاتل‌ها 🔪",
    "days": 3,
-   "presses": 109,
+   "presses": 108,
    "finished": true,
    "stuck": "",
    "roles": {
@@ -12765,7 +12766,7 @@
    "case": "#36",
    "winner": "قاتل‌ها 🔪",
    "days": 3,
-   "presses": 102,
+   "presses": 108,
    "finished": true,
    "stuck": "",
    "roles": {
@@ -12827,7 +12828,7 @@
    "case": "#27",
    "winner": "قاتل‌ها 🔪",
    "days": 2,
-   "presses": 87,
+   "presses": 78,
    "finished": true,
    "stuck": "",
    "roles": {
@@ -12888,7 +12889,7 @@
    "case": "#36",
    "winner": "شهر 🕵️",
    "days": 9,
-   "presses": 343,
+   "presses": 342,
    "finished": true,
    "stuck": "",
    "roles": {
@@ -12948,7 +12949,7 @@
    "case": "#36",
    "winner": "شهر 🕵️",
    "days": 9,
-   "presses": 316,
+   "presses": 340,
    "finished": true,
    "stuck": "",
    "roles": {
@@ -13007,8 +13008,8 @@
    "scenario": "آشوب",
    "case": "#9",
    "winner": "قاتل‌ها 🔪",
-   "days": 8,
-   "presses": 400,
+   "days": 6,
+   "presses": 266,
    "finished": true,
    "stuck": "",
    "roles": {
@@ -13021,37 +13022,38 @@
     "نیما": "شهروند"
    },
    "talk": {
-    "messages": 34,
-    "lies": 8,
+    "messages": 25,
+    "lies": 7,
     "lies_caught": 2,
-    "honest_claims": 25,
+    "honest_claims": 17,
     "fake_detective": 1,
     "fake_forensic": 2,
-    "frame_push": 1,
+    "frame_push": 0,
     "vouch": 1,
     "counter_claims": 1,
     "lies_countered": 1,
-    "city_votes": 23,
-    "city_votes_on_killer": 14,
+    "city_votes": 17,
+    "city_votes_on_killer": 11,
     "bot_replied_to_chat": 0,
     "chat_swallowed": 0
    },
    "arrests": {
-    "interrogated": 4,
+    "interrogated": 3,
     "interrogated_evil": 2,
-    "jailed": 4,
-    "jailed_evil": 2
+    "jailed": 2,
+    "jailed_evil": 1
    },
    "clues": {
-    "total": 4,
-    "true": 1,
+    "total": 5,
+    "true": 2,
     "false": 3,
     "verified": 1,
     "verified_right": 1,
     "by_source": {
      "herring": 2,
      "case": 1,
-     "frame": 1
+     "frame": 1,
+     "kill": 1
     }
    },
    "rumors": [
@@ -13068,7 +13070,7 @@
    "case": "#34",
    "winner": "قاتل‌ها 🔪",
    "days": 4,
-   "presses": 160,
+   "presses": 157,
    "finished": true,
    "stuck": "",
    "roles": {
@@ -13082,12 +13084,12 @@
     "رویا": "پزشک"
    },
    "talk": {
-    "messages": 11,
+    "messages": 10,
     "lies": 3,
     "lies_caught": 0,
-    "honest_claims": 8,
+    "honest_claims": 7,
     "fake_detective": 0,
-    "fake_forensic": 0,
+    "fake_forensic": 1,
     "frame_push": 0,
     "vouch": 0,
     "counter_claims": 0,
@@ -13131,7 +13133,7 @@
    "case": "#34",
    "winner": "قاتل‌ها 🔪",
    "days": 4,
-   "presses": 148,
+   "presses": 155,
    "finished": true,
    "stuck": "",
    "roles": {
@@ -13145,12 +13147,12 @@
     "رویا": "پزشک"
    },
    "talk": {
-    "messages": 11,
+    "messages": 10,
     "lies": 3,
     "lies_caught": 0,
-    "honest_claims": 8,
+    "honest_claims": 7,
     "fake_detective": 0,
-    "fake_forensic": 0,
+    "fake_forensic": 1,
     "frame_push": 0,
     "vouch": 0,
     "counter_claims": 0,
@@ -13194,7 +13196,7 @@
    "case": "#28",
    "winner": "قاتل‌ها 🔪",
    "days": 2,
-   "presses": 110,
+   "presses": 105,
    "finished": true,
    "stuck": "",
    "roles": {
@@ -13257,7 +13259,7 @@
    "case": "#23",
    "winner": "جانی سریالی 🩸",
    "days": 6,
-   "presses": 277,
+   "presses": 285,
    "finished": true,
    "stuck": "",
    "roles": {
@@ -13281,25 +13283,25 @@
     "vouch": 0,
     "counter_claims": 0,
     "lies_countered": 0,
-    "city_votes": 15,
-    "city_votes_on_killer": 4,
+    "city_votes": 17,
+    "city_votes_on_killer": 6,
     "bot_replied_to_chat": 0,
     "chat_swallowed": 0
    },
    "arrests": {
-    "interrogated": 4,
-    "interrogated_evil": 1,
-    "jailed": 4,
+    "interrogated": 5,
+    "interrogated_evil": 2,
+    "jailed": 3,
     "jailed_evil": 1
    },
    "clues": {
-    "total": 11,
+    "total": 10,
     "true": 5,
-    "false": 6,
+    "false": 5,
     "verified": 2,
     "verified_right": 2,
     "by_source": {
-     "herring": 4,
+     "herring": 3,
      "case": 1,
      "sk": 4,
      "frame": 2
@@ -13319,7 +13321,7 @@
    "case": "#23",
    "winner": "جانی سریالی 🩸",
    "days": 6,
-   "presses": 257,
+   "presses": 281,
    "finished": true,
    "stuck": "",
    "roles": {
@@ -13343,25 +13345,25 @@
     "vouch": 0,
     "counter_claims": 0,
     "lies_countered": 0,
-    "city_votes": 15,
-    "city_votes_on_killer": 4,
+    "city_votes": 17,
+    "city_votes_on_killer": 6,
     "bot_replied_to_chat": 0,
     "chat_swallowed": 0
    },
    "arrests": {
-    "interrogated": 4,
-    "interrogated_evil": 1,
-    "jailed": 4,
+    "interrogated": 5,
+    "interrogated_evil": 2,
+    "jailed": 3,
     "jailed_evil": 1
    },
    "clues": {
-    "total": 11,
+    "total": 10,
     "true": 5,
-    "false": 6,
+    "false": 5,
     "verified": 2,
     "verified_right": 2,
     "by_source": {
-     "herring": 4,
+     "herring": 3,
      "case": 1,
      "sk": 4,
      "frame": 2
@@ -13379,9 +13381,9 @@
    "mode": "دکمه از پیوی",
    "scenario": "آشوب",
    "case": "#19",
-   "winner": "جانی سریالی 🩸",
-   "days": 7,
-   "presses": 409,
+   "winner": "شهر 🕵️",
+   "days": 9,
+   "presses": 445,
    "finished": true,
    "stuck": "",
    "roles": {
@@ -13395,46 +13397,46 @@
     "رویا": "پزشک"
    },
    "talk": {
-    "messages": 29,
-    "lies": 11,
-    "lies_caught": 1,
+    "messages": 26,
+    "lies": 8,
+    "lies_caught": 2,
     "honest_claims": 17,
-    "fake_detective": 1,
+    "fake_detective": 0,
     "fake_forensic": 2,
-    "frame_push": 1,
-    "vouch": 1,
+    "frame_push": 2,
+    "vouch": 0,
     "counter_claims": 0,
     "lies_countered": 0,
-    "city_votes": 21,
-    "city_votes_on_killer": 7,
+    "city_votes": 24,
+    "city_votes_on_killer": 12,
     "bot_replied_to_chat": 0,
     "chat_swallowed": 0
    },
    "arrests": {
-    "interrogated": 4,
-    "interrogated_evil": 2,
+    "interrogated": 5,
+    "interrogated_evil": 3,
     "jailed": 4,
-    "jailed_evil": 2
+    "jailed_evil": 3
    },
    "clues": {
-    "total": 15,
-    "true": 8,
-    "false": 7,
+    "total": 10,
+    "true": 5,
+    "false": 5,
     "verified": 3,
     "verified_right": 3,
     "by_source": {
-     "herring": 4,
+     "herring": 2,
      "case": 1,
      "frame": 3,
-     "kill": 3,
-     "sk": 4
+     "kill": 2,
+     "sk": 2
     }
    },
    "rumors": [
-    4,
-    5
+    3,
+    3
    ],
-   "winner_team": "serial"
+   "winner_team": "city"
   },
   {
    "players": 8,
@@ -13444,7 +13446,7 @@
    "case": "#27",
    "winner": "قاتل‌ها 🔪",
    "days": 4,
-   "presses": 180,
+   "presses": 171,
    "finished": true,
    "stuck": "",
    "roles": {
@@ -13458,12 +13460,12 @@
     "رویا": "قاتل"
    },
    "talk": {
-    "messages": 13,
+    "messages": 12,
     "lies": 6,
     "lies_caught": 0,
-    "honest_claims": 7,
+    "honest_claims": 6,
     "fake_detective": 0,
-    "fake_forensic": 1,
+    "fake_forensic": 2,
     "frame_push": 1,
     "vouch": 0,
     "counter_claims": 0,
@@ -13506,7 +13508,7 @@
    "case": "#27",
    "winner": "قاتل‌ها 🔪",
    "days": 4,
-   "presses": 173,
+   "presses": 168,
    "finished": true,
    "stuck": "",
    "roles": {
@@ -13525,8 +13527,8 @@
     "lies_caught": 0,
     "honest_claims": 6,
     "fake_detective": 0,
-    "fake_forensic": 0,
-    "frame_push": 2,
+    "fake_forensic": 2,
+    "frame_push": 1,
     "vouch": 0,
     "counter_claims": 0,
     "lies_countered": 0,
@@ -13568,7 +13570,7 @@
    "case": "#27",
    "winner": "قاتل‌ها 🔪",
    "days": 5,
-   "presses": 241,
+   "presses": 231,
    "finished": true,
    "stuck": "",
    "roles": {
@@ -13631,7 +13633,7 @@
    "case": "#23",
    "winner": "جانی سریالی 🩸",
    "days": 5,
-   "presses": 193,
+   "presses": 182,
    "finished": true,
    "stuck": "",
    "roles": {
@@ -13645,17 +13647,17 @@
     "رویا": "جانی سریالی"
    },
    "talk": {
-    "messages": 9,
+    "messages": 11,
     "lies": 1,
     "lies_caught": 0,
-    "honest_claims": 8,
+    "honest_claims": 10,
     "fake_detective": 0,
     "fake_forensic": 0,
     "frame_push": 0,
     "vouch": 0,
     "counter_claims": 0,
     "lies_countered": 0,
-    "city_votes": 13,
+    "city_votes": 12,
     "city_votes_on_killer": 9,
     "bot_replied_to_chat": 0,
     "chat_swallowed": 0
@@ -13695,7 +13697,7 @@
    "case": "#23",
    "winner": "جانی سریالی 🩸",
    "days": 5,
-   "presses": 177,
+   "presses": 179,
    "finished": true,
    "stuck": "",
    "roles": {
@@ -13709,17 +13711,17 @@
     "رویا": "جانی سریالی"
    },
    "talk": {
-    "messages": 9,
+    "messages": 11,
     "lies": 1,
     "lies_caught": 0,
-    "honest_claims": 8,
+    "honest_claims": 10,
     "fake_detective": 0,
     "fake_forensic": 0,
     "frame_push": 0,
     "vouch": 0,
     "counter_claims": 0,
     "lies_countered": 0,
-    "city_votes": 13,
+    "city_votes": 12,
     "city_votes_on_killer": 9,
     "bot_replied_to_chat": 0,
     "chat_swallowed": 0
@@ -13759,7 +13761,7 @@
    "case": "#23",
    "winner": "قاتل‌ها 🔪",
    "days": 6,
-   "presses": 289,
+   "presses": 267,
    "finished": true,
    "stuck": "",
    "roles": {
@@ -13773,45 +13775,45 @@
     "رویا": "قاتل"
    },
    "talk": {
-    "messages": 23,
-    "lies": 8,
+    "messages": 18,
+    "lies": 11,
     "lies_caught": 1,
-    "honest_claims": 14,
-    "fake_detective": 2,
+    "honest_claims": 6,
+    "fake_detective": 1,
     "fake_forensic": 1,
     "frame_push": 1,
-    "vouch": 2,
+    "vouch": 1,
     "counter_claims": 0,
     "lies_countered": 0,
-    "city_votes": 15,
-    "city_votes_on_killer": 4,
+    "city_votes": 8,
+    "city_votes_on_killer": 2,
     "bot_replied_to_chat": 0,
     "chat_swallowed": 0
    },
    "arrests": {
     "interrogated": 4,
-    "interrogated_evil": 1,
-    "jailed": 4,
+    "interrogated_evil": 2,
+    "jailed": 3,
     "jailed_evil": 1
    },
    "clues": {
-    "total": 13,
-    "true": 7,
-    "false": 6,
-    "verified": 1,
-    "verified_right": 1,
+    "total": 15,
+    "true": 8,
+    "false": 7,
+    "verified": 2,
+    "verified_right": 2,
     "by_source": {
      "case": 1,
      "herring": 4,
-     "frame": 2,
      "kill": 3,
-     "sk": 2,
+     "sk": 3,
+     "frame": 3,
      "witness": 1
     }
    },
    "rumors": [
-    2,
-    3
+    1,
+    2
    ],
    "winner_team": "killers"
   },
@@ -13821,9 +13823,9 @@
    "mode": "دکمه در گروه",
    "scenario": "آشوب",
    "case": "#6",
-   "winner": "شهر 🕵️",
+   "winner": "قاتل‌ها 🔪",
    "days": 5,
-   "presses": 291,
+   "presses": 259,
    "finished": true,
    "stuck": "",
    "roles": {
@@ -13839,44 +13841,46 @@
    },
    "talk": {
     "messages": 15,
-    "lies": 2,
+    "lies": 8,
     "lies_caught": 0,
-    "honest_claims": 13,
-    "fake_detective": 1,
+    "honest_claims": 7,
+    "fake_detective": 0,
     "fake_forensic": 1,
-    "frame_push": 0,
+    "frame_push": 2,
     "vouch": 0,
-    "counter_claims": 1,
-    "lies_countered": 1,
-    "city_votes": 19,
-    "city_votes_on_killer": 9,
+    "counter_claims": 0,
+    "lies_countered": 0,
+    "city_votes": 15,
+    "city_votes_on_killer": 3,
     "bot_replied_to_chat": 0,
     "chat_swallowed": 0
    },
    "arrests": {
-    "interrogated": 2,
-    "interrogated_evil": 1,
+    "interrogated": 3,
+    "interrogated_evil": 0,
     "jailed": 2,
-    "jailed_evil": 1
+    "jailed_evil": 0
    },
    "clues": {
-    "total": 5,
-    "true": 3,
-    "false": 2,
+    "total": 11,
+    "true": 6,
+    "false": 5,
     "verified": 2,
     "verified_right": 2,
     "by_source": {
-     "herring": 2,
+     "herring": 4,
      "case": 1,
-     "kill": 1,
-     "sk": 1
+     "sk": 1,
+     "kill": 3,
+     "frame": 1,
+     "witness": 1
     }
    },
    "rumors": [
     0,
     0
    ],
-   "winner_team": "city"
+   "winner_team": "killers"
   },
   {
    "players": 9,
@@ -13884,9 +13888,9 @@
    "mode": "تایمر",
    "scenario": "آشوب",
    "case": "#6",
-   "winner": "شهر 🕵️",
+   "winner": "قاتل‌ها 🔪",
    "days": 5,
-   "presses": 275,
+   "presses": 257,
    "finished": true,
    "stuck": "",
    "roles": {
@@ -13902,44 +13906,46 @@
    },
    "talk": {
     "messages": 15,
-    "lies": 2,
+    "lies": 8,
     "lies_caught": 0,
-    "honest_claims": 13,
-    "fake_detective": 1,
+    "honest_claims": 7,
+    "fake_detective": 0,
     "fake_forensic": 1,
-    "frame_push": 0,
+    "frame_push": 2,
     "vouch": 0,
-    "counter_claims": 1,
-    "lies_countered": 1,
-    "city_votes": 19,
-    "city_votes_on_killer": 9,
+    "counter_claims": 0,
+    "lies_countered": 0,
+    "city_votes": 15,
+    "city_votes_on_killer": 3,
     "bot_replied_to_chat": 0,
     "chat_swallowed": 0
    },
    "arrests": {
-    "interrogated": 2,
-    "interrogated_evil": 1,
+    "interrogated": 3,
+    "interrogated_evil": 0,
     "jailed": 2,
-    "jailed_evil": 1
+    "jailed_evil": 0
    },
    "clues": {
-    "total": 5,
-    "true": 3,
-    "false": 2,
+    "total": 11,
+    "true": 6,
+    "false": 5,
     "verified": 2,
     "verified_right": 2,
     "by_source": {
-     "herring": 2,
+     "herring": 4,
      "case": 1,
-     "kill": 1,
-     "sk": 1
+     "sk": 1,
+     "kill": 3,
+     "frame": 1,
+     "witness": 1
     }
    },
    "rumors": [
     0,
     0
    ],
-   "winner_team": "city"
+   "winner_team": "killers"
   },
   {
    "players": 9,
@@ -13947,9 +13953,9 @@
    "mode": "دکمه از پیوی",
    "scenario": "آشوب",
    "case": "#6",
-   "winner": "قاتل‌ها 🔪",
+   "winner": "جانی سریالی 🩸",
    "days": 6,
-   "presses": 299,
+   "presses": 298,
    "finished": true,
    "stuck": "",
    "roles": {
@@ -13964,39 +13970,102 @@
     "پویا": "کارآگاه"
    },
    "talk": {
-    "messages": 20,
-    "lies": 12,
+    "messages": 17,
+    "lies": 3,
     "lies_caught": 0,
-    "honest_claims": 8,
-    "fake_detective": 2,
-    "fake_forensic": 2,
+    "honest_claims": 14,
+    "fake_detective": 0,
+    "fake_forensic": 1,
     "frame_push": 2,
-    "vouch": 2,
+    "vouch": 0,
     "counter_claims": 0,
     "lies_countered": 0,
-    "city_votes": 13,
-    "city_votes_on_killer": 2,
+    "city_votes": 23,
+    "city_votes_on_killer": 4,
     "bot_replied_to_chat": 0,
     "chat_swallowed": 0
    },
    "arrests": {
     "interrogated": 4,
-    "interrogated_evil": 2,
+    "interrogated_evil": 1,
     "jailed": 2,
-    "jailed_evil": 1
+    "jailed_evil": 0
    },
    "clues": {
-    "total": 11,
+    "total": 10,
     "true": 5,
-    "false": 6,
+    "false": 5,
+    "verified": 2,
+    "verified_right": 2,
+    "by_source": {
+     "case": 1,
+     "herring": 3,
+     "frame": 2,
+     "kill": 2,
+     "sk": 2
+    }
+   },
+   "rumors": [
+    0,
+    0
+   ],
+   "winner_team": "serial"
+  },
+  {
+   "players": 9,
+   "seed": 2,
+   "mode": "دکمه در گروه",
+   "scenario": "آشوب",
+   "case": "#28",
+   "winner": "قاتل‌ها 🔪",
+   "days": 3,
+   "presses": 140,
+   "finished": true,
+   "stuck": "",
+   "roles": {
+    "آرش": "قاتل",
+    "بهار": "شکارچی",
+    "کاوه": "همدست",
+    "دنیا": "جانی سریالی",
+    "سهراب": "بازجو",
+    "مهسا": "نگهبان",
+    "نیما": "پزشک",
+    "رویا": "کارآگاه",
+    "پویا": "قاچاقچی"
+   },
+   "talk": {
+    "messages": 7,
+    "lies": 5,
+    "lies_caught": 0,
+    "honest_claims": 2,
+    "fake_detective": 1,
+    "fake_forensic": 2,
+    "frame_push": 0,
+    "vouch": 1,
+    "counter_claims": 0,
+    "lies_countered": 0,
+    "city_votes": 7,
+    "city_votes_on_killer": 0,
+    "bot_replied_to_chat": 0,
+    "chat_swallowed": 0
+   },
+   "arrests": {
+    "interrogated": 1,
+    "interrogated_evil": 0,
+    "jailed": 0,
+    "jailed_evil": 0
+   },
+   "clues": {
+    "total": 5,
+    "true": 2,
+    "false": 3,
     "verified": 0,
     "verified_right": 0,
     "by_source": {
      "case": 1,
-     "herring": 3,
-     "frame": 3,
-     "kill": 2,
-     "sk": 2
+     "herring": 2,
+     "kill": 1,
+     "frame": 1
     }
    },
    "rumors": [
@@ -14008,76 +14077,12 @@
   {
    "players": 9,
    "seed": 2,
-   "mode": "دکمه در گروه",
-   "scenario": "آشوب",
-   "case": "#28",
-   "winner": "شهر 🕵️",
-   "days": 4,
-   "presses": 196,
-   "finished": true,
-   "stuck": "",
-   "roles": {
-    "آرش": "قاتل",
-    "بهار": "شکارچی",
-    "کاوه": "همدست",
-    "دنیا": "جانی سریالی",
-    "سهراب": "بازجو",
-    "مهسا": "نگهبان",
-    "نیما": "پزشک",
-    "رویا": "کارآگاه",
-    "پویا": "قاچاقچی"
-   },
-   "talk": {
-    "messages": 10,
-    "lies": 4,
-    "lies_caught": 0,
-    "honest_claims": 6,
-    "fake_detective": 0,
-    "fake_forensic": 2,
-    "frame_push": 0,
-    "vouch": 0,
-    "counter_claims": 0,
-    "lies_countered": 0,
-    "city_votes": 9,
-    "city_votes_on_killer": 1,
-    "bot_replied_to_chat": 0,
-    "chat_swallowed": 0
-   },
-   "arrests": {
-    "interrogated": 1,
-    "interrogated_evil": 0,
-    "jailed": 1,
-    "jailed_evil": 1
-   },
-   "clues": {
-    "total": 7,
-    "true": 4,
-    "false": 3,
-    "verified": 1,
-    "verified_right": 1,
-    "by_source": {
-     "case": 1,
-     "herring": 2,
-     "sk": 2,
-     "frame": 1,
-     "kill": 1
-    }
-   },
-   "rumors": [
-    0,
-    0
-   ],
-   "winner_team": "city"
-  },
-  {
-   "players": 9,
-   "seed": 2,
    "mode": "تایمر",
    "scenario": "آشوب",
    "case": "#28",
-   "winner": "شهر 🕵️",
-   "days": 4,
-   "presses": 184,
+   "winner": "قاتل‌ها 🔪",
+   "days": 3,
+   "presses": 139,
    "finished": true,
    "stuck": "",
    "roles": {
@@ -14092,46 +14097,45 @@
     "پویا": "قاچاقچی"
    },
    "talk": {
-    "messages": 10,
-    "lies": 4,
+    "messages": 7,
+    "lies": 5,
     "lies_caught": 0,
-    "honest_claims": 6,
-    "fake_detective": 0,
+    "honest_claims": 2,
+    "fake_detective": 1,
     "fake_forensic": 2,
     "frame_push": 0,
-    "vouch": 0,
+    "vouch": 1,
     "counter_claims": 0,
     "lies_countered": 0,
-    "city_votes": 9,
-    "city_votes_on_killer": 1,
+    "city_votes": 7,
+    "city_votes_on_killer": 0,
     "bot_replied_to_chat": 0,
     "chat_swallowed": 0
    },
    "arrests": {
     "interrogated": 1,
     "interrogated_evil": 0,
-    "jailed": 1,
-    "jailed_evil": 1
+    "jailed": 0,
+    "jailed_evil": 0
    },
    "clues": {
-    "total": 7,
-    "true": 4,
+    "total": 5,
+    "true": 2,
     "false": 3,
-    "verified": 1,
-    "verified_right": 1,
+    "verified": 0,
+    "verified_right": 0,
     "by_source": {
      "case": 1,
      "herring": 2,
-     "sk": 2,
-     "frame": 1,
-     "kill": 1
+     "kill": 1,
+     "frame": 1
     }
    },
    "rumors": [
     0,
     0
    ],
-   "winner_team": "city"
+   "winner_team": "killers"
   },
   {
    "players": 9,
@@ -14141,7 +14145,7 @@
    "case": "#19",
    "winner": "جانی سریالی 🩸",
    "days": 5,
-   "presses": 271,
+   "presses": 264,
    "finished": true,
    "stuck": "",
    "roles": {
@@ -14156,18 +14160,18 @@
     "پویا": "جانی سریالی"
    },
    "talk": {
-    "messages": 16,
+    "messages": 18,
     "lies": 5,
     "lies_caught": 2,
-    "honest_claims": 9,
+    "honest_claims": 11,
     "fake_detective": 1,
     "fake_forensic": 2,
     "frame_push": 0,
     "vouch": 1,
     "counter_claims": 0,
     "lies_countered": 0,
-    "city_votes": 14,
-    "city_votes_on_killer": 9,
+    "city_votes": 16,
+    "city_votes_on_killer": 11,
     "bot_replied_to_chat": 0,
     "chat_swallowed": 0
    },
@@ -14204,7 +14208,7 @@
    "case": "#9",
    "winner": "جانی سریالی 🩸",
    "days": 6,
-   "presses": 267,
+   "presses": 265,
    "finished": true,
    "stuck": "",
    "roles": {
@@ -14268,7 +14272,7 @@
    "case": "#9",
    "winner": "جانی سریالی 🩸",
    "days": 6,
-   "presses": 247,
+   "presses": 260,
    "finished": true,
    "stuck": "",
    "roles": {
@@ -14331,8 +14335,8 @@
    "scenario": "آشوب",
    "case": "#31",
    "winner": "جانی سریالی 🩸",
-   "days": 5,
-   "presses": 252,
+   "days": 7,
+   "presses": 276,
    "finished": true,
    "stuck": "",
    "roles": {
@@ -14347,10 +14351,10 @@
     "پویا": "کارآگاه"
    },
    "talk": {
-    "messages": 14,
+    "messages": 16,
     "lies": 1,
     "lies_caught": 0,
-    "honest_claims": 13,
+    "honest_claims": 15,
     "fake_detective": 0,
     "fake_forensic": 0,
     "frame_push": 1,
@@ -14365,7 +14369,7 @@
    "arrests": {
     "interrogated": 4,
     "interrogated_evil": 1,
-    "jailed": 1,
+    "jailed": 2,
     "jailed_evil": 0
    },
    "clues": {
@@ -14397,7 +14401,7 @@
    "case": "#18",
    "winner": "قاتل‌ها 🔪",
    "days": 8,
-   "presses": 355,
+   "presses": 336,
    "finished": true,
    "stuck": "",
    "roles": {
@@ -14412,38 +14416,37 @@
     "پویا": "نگهبان"
    },
    "talk": {
-    "messages": 28,
-    "lies": 11,
+    "messages": 27,
+    "lies": 10,
     "lies_caught": 1,
     "honest_claims": 16,
-    "fake_detective": 1,
+    "fake_detective": 0,
     "fake_forensic": 1,
     "frame_push": 3,
-    "vouch": 1,
+    "vouch": 0,
     "counter_claims": 0,
     "lies_countered": 0,
-    "city_votes": 20,
+    "city_votes": 29,
     "city_votes_on_killer": 3,
     "bot_replied_to_chat": 0,
     "chat_swallowed": 0
    },
    "arrests": {
-    "interrogated": 5,
+    "interrogated": 4,
     "interrogated_evil": 1,
-    "jailed": 5,
+    "jailed": 3,
     "jailed_evil": 1
    },
    "clues": {
-    "total": 10,
-    "true": 2,
+    "total": 9,
+    "true": 1,
     "false": 8,
     "verified": 3,
     "verified_right": 3,
     "by_source": {
      "herring": 2,
      "case": 1,
-     "frame": 6,
-     "kill": 1
+     "frame": 6
     }
    },
    "rumors": [
@@ -14459,8 +14462,8 @@
    "scenario": "آشوب",
    "case": "#18",
    "winner": "قاتل‌ها 🔪",
-   "days": 8,
-   "presses": 326,
+   "days": 9,
+   "presses": 352,
    "finished": true,
    "stuck": "",
    "roles": {
@@ -14475,18 +14478,18 @@
     "پویا": "نگهبان"
    },
    "talk": {
-    "messages": 28,
+    "messages": 27,
     "lies": 11,
     "lies_caught": 1,
-    "honest_claims": 16,
-    "fake_detective": 1,
+    "honest_claims": 15,
+    "fake_detective": 0,
     "fake_forensic": 1,
-    "frame_push": 3,
-    "vouch": 1,
+    "frame_push": 5,
+    "vouch": 0,
     "counter_claims": 0,
     "lies_countered": 0,
-    "city_votes": 20,
-    "city_votes_on_killer": 3,
+    "city_votes": 23,
+    "city_votes_on_killer": 4,
     "bot_replied_to_chat": 0,
     "chat_swallowed": 0
    },
@@ -14497,16 +14500,16 @@
     "jailed_evil": 1
    },
    "clues": {
-    "total": 10,
-    "true": 2,
+    "total": 11,
+    "true": 3,
     "false": 8,
-    "verified": 3,
-    "verified_right": 3,
+    "verified": 4,
+    "verified_right": 4,
     "by_source": {
      "herring": 2,
      "case": 1,
      "frame": 6,
-     "kill": 1
+     "kill": 2
     }
    },
    "rumors": [
@@ -14523,7 +14526,7 @@
    "case": "#24",
    "winner": "شهر 🕵️",
    "days": 7,
-   "presses": 338,
+   "presses": 317,
    "finished": true,
    "stuck": "",
    "roles": {
@@ -14538,23 +14541,23 @@
     "پویا": "پزشک"
    },
    "talk": {
-    "messages": 12,
+    "messages": 13,
     "lies": 1,
     "lies_caught": 0,
-    "honest_claims": 11,
+    "honest_claims": 12,
     "fake_detective": 0,
     "fake_forensic": 0,
     "frame_push": 1,
     "vouch": 0,
     "counter_claims": 0,
     "lies_countered": 0,
-    "city_votes": 20,
+    "city_votes": 17,
     "city_votes_on_killer": 7,
     "bot_replied_to_chat": 0,
     "chat_swallowed": 0
    },
    "arrests": {
-    "interrogated": 2,
+    "interrogated": 3,
     "interrogated_evil": 1,
     "jailed": 3,
     "jailed_evil": 1
@@ -14585,9 +14588,9 @@
    "mode": "دکمه در گروه",
    "scenario": "آشوب",
    "case": "#19",
-   "winner": "جانی سریالی 🩸",
+   "winner": "قاتل‌ها 🔪",
    "days": 6,
-   "presses": 302,
+   "presses": 295,
    "finished": true,
    "stuck": "",
    "roles": {
@@ -14603,37 +14606,37 @@
     "شیرین": "کارآگاه"
    },
    "talk": {
-    "messages": 12,
-    "lies": 6,
-    "lies_caught": 0,
+    "messages": 14,
+    "lies": 8,
+    "lies_caught": 1,
     "honest_claims": 6,
     "fake_detective": 0,
-    "fake_forensic": 1,
-    "frame_push": 1,
+    "fake_forensic": 2,
+    "frame_push": 3,
     "vouch": 0,
     "counter_claims": 0,
     "lies_countered": 0,
-    "city_votes": 18,
-    "city_votes_on_killer": 5,
+    "city_votes": 15,
+    "city_votes_on_killer": 2,
     "bot_replied_to_chat": 0,
     "chat_swallowed": 0
    },
    "arrests": {
     "interrogated": 4,
-    "interrogated_evil": 1,
+    "interrogated_evil": 0,
     "jailed": 4,
-    "jailed_evil": 1
+    "jailed_evil": 0
    },
    "clues": {
     "total": 15,
-    "true": 6,
-    "false": 9,
+    "true": 7,
+    "false": 8,
     "verified": 3,
     "verified_right": 3,
     "by_source": {
-     "herring": 5,
+     "herring": 4,
      "case": 1,
-     "kill": 2,
+     "kill": 3,
      "frame": 4,
      "witness": 1,
      "sk": 2
@@ -14643,7 +14646,7 @@
     0,
     0
    ],
-   "winner_team": "serial"
+   "winner_team": "killers"
   },
   {
    "players": 10,
@@ -14651,9 +14654,9 @@
    "mode": "تایمر",
    "scenario": "آشوب",
    "case": "#19",
-   "winner": "جانی سریالی 🩸",
+   "winner": "قاتل‌ها 🔪",
    "days": 6,
-   "presses": 281,
+   "presses": 288,
    "finished": true,
    "stuck": "",
    "roles": {
@@ -14669,37 +14672,37 @@
     "شیرین": "کارآگاه"
    },
    "talk": {
-    "messages": 12,
-    "lies": 6,
-    "lies_caught": 0,
+    "messages": 14,
+    "lies": 8,
+    "lies_caught": 1,
     "honest_claims": 6,
     "fake_detective": 0,
-    "fake_forensic": 1,
-    "frame_push": 1,
+    "fake_forensic": 2,
+    "frame_push": 3,
     "vouch": 0,
     "counter_claims": 0,
     "lies_countered": 0,
-    "city_votes": 18,
-    "city_votes_on_killer": 5,
+    "city_votes": 15,
+    "city_votes_on_killer": 2,
     "bot_replied_to_chat": 0,
     "chat_swallowed": 0
    },
    "arrests": {
     "interrogated": 4,
-    "interrogated_evil": 1,
+    "interrogated_evil": 0,
     "jailed": 4,
-    "jailed_evil": 1
+    "jailed_evil": 0
    },
    "clues": {
     "total": 15,
-    "true": 6,
-    "false": 9,
+    "true": 7,
+    "false": 8,
     "verified": 3,
     "verified_right": 3,
     "by_source": {
-     "herring": 5,
+     "herring": 4,
      "case": 1,
-     "kill": 2,
+     "kill": 3,
      "frame": 4,
      "witness": 1,
      "sk": 2
@@ -14709,7 +14712,7 @@
     0,
     0
    ],
-   "winner_team": "serial"
+   "winner_team": "killers"
   },
   {
    "players": 10,
@@ -14719,7 +14722,7 @@
    "case": "#34",
    "winner": "قاتل‌ها 🔪",
    "days": 2,
-   "presses": 118,
+   "presses": 110,
    "finished": true,
    "stuck": "",
    "roles": {
@@ -14784,7 +14787,7 @@
    "case": "#34",
    "winner": "قاتل‌ها 🔪",
    "days": 4,
-   "presses": 221,
+   "presses": 219,
    "finished": true,
    "stuck": "",
    "roles": {
@@ -14800,14 +14803,14 @@
     "شیرین": "کارآگاه"
    },
    "talk": {
-    "messages": 21,
-    "lies": 6,
+    "messages": 19,
+    "lies": 7,
     "lies_caught": 0,
-    "honest_claims": 15,
-    "fake_detective": 0,
+    "honest_claims": 12,
+    "fake_detective": 1,
     "fake_forensic": 1,
-    "frame_push": 1,
-    "vouch": 0,
+    "frame_push": 0,
+    "vouch": 1,
     "counter_claims": 0,
     "lies_countered": 0,
     "city_votes": 15,
@@ -14849,7 +14852,7 @@
    "case": "#34",
    "winner": "قاتل‌ها 🔪",
    "days": 4,
-   "presses": 204,
+   "presses": 208,
    "finished": true,
    "stuck": "",
    "roles": {
@@ -14865,14 +14868,14 @@
     "شیرین": "کارآگاه"
    },
    "talk": {
-    "messages": 21,
-    "lies": 6,
+    "messages": 19,
+    "lies": 7,
     "lies_caught": 0,
-    "honest_claims": 15,
-    "fake_detective": 0,
+    "honest_claims": 12,
+    "fake_detective": 1,
     "fake_forensic": 1,
-    "frame_push": 1,
-    "vouch": 0,
+    "frame_push": 0,
+    "vouch": 1,
     "counter_claims": 0,
     "lies_countered": 0,
     "city_votes": 13,
@@ -14914,7 +14917,7 @@
    "case": "#28",
    "winner": "جانی سریالی 🩸",
    "days": 5,
-   "presses": 250,
+   "presses": 232,
    "finished": true,
    "stuck": "",
    "roles": {
@@ -14979,7 +14982,7 @@
    "case": "#36",
    "winner": "شهر 🕵️",
    "days": 5,
-   "presses": 235,
+   "presses": 238,
    "finished": true,
    "stuck": "",
    "roles": {
@@ -14995,23 +14998,23 @@
     "شیرین": "کارآگاه"
    },
    "talk": {
-    "messages": 14,
+    "messages": 13,
     "lies": 2,
     "lies_caught": 1,
-    "honest_claims": 12,
+    "honest_claims": 11,
     "fake_detective": 0,
     "fake_forensic": 2,
     "frame_push": 0,
     "vouch": 0,
     "counter_claims": 0,
     "lies_countered": 0,
-    "city_votes": 17,
+    "city_votes": 18,
     "city_votes_on_killer": 8,
     "bot_replied_to_chat": 0,
     "chat_swallowed": 0
    },
    "arrests": {
-    "interrogated": 4,
+    "interrogated": 3,
     "interrogated_evil": 2,
     "jailed": 4,
     "jailed_evil": 2
@@ -15109,7 +15112,7 @@
    "case": "#24",
    "winner": "قاتل‌ها 🔪",
    "days": 5,
-   "presses": 266,
+   "presses": 250,
    "finished": true,
    "stuck": "",
    "roles": {
@@ -15125,12 +15128,12 @@
     "شیرین": "شکارچی"
    },
    "talk": {
-    "messages": 19,
+    "messages": 21,
     "lies": 6,
     "lies_caught": 0,
-    "honest_claims": 13,
+    "honest_claims": 15,
     "fake_detective": 0,
-    "fake_forensic": 1,
+    "fake_forensic": 0,
     "frame_push": 3,
     "vouch": 0,
     "counter_claims": 0,
@@ -15174,7 +15177,7 @@
    "case": "#18",
    "winner": "شهر 🕵️",
    "days": 6,
-   "presses": 263,
+   "presses": 262,
    "finished": true,
    "stuck": "",
    "roles": {
@@ -15239,7 +15242,7 @@
    "case": "#18",
    "winner": "شهر 🕵️",
    "days": 6,
-   "presses": 246,
+   "presses": 261,
    "finished": true,
    "stuck": "",
    "roles": {
@@ -15303,8 +15306,8 @@
    "scenario": "آشوب",
    "case": "#31",
    "winner": "قاتل‌ها 🔪",
-   "days": 4,
-   "presses": 247,
+   "days": 5,
+   "presses": 266,
    "finished": true,
    "stuck": "",
    "roles": {
@@ -15320,43 +15323,44 @@
     "شیرین": "نگهبان"
    },
    "talk": {
-    "messages": 15,
-    "lies": 6,
+    "messages": 18,
+    "lies": 9,
     "lies_caught": 0,
     "honest_claims": 9,
-    "fake_detective": 0,
-    "fake_forensic": 1,
+    "fake_detective": 1,
+    "fake_forensic": 2,
     "frame_push": 1,
-    "vouch": 0,
+    "vouch": 1,
     "counter_claims": 0,
     "lies_countered": 0,
     "city_votes": 13,
-    "city_votes_on_killer": 1,
+    "city_votes_on_killer": 5,
     "bot_replied_to_chat": 0,
     "chat_swallowed": 0
    },
    "arrests": {
-    "interrogated": 2,
-    "interrogated_evil": 0,
-    "jailed": 1,
-    "jailed_evil": 0
+    "interrogated": 3,
+    "interrogated_evil": 1,
+    "jailed": 2,
+    "jailed_evil": 1
    },
    "clues": {
-    "total": 9,
+    "total": 8,
     "true": 3,
-    "false": 6,
-    "verified": 2,
-    "verified_right": 2,
+    "false": 5,
+    "verified": 1,
+    "verified_right": 1,
     "by_source": {
      "herring": 3,
      "case": 1,
-     "kill": 2,
-     "frame": 3
+     "sk": 1,
+     "frame": 2,
+     "kill": 1
     }
    },
    "rumors": [
     1,
-    3
+    4
    ],
    "winner_team": "killers"
   }
@@ -15366,61 +15370,63 @@
   "کارت نقش خودکار به پیوی": 1953,
   "پخش نقش مطابق ترکیب": 281,
   "کارت نقش در پیوی": 281,
-  "دکمه‌ی اکشن شبانه → ثبت در موتور": 1285,
-  "قتل: مرگ در همان سحر": 580,
-  "اعلام صبح در گروه": 1285,
-  "کارآگاه: نتیجه‌ی استعلام سحر": 622,
-  "صحنه: سرنخ‌ها در مکان‌ها و با متنِ سناریوی classic": 416,
-  "صحنه: هر مکانِ سرنخ‌دار امروز جزئیاتی تازه نشان داد": 1151,
-  "سرنخ راست (kill) → مشخصه‌ی واقعیِ مجرم": 421,
-  "سرنخ دروغ (herring) → مجرم را نشان نمی‌دهد": 116,
-  "سرنخ: هر قتل یک رد": 392,
-  "رای تفسیر مدرک": 818,
-  "متهم: ثبت دفاع": 903,
-  "هیئت منصفه: آستانه‌ی 60٪ (classic)": 118,
-  "یادداشت خصوصی": 213,
-  "آزمایشگاه: نتیجه‌ی راست/دروغِ درست، سر موعد": 482,
-  "حبس موقت → حبس ابد بعد از ۲ شب": 352,
-  "شرط برد: شهر": 252,
+  "دکمه‌ی اکشن شبانه → ثبت در موتور": 1267,
+  "شب: آخرین تصمیم → صبحِ خودکار در گروه": 1200,
+  "قتل: مرگ در همان سحر": 585,
+  "اعلام صبح در گروه": 1267,
+  "کارآگاه: نتیجه‌ی استعلام سحر": 615,
+  "صحنه: سرنخ‌ها در مکان‌ها و با متنِ سناریوی classic": 420,
+  "صحنه: هر مکانِ سرنخ‌دار امروز جزئیاتی تازه نشان داد": 1135,
+  "سرنخ راست (kill) → مشخصه‌ی واقعیِ مجرم": 427,
+  "سرنخ دروغ (herring) → مجرم را نشان نمی‌دهد": 110,
+  "سرنخ: هر قتل یک رد": 400,
+  "رای تفسیر مدرک": 780,
+  "متهم: ثبت دفاع": 811,
+  "هیئت منصفه: آستانه‌ی 60٪ (classic)": 123,
+  "یادداشت خصوصی": 218,
+  "آزمایشگاه: نتیجه‌ی راست/دروغِ درست، سر موعد": 448,
+  "حبس موقت → حبس ابد بعد از ۲ شب": 346,
+  "شرط برد: شهر": 248,
   "افشای نقش‌ها در پایان": 254,
-  "شرط برد: قاتل‌ها": 188,
-  "بازجو: سرنخ‌ها در پیوی": 578,
-  "بازجویی دونفره: پرسش → متهم → جواب → بازجو": 1157,
-  "تناقض‌یاب روی جواب واقعی متهم": 351,
-  "بازجو: حکم آزادی": 83,
-  "بازجو: حکم حبس موقت": 343,
+  "شرط برد: قاتل‌ها": 198,
+  "بازجو: سرنخ‌ها در پیوی": 540,
+  "بازجویی دونفره: پرسش → متهم → جواب → بازجو": 1081,
+  "تناقض‌یاب روی جواب واقعی متهم": 329,
+  "بازجو: «✅ بازجویی تمام شد» شب را آزاد کرد": 540,
+  "بازجو: حکم آزادی": 73,
+  "بازجو: حکم حبس موقت": 315,
   "طوفان: حمله لغو شد": 53,
-  "سرنخ: قطعی برق → هیچ سرنخی": 134,
-  "بازجو: آزادی زندانی قبلی (با متهم جدید)": 101,
-  "کارآگاه: راستی‌آزمایی مدرک": 113,
-  "هیئت منصفه: تشکیل با ۲ درخواست": 108,
-  "پزشک: هدفِ نجات‌یافته زنده ماند": 573,
-  "رای اضطراری ۸۰٪: مستقیم به حبس موقت": 56,
-  "سرنخ راست (witness) → مشخصه‌ی واقعیِ مجرم": 62,
-  "پنل اکشن: «هدفی نمانده» با توضیح": 49,
-  "شرط برد: سپر بلا": 32,
-  "همدست: ردِ پاپوش در پیام صبح": 449,
-  "سرنخ دروغ (frame) → مجرم را نشان نمی‌دهد": 369,
-  "زوج سرنوشت: مرگ همراه": 98,
-  "کالبدشکاف: مشخصه‌ی راستِ ضارب": 61,
-  "نگهبان: شمارش ملاقات": 221,
+  "هیئت منصفه: تشکیل با ۲ درخواست": 98,
+  "کارآگاه: راستی‌آزمایی مدرک": 106,
+  "سرنخ: قطعی برق → هیچ سرنخی": 132,
+  "بازجو: آزادی زندانی قبلی (با متهم جدید)": 85,
+  "پزشک: هدفِ نجات‌یافته زنده ماند": 553,
+  "رای اضطراری ۸۰٪: مستقیم به حبس موقت": 47,
+  "سرنخ راست (witness) → مشخصه‌ی واقعیِ مجرم": 67,
+  "پنل اکشن: «هدفی نمانده» با توضیح": 47,
+  "شرط برد: سپر بلا": 30,
+  "همدست: ردِ پاپوش در پیام صبح": 459,
+  "سرنخ دروغ (frame) → مجرم را نشان نمی‌دهد": 375,
+  "زوج سرنوشت: مرگ همراه": 103,
+  "کالبدشکاف: مشخصه‌ی راستِ ضارب": 62,
+  "نگهبان: شمارش ملاقات": 231,
   "شکارچی: ثبت هدف شلیک آخر": 48,
-  "شکارچی: شلیک آخر با حبس ابد": 7,
+  "شکارچی: شلیک آخر با حبس ابد": 8,
   "سم: زمان‌بندی دو شب": 37,
-  "شکارچی: شلیک آخر هنگام مرگ": 10,
+  "شکارچی: شلیک آخر هنگام مرگ": 9,
   "سرنخ راست (poison) → مشخصه‌ی واقعیِ مجرم": 11,
   "سم: نجات پزشک در شبِ سررسید": 2,
   "سناریو: فقط میزبان": 173,
   "سناریو: انتخاب با دکمه و نمایش نقش‌ها در لابی": 173,
-  "صحنه: سرنخ‌ها در مکان‌ها و با متنِ سناریوی court": 459,
-  "هیئت منصفه: آستانه‌ی 50٪ (court)": 130,
-  "سرنخ راست (reporter) → مشخصه‌ی واقعیِ مجرم": 23,
-  "پزشک قانونی: راست/دروغِ سرنخ‌های امشب": 138,
-  "خبرچین: خبر بازجویی": 82,
-  "صحنه: سرنخ‌ها در مکان‌ها و با متنِ سناریوی chaos": 410,
-  "هیئت منصفه: آستانه‌ی 60٪ (chaos)": 129,
-  "سرنخ راست (sk) → مشخصه‌ی واقعیِ مجرم": 75,
-  "شرط برد: جانی سریالی": 37,
+  "صحنه: سرنخ‌ها در مکان‌ها و با متنِ سناریوی court": 439,
+  "هیئت منصفه: آستانه‌ی 50٪ (court)": 131,
+  "سرنخ راست (reporter) → مشخصه‌ی واقعیِ مجرم": 24,
+  "پزشک قانونی: راست/دروغِ سرنخ‌های امشب": 139,
+  "خبرچین: خبر بازجویی": 81,
+  "صحنه: سرنخ‌ها در مکان‌ها و با متنِ سناریوی chaos": 408,
+  "هیئت منصفه: آستانه‌ی 60٪ (chaos)": 128,
+  "سرنخ راست (sk) → مشخصه‌ی واقعیِ مجرم": 72,
+  "شرط برد: جانی سریالی": 33,
   "دسترسی: شب تا اکشنِ همه یا پایان مهلت بسته نمی‌شود": 1,
   "دسترسی: غریبه فاز را جلو نمی‌برد": 1,
   "هیئت منصفه: غریبه پیام قانون می‌گیرد": 1,

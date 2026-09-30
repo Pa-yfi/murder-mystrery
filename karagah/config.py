@@ -40,6 +40,8 @@ PHASE_SECONDS = {
     "صبح": int(os.getenv("MORNING_SECONDS", 90)),
     "هیئت منصفه": int(os.getenv("JURY_SECONDS", 60)),
 }
+# مهلتِ شب تمام شد ولی نقشی هنوز تصمیم نگرفته → یک بار این‌قدر فرصتِ اضافه + یادآوری به پیوی‌اش
+NIGHT_GRACE_SECONDS = int(os.getenv("NIGHT_GRACE_SECONDS", 30))
 MAX_DAYS = int(os.getenv("MAX_DAYS", 20))                  # سقف روز؛ بعدش «بن‌بست» (بدون برنده)
 DEFENSE_SECONDS = int(os.getenv("DEFENSE_SECONDS", 30))    # ایده ۲
 VOICE_DIR = os.getenv("VOICE_DIR", "assets/voice")         # ایده ۲۹

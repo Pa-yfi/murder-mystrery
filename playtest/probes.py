@@ -67,10 +67,18 @@ class Scene:
     def dawn(self, by: Optional[Agent] = None):
         """میزبان «پایان شب» را می‌زند؛ اگر هنوز منتظرِ اکشن است، تا پایان مهلت صبر می‌کند."""
         by = by or self.host
-        m = by.tap(cb_is("dawn"), ("group",), depth=60)
-        if m is not None and not m.ok and "⏳" in m.text:
-            self.s.tg.clock.advance((self.g.remaining() or 0) + 1)
+        m = None
+        for _ in range(3):                  # مهلت → فرصتِ اضافه → صبح (نسخه ۷)
+            if self.g.s.phase not in (Phase.NIGHT, Phase.INTERROGATION):
+                return m                    # آخرین تصمیم خودش صبح را آورده بود
             m = by.tap(cb_is("dawn"), ("group",), depth=60)
+            if m is not None and not m.ok and "⏳" in m.text:
+                self.s.tg.clock.advance((self.g.remaining() or 0) + 1)
+                continue
+            if m is not None and "فرصتِ اضافه" in m.text:
+                self.s.tg.clock.advance((self.g.remaining() or 0) + 1)
+                continue
+            return m
         return m
 
     def discuss_and_vote(self):

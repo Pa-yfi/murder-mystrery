@@ -245,7 +245,7 @@ async def on_text(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
         res = handle(cmd, chat, uid, update.effective_user.first_name or "", text)
         res["_target"] = chat
     else:
-        res = _dispatch(update, "commands", "")
+        res = _dispatch(update, "menu", "")     # وسط بازی: پنلِ بازیِ جاری؛ بیرون از بازی: منو
     await _reply(update, res)
 
 
@@ -263,6 +263,49 @@ async def _post_init(app):
     log.info("دستورها ثبت شد: %s", ", ".join(COMMANDS))
 
 
+CLOCK_INTERVAL = 5          # ثانیه — پیامِ ساعت هر چند ثانیه خودش را ویرایش می‌کند
+CLOCKS: dict = {}           # chat → {"key", "mid", "text"}: پیامِ ساعتِ فازِ فعلی
+
+
+async def _update_clock(bot, chat: int) -> None:
+    """نسخه ۷: یک پیامِ ساعت برای هر فاز (شبِ ۲، صبحِ روز ۲، …) که مدام ویرایش می‌شود.
+    فاز عوض شد → پیامِ قبلی «✔️ تمام شد» می‌گیرد و پیامِ ساعتِ تازه پایینِ چت می‌آید."""
+    view = botmod.clock_view(chat)
+    cur = CLOCKS.get(chat)
+    if cur and (view is None or cur["key"] != view["key"]):
+        try:
+            await bot.edit_message_text(chat_id=chat, message_id=cur["mid"],
+                                        text=cur["text"] + "\n✔️ این مرحله تمام شد.", parse_mode="Markdown")
+        except Exception as e:
+            log.debug("clock close %s: %s", chat, e)
+        CLOCKS.pop(chat, None)
+        cur = None
+    if view is None:
+        return
+    kb = _kb(view["keyboard"])
+    if cur is None:
+        try:
+            msg = await bot.send_message(chat, view["text"], parse_mode="Markdown", reply_markup=kb)
+            CLOCKS[chat] = {"key": view["key"], "mid": msg.message_id, "text": view["text"]}
+        except Exception as e:
+            log.warning("clock send %s: %s", chat, e)
+        return
+    if cur["text"] == view["text"]:
+        return
+    try:
+        await bot.edit_message_text(chat_id=chat, message_id=cur["mid"], text=view["text"],
+                                    parse_mode="Markdown", reply_markup=kb)
+        cur["text"] = view["text"]
+    except Exception as e:
+        err = str(e).lower()
+        if "not modified" in err:
+            cur["text"] = view["text"]
+        elif "not found" in err or "can't be edited" in err:
+            CLOCKS.pop(chat, None)            # پیام پاک شده → تیکِ بعدی ساعتِ تازه می‌فرستد
+        else:
+            log.debug("clock edit %s: %s", chat, e)   # محدودیت نرخ و … — تیکِ بعد دوباره
+
+
 async def _timer_job(ctx: ContextTypes.DEFAULT_TYPE):
     """ایده ۱: هر ۱۵ ثانیه، فازهای منقضی‌شده را خودکار جلو می‌برد.
 
@@ -277,6 +320,7 @@ async def _timer_job(ctx: ContextTypes.DEFAULT_TYPE):
                 # همان پیام کاملِ دکمه‌ها: کشته‌ها و مدرک صبح، کیبورد رای، هیئت منصفه…
                 await _send(ctx.bot, chat, res["text"], res.get("keyboard"))
             await _flush_outbox(ctx.bot, res)
+            await _update_clock(ctx.bot, chat)
         except Exception as e:
             log.warning("timer tick %s: %s", chat, e)
 
@@ -293,7 +337,7 @@ def main():
     app.add_handler(MessageHandler(filters.COMMAND, on_unknown))   # /هرچیزِ نامعلوم → منو
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, on_text))
     if app.job_queue:
-        app.job_queue.run_repeating(_timer_job, interval=15, first=15)
+        app.job_queue.run_repeating(_timer_job, interval=CLOCK_INTERVAL, first=CLOCK_INTERVAL)
     else:
         # بی‌صدا رد نشو: بدون job-queue، مهلت فازها هرگز خودکار جلو نمی‌رود.
         log.warning("⚠️ JobQueue نصب نیست → تایمر خودکار فازها کار نمی‌کند. "

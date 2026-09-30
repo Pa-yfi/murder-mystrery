@@ -62,6 +62,10 @@ class Telegram:
         self.chats: Dict[int, List[Message]] = {group: []}
         self.names: Dict[int, str] = {}
         self.presses = 0
+        self.clock_msg: Optional[Message] = None   # پیامِ ساعتِ فازِ فعلی (مثل telegram_app.CLOCKS)
+        self.clock_key = None
+        self.clock_edits = 0
+        self.clock_msgs = 0
         self._orig = (bot._time, engine._time)
         bot._time = self.clock                # ضد اسپم، dedup و تایمر روی ساعت مجازی
         engine._time = self.clock
@@ -181,7 +185,7 @@ class Telegram:
             res = handle(cmd, chat, uid, self.names.get(uid, ""), text)
             res["_target"] = chat
         else:
-            res = self._run("commands", uid, uid, "")
+            res = self._run("menu", uid, uid, "")        # مثل on_text: پنلِ بازیِ جاری
         return self._deliver(res, uid, uid, "text")
 
     def chat(self, uid: int, text: str) -> Message:
@@ -198,11 +202,31 @@ class Telegram:
         return msg
 
     def timer_job(self) -> Optional[Message]:
-        """مثل _timer_job: هر ۱۵ ثانیه tick؛ فقط وقتی فاز واقعاً جلو رفت پیام می‌دهد."""
+        """مثل _timer_job: tick؛ پیام فقط وقتی فاز واقعاً جلو رفت؛ بعد پیامِ ساعت ویرایش می‌شود."""
         res = handle("tick", self.group)
         out = None
         if res.get("advanced"):               # پیام کامل + کیبورد، مثل _timer_job
             out = self._put(res, self.group, "timer")
         for m in res.get("outbox") or []:
             self._put({"text": m["text"], "keyboard": m.get("keyboard")}, m["chat"], "outbox<timer")
+        self.update_clock()
         return out
+
+    def update_clock(self) -> None:
+        """مثل telegram_app._update_clock: یک پیام برای هر فاز؛ همان پیام ویرایش می‌شود."""
+        view = bot.clock_view(self.group)
+        if self.clock_msg is not None and (view is None or view["key"] != self.clock_key):
+            self.clock_msg.text += "\n✔️ این مرحله تمام شد."
+            self.clock_msg.keyboard = None
+            self.clock_msg, self.clock_key = None, None
+        if view is None:
+            return
+        self._check(view["text"], self.group, "clock", private=False)
+        if self.clock_msg is None:
+            self.clock_msg = Message(self.group, view["text"], view["keyboard"], "clock")
+            self.inbox(self.group).append(self.clock_msg)
+            self.clock_key = view["key"]
+            self.clock_msgs += 1
+        elif self.clock_msg.text != view["text"]:
+            self.clock_msg.text, self.clock_msg.keyboard = view["text"], view["keyboard"]
+            self.clock_edits += 1

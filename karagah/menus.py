@@ -35,6 +35,7 @@ GROUPS: List[Tuple[str, str, List[tuple]]] = [
         ("🎭 سناریو", "scenario"),
         ("🔐 نقش من", "myrole"), ("🖼️ کارت نقش", "rolecard"),
         ("🎯 توانایی‌های من", "abilities"), ("🌙 اکشن شبانه", "act"),
+        ("🙅 امشب کاری نمی‌کنم", "pass"),
         ("🌅 پایان شب", "dawn"), ("💬 گفتگو", "discuss"),
         ("🗳️ رای‌گیری", "vote"), ("📊 بستن رای‌گیری", "closevote"),
         ("📋 داشبورد", "dashboard"), ("🏙️ وضعیت شهر", "status"),
@@ -89,6 +90,7 @@ REACHES: Dict[str, str] = {
     "start": "menu",           # ورودی دیپ‌لینک
     "back": "menu",
     "cancel": "commands",
+    "fullmenu": "menu",        # وسط بازی «🏠» پنل بازیِ جاری را می‌دهد؛ «🏠 منوی کامل» زیرش است
 }
 
 

@@ -30,6 +30,8 @@ MODE_FA = {"group": "دکمه در گروه", "timer": "تایمر", "dm": "دک
 def _reset_globals() -> None:
     db.reset(":memory:")
     GAMES.clear()
+    from karagah import engine as _engine
+    _engine.NIGHT_OBSERVERS.clear()        # داورِ جلسه‌ی قبلی دیگر گوش نمی‌دهد
     for d in (bot._PENDING, bot._ACTIVE_TABLE, bot._LAST_CB, bot._LAST_CALL, bot.LAST_ROSTER):
         d.clear()
 
@@ -214,19 +216,33 @@ class Session:
                         "فقط با رای شهر تمام می‌شود و سقف روز هم ندارد؛ در دو بازی ۹ نفره که شهر رای نداد، "
                         "بازی ۳۸ روز بی‌هیچ مرگی ادامه یافت.", key="no-killer-can-kill")
         self.ref.begin_night()
+        mark = self.last_mid()                          # صبح ممکن است با آخرین تصمیم همین حالا برسد
+        day_before = g.s.day
         order = sorted(self.agents, key=lambda a: (self.ab(a) != "kill", self.rng.random()))
         order.sort(key=lambda a: ROLES[a.role].ability == "protect")     # پزشک آخر
         for a in order:
+            if g.s.phase not in (Phase.NIGHT, Phase.INTERROGATION):
+                break                                   # آخرین تصمیم شب را بست (بقیه هدفِ مجازی نداشتند)
             self.night_turn(a)
         if g.s.phase is Phase.INTERROGATION:
             self.officer_questions()
-        self.ref.pre_dawn()
-        mark = self.last_mid()
-        day_before = g.s.day
-        if self.mode == "timer":
-            self.run_timer()
+            self.officer_done()
+        if g.s.phase in (Phase.NIGHT, Phase.INTERROGATION):
+            if self.mode == "timer":
+                self.run_timer()                        # مهلت → فرصتِ اضافه → صبح
+            else:
+                for _ in range(3):                      # «⏳ منتظر» → صبر؛ «فرصتِ اضافه» → صبر
+                    m = self.host_phase("dawn")
+                    if g.s.phase not in (Phase.NIGHT, Phase.INTERROGATION):
+                        break
+                    if m is not None and "فرصتِ اضافه" in m.text:
+                        self.tg.clock.advance((g.remaining() or 0) + 1)
+        elif not any("همه‌ی نقش‌ها تصمیمشان را گرفتند" in m.text
+                     for m in self.tg.inbox(self.group) if m.mid > mark):
+            self.r.find("بالا", "شب", "شب با آخرین تصمیم بسته شد ولی پیام صبح به گروه نرسید",
+                        key="auto-dawn-silent")
         else:
-            self.host_phase("dawn")
+            self.r.ok("شب: آخرین تصمیم → صبحِ خودکار در گروه")
         if g.s.phase in (Phase.NIGHT, Phase.INTERROGATION):
             return                                      # حلقه‌ی بعدی گیر را می‌گیرد
         announced = self.group_since(mark)
@@ -307,21 +323,24 @@ class Session:
                 self.r.find("متوسط", "جریان بازی", "بازیکنِ بی‌هدف «منتظرِ اکشن» می‌ماند", key="no-target-pending")
             return
         b = self.pick(a, ab, btns)
-        m = a.press(panel, b)
         tgt = int(b["callback_data"].split(":")[1])
+        self.ref.intent(a.uid, ab, tgt)                 # پیش از زدن: آخرین تصمیم خودش شب را می‌بندد
+        m = a.press(panel, b)
         if not (m and m.ok and "ثبت شد" in m.text):
+            self.ref.intents.pop(a.uid, None)
             self.r.find("بالا", "دکمه‌ها", "دکمه‌ی هدفِ پیشنهادیِ خودِ ربات رد شد",
                         f"{a.role} → {b['text']}: {m.text if m else '—'}", key=f"act-rejected:{ab}")
             return
-        self.ref.intent(a.uid, ab, tgt)
         if ab == "investigate" and ("→ پاک" in m.text or "→ مشکوک" in m.text):
             self.r.find("بالا", "توانایی‌ها", "نتیجه‌ی استعلام پیش از سحر داده شد")
         # گاهی نظرش عوض می‌شود: دوباره انتخاب = ویرایش اکشن
-        if a.rng.random() < 0.15 and len(btns) > 1:
+        if a.rng.random() < 0.15 and len(btns) > 1 and g.s.phase in (Phase.NIGHT, Phase.INTERROGATION):
             other = self.pick(a, ab, [x for x in a.buttons_named(m, "act:") if x is not None])
+            prev = self.ref.intents.get(a.uid)
+            self.ref.intent(a.uid, ab, int(other["callback_data"].split(":")[1]))
             m2 = a.press(m, other)
-            if m2 and m2.ok:
-                self.ref.intent(a.uid, ab, int(other["callback_data"].split(":")[1]))
+            if not (m2 and m2.ok) and prev:
+                self.ref.intents[a.uid] = prev
 
     def pick(self, a: Agent, ab: str, btns: List[dict]) -> dict:
         names = [(b, a.name_of_button(b)) for b in btns]
@@ -354,6 +373,20 @@ class Session:
             self.r.ok("کارآگاه: راستی‌آزمایی مدرک")
             return True
         return False
+
+    def officer_done(self) -> None:
+        """بازجو «✅ بازجویی تمام شد» را می‌زند؛ شبِ بازجویی تا آن وقت منتظرش می‌ماند."""
+        g = self.g
+        off = self.agent(g.s.officer_uid)
+        if not off or not g._officer_on_duty(off.uid):
+            return
+        if off.uid not in g.pending_actors():
+            self.r.find("بالا", "شب", "شبِ بازجویی منتظرِ بازجو نماند", key="officer-not-awaited")
+        m = off.tap(cb_is("pass"), ("dm", "group"), depth=8, nav="pass")
+        if m and m.ok and (g.passed(off.uid) or g.s.phase not in (Phase.NIGHT, Phase.INTERROGATION)):
+            self.r.ok("بازجو: «✅ بازجویی تمام شد» شب را آزاد کرد")
+        else:
+            self.r.find("بالا", "دکمه‌ها", "دکمه‌ی «✅ بازجویی تمام شد» کار نکرد", m.text if m else "")
 
     def officer_questions(self) -> None:
         g = self.g
