@@ -388,6 +388,9 @@ class Game:
             raise RuleError("تو از بازی خارج شده‌ای.")
         if not p.free:
             raise RuleError("در بازداشتی؛ امشب اکشنی نداری.")
+        if f"expose:{uid}" in s.night_actions:
+            # نتیجه‌ی راستی‌آزمایی همان لحظه دیده شده؛ «پس گرفتن» یعنی دو اکشن در یک شب (راستی‌آزمایی + استعلام)
+            raise RuleError("امشب با راستی‌آزماییِ سرنخ تصمیمت را گرفته‌ای و نتیجه‌اش را دیدی.")
         if self._officer_on_duty(uid):
             s.night_actions[f"_pass:{uid}"] = 1
             if self.ability_of(p) in ("", "hunter"):
@@ -1379,7 +1382,8 @@ class Game:
         co_line = f"\n🤝 کنار برنده (زنده ماندند): {'، '.join(co)}" if co else ""
 
         mvp = self.s.players[self.s.mvp].name if self.s.mvp else "—"
-        return (f"🏁 *پایان — برنده: {self.s.winner}*\n{'─' * 18}\n"
+        from .theme import ribbon
+        return (ribbon("🏁", f"پایان — برنده: {self.s.winner}") + f"\n{'─' * 18}\n"
                 f"{self.s.win_reason}{co_line}\n{'─' * 18}\n"
                 "🎭 *نقش‌ها:* (🏆 = برنده)\n" + "\n".join(rows) +
                 f"\n{'─' * 18}\n{justice}\n{votes}\n⭐ MVP: {mvp}\n\n"

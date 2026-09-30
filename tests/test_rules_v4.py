@@ -7,7 +7,7 @@ from types import SimpleNamespace
 
 import pytest
 
-from karagah import bot, config, db, engine, telegram_app
+from karagah import bot, config, db, engine, telegram_app, ui
 from karagah.bot import GAMES, handle
 from karagah.engine import Game, RuleError
 from karagah.models import Align, Custody, Phase
@@ -512,7 +512,7 @@ def test_announcement_pressed_in_private_goes_to_the_group():
     res = telegram_app._dispatch(upd, "dawn", "")
     asyncio.run(telegram_app._reply(upd, res))
     assert any(c == CHAT and "صبح روز" in t for c, t in sent)      # پیام صبح در گروه
-    assert sent[0][0] == CHAT and "🌅" in sent[0][1]                # اول ایموجیِ متحرکِ صبح
+    assert sent[0][0] == CHAT and sent[0][1] == ui.ANIM["morning"][0]   # اول ایموجیِ متحرکِ صبح (تک‌ایموجی)
     assert any(c == 1 and "اعلام شد" in t for c, t in sent)          # در پیوی فقط تاییدیه
     assert not any(c == 1 and "صبح روز" in t for c, t in sent)
 

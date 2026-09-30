@@ -135,6 +135,13 @@ class Telegram:
             return on
         msg = Message(dest, text, res.get("keyboard"), cause, res.get("ok", True))
         self.inbox(dest).append(msg)
+        if res.get("clock") and dest == self.group:     # مثل _reply: همین پیام کارتِ زنده است
+            view = bot.clock_view(self.group)
+            if view:
+                if self.clock_msg is not None and self.clock_msg in self.inbox(self.group):
+                    self.inbox(self.group).remove(self.clock_msg)
+                self.clock_msg, self.clock_key = msg, view["key"]
+                self.clock_msgs += 1
         return msg
 
     def _run(self, cmd: str, chat: int, uid: int, arg: str) -> dict:
@@ -153,7 +160,9 @@ class Telegram:
         if cmd not in bot._ROUTES:
             cmd, arg = "menu", ""
         res = self._run(cmd, chat, uid, arg)
-        return self._deliver(res, chat, uid, f"/{cmd}")
+        out = self._deliver(res, chat, uid, f"/{cmd}")
+        self.update_clock()                   # مثل _reply: کارتِ زنده بلافاصله
+        return out
 
     def press(self, uid: int, msg: Message, button: dict) -> Optional[Message]:
         """تپ روی دکمه‌ای که واقعاً روی پیامِ قابل‌دیدنِ این کاربر است."""
@@ -168,13 +177,17 @@ class Telegram:
             if not m:
                 return None                   # لینک اشتراک/افزودن به گروه — بیرون از ربات
             res = self._run("start", uid, uid, m.group(1))
-            return self._deliver(res, uid, uid, f"url:start={m.group(1)}")
+            out = self._deliver(res, uid, uid, f"url:start={m.group(1)}")
+            self.update_clock()               # «✅ آماده‌ام» در پیوی → کارتِ لابی در گروه
+            return out
         data = button["callback_data"]
         if bot.is_dup_callback(msg.chat, uid, data):
             return None
         cmd, arg = parse_callback(data)
         res = self._run(cmd, msg.chat, uid, arg)
-        return self._deliver(res, msg.chat, uid, data, on=msg)
+        out = self._deliver(res, msg.chat, uid, data, on=msg)
+        self.update_clock()
+        return out
 
     def type_text(self, uid: int, text: str) -> Message:
         """مثل on_text: اگر ربات منتظر متن است همان را می‌گیرد، وگرنه تابلوی دکمه‌ها."""
@@ -186,7 +199,9 @@ class Telegram:
             res["_target"] = chat
         else:
             res = self._run("menu", uid, uid, "")        # مثل on_text: پنلِ بازیِ جاری
-        return self._deliver(res, uid, uid, "text")
+        out = self._deliver(res, uid, uid, "text")
+        self.update_clock()
+        return out
 
     def chat(self, uid: int, text: str) -> Message:
         """پیامِ معمولیِ بازیکن در گروه (بحث، ادعا، بلوف). مثل on_text: اگر ربات منتظرِ متنِ او

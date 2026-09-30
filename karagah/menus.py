@@ -13,7 +13,7 @@ from .models import Custody, GameState, Phase
 from .roles import ROLES
 
 BACK = ("🔙 بازگشت", "commands")
-HOME = ("🏠 منوی اصلی", "menu")
+HOME = ("🏠 منو", "menu")          # همان ui.HOME
 
 
 def kb(rows: List[List[tuple]]) -> Dict:

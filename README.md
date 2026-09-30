@@ -10,7 +10,7 @@ python -m venv .venv
 .\.venv\Scripts\Activate.ps1
 pip install -r requirements.txt
 copy .env.example .env      # بعد BOT_TOKEN و BOT_USERNAME و ADMIN_IDS را داخلش بگذار
-python -m pytest -q tests   # ۳۵۴ تست سبز
+python -m pytest -q tests   # ۳۷۸ تست سبز
 python run.py               # ربات بالا می‌آید
 ```
 لینوکس/مک: `source .venv/bin/activate` و `cp .env.example .env`.
@@ -29,7 +29,7 @@ run.py → karagah/telegram_app.py → karagah/bot.py (۷۳ اندپوینت)
                                         ├── ui.py / menus.py (کیبورد، دکمه‌ی هر فرمان، ایموجی)
                                         └── db.py      (SQLite — پنل ادمین)
 karagah/config.py ← .env
-tests/        ← ۳۵۴ تست سبز (v4 قواعد، v5 سرنخ، v6 صحنه، v7 جریان زنده، v8 QA)
+tests/        ← ۳۷۸ تست سبز (v4 قواعد، v5 سرنخ، v6 صحنه، v7 جریان زنده، v8 QA)
 playtest/     ← بازیکن‌های شبیه‌سازی + گزارش (REPORT.md)
 RULES.md      ← قوانین کامل؛ جدول سناریوها با تست با کد هم‌خوان می‌ماند
 ```
@@ -76,7 +76,7 @@ RULES.md      ← قوانین کامل؛ جدول سناریوها با تست 
 دستورهای تازه: `/act` `/ready` `/remind` `/pause` `/resume` `/host` `/table` `/balance`
 
 ## تست‌ها
-- `tests/` — باید همیشه سبز باشد (۳۵۴ تست). `tests/test_rules_v4.py` هر قاعده‌ی RULES.md را می‌سنجد.
+- `tests/` — باید همیشه سبز باشد (۳۷۸ تست). `tests/test_rules_v4.py` هر قاعده‌ی RULES.md را می‌سنجد.
 - `playtest/` — بازیکن‌های شبیه‌سازی کل بازی را با دکمه بازی می‌کنند و یافته‌ها را در `playtest/REPORT.md` می‌نویسند.
   (سوئیتِ «دفترچه‌ی نقص» که مستندات قدیمی به آن ارجاع می‌داد در مخزن نبود؛ همه‌ی نقص‌های آن فهرست در نسخه ۴ بسته شد — PLAN.md.)
 

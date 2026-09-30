@@ -52,6 +52,7 @@ class Report:
                          f"{g['days']} | {g['presses']} | {'✅' if g['finished'] else '⛔ ' + g['stuck']} | "
                          f"{g['mode']} |")
         lines += self.balance_md()
+        lines += self.moves_md()
         lines += ["", "## توانایی‌هایی که داور درست بودنشان را سنجید", "",
                   "| بررسی | دفعات |", "|---|---|"]
         for k, v in sorted(self.checks.items()):
@@ -66,6 +67,21 @@ class Report:
                 lines.append(f["detail"])
             lines.append("")
         return "\n".join(lines)
+
+    def moves_md(self) -> List[str]:
+        """ماتریسِ پوششِ حرکت‌ها: هر نقش هر حرکتی را که می‌تواند، واقعاً با دکمه انجام داد؟"""
+        tot: Dict[str, Dict[str, int]] = {}
+        for g in self.games:
+            for key, c in (g.get("moves") or {}).items():
+                role, move = key.split("|", 1)
+                tot.setdefault(role, {})[move] = tot.setdefault(role, {}).get(move, 0) + c
+        if not tot:
+            return []
+        out = ["", "## پوششِ حرکت‌ها (فقط با دکمه)", "", "| نقش | حرکت‌ها (تعداد) |", "|---|---|"]
+        for role in sorted(tot):
+            out.append(f"| {role} | " + " · ".join(f"{m} {c}" for m, c in sorted(tot[role].items(),
+                                                                                key=lambda x: -x[1])) + " |")
+        return out
 
     def balance_md(self) -> List[str]:
         """برد هر تیم در هر سناریو + آمار گفتگو/بلوف + دقت بازداشت‌ها + سرنخ‌ها."""

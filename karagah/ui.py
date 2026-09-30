@@ -13,32 +13,28 @@ def _fa(n) -> str:
 
 DIV = "─" * 18
 
-ANIM: Dict[str, List[str]] = {
-    "night": ["🌆 شهر می‌خوابد…", "🌃 چراغ‌ها خاموش شد…", "🌌 سکوت مطلق…", "🔪 چیزی در تاریکی حرکت کرد…"],
-    "morning": ["🌅 سپیده زد…", "📰 شهر بیدار شد…", "🚨 خبر بد…"],
-    "vote": ["🗳️ صندوق باز شد…", "🗳️▫️ شمارش…", "🗳️✅ نتیجه!"],
-    "interrogation": ["🚪 در اتاق بازجویی بسته شد…", "🔦 چراغ روی صورت متهم…", "🎙️ ضبط شروع شد."],
-    "jail": ["⛓️ صدای زنجیر…", "🔒 در سلول قفل شد.", "🤫 نقشش فاش نمی‌شود."],
-    "court": ["⚖️ دادگاه رسمی است…", "📜 پرونده باز شد…", "👨‍⚖️ حکم نهایی!"],
-}
+from .theme import ANIM, card, dots, hourglass, ribbon, shiny_bar  # noqa: E402  (نسخه ۹: زبانِ بصری)
 
 CUSTODY_ICON = {
     Custody.FREE: "🟢", Custody.INTERROGATION: "🔦",
     Custody.TEMP_JAIL: "🔒", Custody.LIFE_JAIL: "⛓️",
 }
 
-BACK = ("🔙 بازگشت", "menu")
-HOME = ("🏠 منوی اصلی", "menu")
+# نسخه ۹: «بازگشت» و «منو» هر دو به menu می‌رفتند — دو دکمه‌ی یکسان زیرِ بیش از ۱۱۰۰ پیام.
+# حالا یک دکمه؛ وسطِ بازی همین «🏠» پنلِ بازیِ جاری را باز می‌کند.
+HOME = ("🏠 منو", "menu")
+BACK = HOME
 
+# نسخه ۹: منوی اصلی فقط بیرون از بازی دیده می‌شود (وسط بازی «🏠» پنلِ بازیِ جاری است)؛
+# پس دکمه‌های وسطِ بازی (اکشن شبانه، داشبورد، …) اینجا بن‌بست بودند و حذف شدند.
 MENU = [
-    [("🎛️ همه‌ی دکمه‌ها", "commands")],
     [("🎮 شروع بازی همین‌جا", "new"), ("⚡ بلیتز", "blitz")],
-    [("🌙 اکشن شبانه", "act"), ("🎯 توانایی‌های من", "abilities")],
-    [("🔗 دعوت دوستان", "share"), ("📋 داشبورد", "dashboard")],
-    [("🎓 آموزش تعاملی", "tutorial"), ("🎭 نقش‌ها", "roles")],
-    [("🏆 برترین‌ها", "top"), ("📅 فصل", "season")],
+    [("🎓 آموزش", "tutorial"), ("📖 قوانین", "help")],
+    [("🎭 نقش‌ها", "roles"), ("🔗 دعوت دوستان به بازی", "share")],
+    [("📊 پروفایل", "profile"), ("🏆 برترین‌ها", "top")],
     [("🎯 ماموریت‌ها", "missions"), ("🏅 دستاوردها", "achv")],
-    [("📊 پروفایل", "profile"), ("🛠️ پنل ادمین", "admin")],
+    [("📅 فصل", "season"), ("🎛️ همه‌ی دکمه‌ها", "commands")],
+    [("🛠️ پنل ادمین", "admin")],
 ]
 
 
@@ -80,16 +76,27 @@ def button(t: str, d: str, style: Optional[str] = None) -> Dict:
 
 
 def kb(rows: List[List[tuple]]) -> Dict:
-    """هر دکمه (متن، callback) یا (متن، callback، رنگ)؛ رنگ پیش‌فرض از معنای callback."""
-    return {"inline_keyboard": [[button(*b) for b in r] for r in rows]}
+    """هر دکمه (متن، callback) یا (متن، callback، رنگ)؛ رنگ پیش‌فرض از معنای callback.
+    دکمه‌ی تکراری (همان callback دوباره در یک کیبورد) حذف می‌شود."""
+    seen, out = set(), []
+    for r in rows:
+        row = []
+        for b in r:
+            if b[1] in seen:
+                continue
+            seen.add(b[1])
+            row.append(button(*b))
+        if row:
+            out.append(row)
+    return {"inline_keyboard": out}
 
 
 def with_back(rows: List[List[tuple]]) -> Dict:
-    return kb(rows + [[BACK, HOME]])
+    return kb(rows + [[HOME]])
 
 
 def back_only() -> Dict:
-    return kb([[BACK, HOME]])
+    return kb([[HOME]])
 
 
 def main_menu(private: bool = False, admin: bool = True) -> Dict:
@@ -98,13 +105,14 @@ def main_menu(private: bool = False, admin: bool = True) -> Dict:
     for row in MENU:
         r = [b for b in row if admin or b[1] != "admin"]
         if private and any(b[1] == "new" for b in r):
-            rows.append([("🗂️ پرونده‌ی بازی من", "board"), ("🔐 نقش من", "myrole")])
-            continue
+            continue                               # پیوی: جایش «👥 افزودن ربات به گروه» می‌آید
+        if private and any(b[1] == "share" for b in r):
+            r = [b for b in r if b[1] != "share"]
         if r:
             rows.append(r)
     out = kb(rows)
     if private:
-        out["inline_keyboard"].insert(1, [{"text": "👥 افزودن ربات به گروه و شروع بازی",
+        out["inline_keyboard"].insert(0, [{"text": "👥 افزودن ربات به گروه و شروع بازی",
                                            "url": share_links(0)["group"]}])
     return out
 
@@ -122,7 +130,7 @@ def role_kb(p) -> Dict:
     else:
         rows.append([("🎯 توانایی‌های من", "abilities")])
     rows.append([("🗂️ پرونده", "board"), ("📓 دفترچه", "notes")])
-    rows.append([BACK, HOME])
+    rows.append([HOME])
     return kb(rows)
 
 
@@ -140,7 +148,6 @@ def first_kb(chat_id: int, private: bool = False, admin: bool = True) -> Dict:
     rows = [[{"text": "👥 افزودن به گروه", "url": l["group"]}]]
     if not private:
         rows.append([{"text": "📨 دعوت دوست به همین لابی", "url": l["share"]}])
-    rows.append([{"text": "📢 افزودن به کانال", "url": l["channel"]}])
     menu = main_menu(private, admin)["inline_keyboard"]
     if private:
         menu = [r for r in menu if not any("url" in b for b in r)]
@@ -158,54 +165,54 @@ def newbie_guide() -> str:
 
 
 def owner_panel(s: GameState) -> str:
-    return ("🎛️ *پنل میزبان — فقط تو این را می‌بینی*\n" + DIV + "\n" + lobby_screen(s) +
-            "\n\n▫️ وقتی ۴+ نفر شدید «🎬 شروع بازی» را بزن."
-            "\n▫️ «📨 دعوت دوست» برای فرستادن لینک به بقیه.")
+    """نسخه ۹: همان کارتِ زنده‌ی لابی (در گروه برای همه — «فقط تو می‌بینی» دروغ بود)."""
+    return lobby_screen(s)
 
 
 def owner_kb(chat_id: int) -> Dict:
-    l = share_links(chat_id)
-    return {"inline_keyboard": [
-        [{"text": "🙋 منم بازی می‌کنم!", "callback_data": "join"}],
-        [{"text": "✅ آماده‌ام (در پیوی)", "url": l["ready"]}],
-        [{"text": "🎬 شروع بازی", "callback_data": "startgame"},
-         {"text": "🎭 سناریو", "callback_data": "scenario"}],
-        [{"text": "📨 دعوت دوست", "url": l["share"]},
-         {"text": "👥 افزودن به گروه", "url": l["group"]}],
-        [{"text": "📋 وضعیت", "callback_data": "status"},
-         {"text": "🏠 منو", "callback_data": "menu"}],
-    ]}
+    return lobby_kb(chat_id)
 
 
 def lobby_kb(chat_id: int) -> Dict:
     """کیبورد لابی — هر کسی در گروه فوراً با یک تپ وارد می‌شود."""
     l = share_links(chat_id)
     return {"inline_keyboard": [
-        [{"text": "🙋 منم بازی می‌کنم!", "callback_data": "join"}],
-        [{"text": "✅ آماده‌ام (در پیوی)", "url": l["ready"]}],
-        [{"text": "🎬 شروع بازی", "callback_data": "startgame"},
-         {"text": "🚪 خروج از لابی", "callback_data": "leave"}],
-        [{"text": "🎭 سناریو", "callback_data": "scenario"},
-         {"text": "📨 دعوت دوست", "url": l["share"]}],
-        [{"text": BACK[0], "callback_data": BACK[1]}, {"text": HOME[0], "callback_data": HOME[1]}],
+        [{"text": "🙋 منم بازی می‌کنم!", "callback_data": "join", "style": "success"}],
+        [{"text": "✅ آماده‌ام (یک تپ در پیوی)", "url": l["ready"]}],
+        [{"text": "🎬 شروع بازی", "callback_data": "startgame", "style": "success"},
+         {"text": "🎭 سناریو", "callback_data": "scenario"}],
+        [{"text": "📨 دعوت دوست", "url": l["share"]},
+         {"text": "🚪 خروج", "callback_data": "leave", "style": "danger"}],
     ]}
 
 
-def lobby_screen(s: GameState) -> str:
-    names = "\n".join(f"  {i+1}. {'✅' if p.ready else '⏳'} {p.name}"
-                      for i, p in enumerate(s.players.values())) or "  — هنوز کسی نیست —"
-    return (f"🏛️ *لابی کارآگاه*\n{DIV}\n{names}\n{DIV}\n"
-            f"👥 {_fa(len(s.players))}/{_fa(MAX_PLAYERS)} (حداقل {_fa(MIN_PLAYERS)} نفر)\n"
-            + scenario_card(getattr(s, "scenario", "classic"), len(s.players)) + "\n"
-            "✅ = پیویِ ربات را باز کرده (نقش محرمانه آنجا می‌رود)\n"
-            "🎬 میزبان «🎬 شروع بازی» را بزند.")
+def lobby_screen(s: GameState, tick: int = 0) -> str:
+    """کارتِ زنده‌ی لابی: هر بازیکن ✅ (آماده) یا ⏳، سنجه‌ی آمادگی و قدمِ بعدی.
+    همین کارت پیامِ ساعتِ لابی است و با هر «آماده‌ام» خودش ویرایش می‌شود."""
+    ps = list(s.players.values())
+    hg = hourglass(tick)
+    names = "\n".join(f"  {_fa(i + 1)}. {'✅' if p.ready else hg} {p.name}"
+                      for i, p in enumerate(ps)) or "  — هنوز کسی نیست —"
+    ready = sum(1 for p in ps if p.ready)
+    n = len(ps)
+    if n < MIN_PLAYERS:
+        step = f"🙋 {_fa(MIN_PLAYERS - n)} نفرِ دیگر لازم است — «منم بازی می‌کنم!»"
+    elif ready < n:
+        step = f"{hg} منتظرِ آمادگیِ {_fa(n - ready)} نفر: «✅ آماده‌ام» را بزنید (نقش محرمانه به پیوی می‌رود)"
+    else:
+        step = "🟢 همه آماده‌اند — میزبان «🎬 شروع بازی» را بزند"
+    return card("🏛️", "لابیِ کارآگاه", [
+        names, "┈┈┈┈┈┈┈┈┈┈┈┈",
+        f"👥 {_fa(n)}/{_fa(MAX_PLAYERS)} نفر (حداقل {_fa(MIN_PLAYERS)}) · آماده: {_fa(ready)}/{_fa(n)}",
+        dots(ready, n) if n else "",
+        scenario_card(getattr(s, "scenario", "classic"), n)], foot=f"➡️ {step}")
 
 
 def role_card(role: str, knows: List[str]) -> str:
     r = ROLES[role]
     extra = "\n".join(f"  • {k}" for k in knows) or "  • اطلاعات ویژه‌ای نداری."
     goal = f"\n🏆 شرط برد: {r.goal}" if r.goal else ""
-    return (f"{r.emoji} *نقش تو: {r.name}*\n{DIV}\n🎯 تیم: {r.align.value}\n"
+    return (ribbon(r.emoji, f"نقش تو: {r.name}") + f"\n{DIV}\n🎯 تیم: {r.align.value}\n"
             f"📜 {r.desc}{goal}\n{DIV}\n🔐 *اطلاعات محرمانه:*\n{extra}\n\n"
             f"⚠️ این پیام را به هیچ‌کس نشان نده.")
 
@@ -225,7 +232,7 @@ def case_intro(s: GameState) -> str:
     c = s.case
     tl = "\n".join(f"  • {t}" for t in c.timeline)
     story = scenario_rules(getattr(s, "scenario", "classic"))["story"]
-    return (f"{story}\n{DIV}\n🕯️ *پرونده #{c.cid} — {c.title}*\n"
+    return (f"{story}\n{DIV}\n" + ribbon("🕯️", f"پرونده #{c.cid} — {c.title}") + "\n"
             f"⚰️ مقتول: {c.victim}\n📍 صحنه: {c.place}\n🔪 سلاح احتمالی: {c.weapon}\n"
             f"💰 انگیزه‌ی محتمل: {c.motive}\n🧩 گره‌ی پرونده: {c.twist}\n{DIV}\n🕰️ تایم‌لاین:\n{tl}\n{DIV}\n"
             + suspects_board(s) + "\n" + DIV + "\n🔎 *سرنخ‌های صحنه‌ی جرم* (بعضی راست، بعضی کاشته):\n"
@@ -352,12 +359,15 @@ def jury_kb() -> Dict:
 
 def help_text() -> str:
     sec = {k: _fa(v) for k, v in PHASE_SECONDS.items()}
-    return ("📖 *قوانین کارآگاه (خلاصه‌ی RULES.md)*\n" + DIV +
-            f"\n🌙 *شب* ({sec['شب']} ثانیه): نقش‌های شبانه در پیوی اکشن می‌دهند. ترتیب: "
-            "پنهان‌کاری → محافظت → پاپوش/سم → قتل → سمِ سررسیده → اطلاعات. شب وقتی تمام می‌شود که "
-            "همه اکشن داده باشند یا مهلت تمام شود؛ کسی نمی‌تواند شب را زودتر ببندد."
-            f"\n☀️ *صبح* ({sec['صبح']} ثانیه): کشته‌ها، مدرک روز و ردهای دیشب اعلام می‌شود. اگر متهمی "
-            "هست، اول تکلیف او روشن می‌شود."
+    return (ribbon("📖", "قوانین کارآگاه") + "\n" + DIV +
+            f"\n🌙 *شب* ({sec['شب']} ثانیه): هر نقشِ شبانه در پیوی هدف می‌زند یا «🙅 امشب کاری نمی‌کنم». "
+            "ترتیب: پنهان‌کاری → محافظت → پاپوش/سم → قتل → سمِ سررسیده → اطلاعات. "
+            "صبح وقتی می‌رسد که همه تصمیم گرفته باشند؛ اگر مهلت تمام شود یک بار فرصتِ اضافه داده می‌شود "
+            "و بعد از آن تصمیم‌نگرفته‌ها «کاری نکرد» حساب می‌شوند. هیچ‌کس نمی‌تواند شب را زودتر ببندد."
+            f"\n☀️ *صبح* ({sec['صبح']} ثانیه): کشته‌ها، سرنخ‌های تازه (راست یا کاشته) و ردهای دیشب اعلام می‌شود. "
+            "اگر متهمی هست، اول تکلیف او روشن می‌شود."
+            "\n🔎 *سرنخ‌ها:* هر جنایت یک سرنخِ راست از مشخصاتِ ضارب می‌گذارد؛ پاپوش و ردِ گمراه‌کننده سرنخِ دروغ‌اند. "
+            "🧪 آزمایشگاه راست/دروغ را برای همه روشن می‌کند؛ 🗂️ پرونده مظنونان را کنار هم می‌گذارد."
             f"\n💬 *گفتگو* ({sec['گفتگو']} ثانیه) → 🗳️ *رای* ({sec['رای‌گیری']} ثانیه): بیشترین رای → بازجویی. "
             "ممتنع مجاز است. تساوی → یک دور «مرگ ناگهانی» فقط بین نفرات مساوی؛ تساوی دوباره → بدون بازداشت."
             "\n\n*حذف سه‌مرحله‌ای*"
@@ -394,17 +404,16 @@ def share_screen(chat_id: int, players: int) -> str:
     l = share_links(chat_id)
     return (f"🔗 *دعوت به بازی*\n{DIV}\n👥 {_fa(players)}/{_fa(MAX_PLAYERS)} نفر داخل لابی‌اند.\n\n"
             f"لینک دعوت مستقیم:\n`{l['join']}`\n\n"
-            "با دکمه‌های زیر بفرست یا ربات را به گروه/کانال اضافه کن.")
+            "با دکمه‌های زیر برای دوستانت بفرست یا ربات را به گروه اضافه کن.")
 
 
 def share_kb(chat_id: int) -> Dict:
     l = share_links(chat_id)
     return {"inline_keyboard": [
         [{"text": "📨 ارسال برای دوستان", "url": l["share"]}],
-        [{"text": "👥 افزودن به گروه", "url": l["group"]},
-         {"text": "📢 افزودن به کانال", "url": l["channel"]}],
+        [{"text": "👥 افزودن به گروه", "url": l["group"]}],
         [{"text": "🔗 کپی لینک دعوت", "callback_data": "sharelink"}],
-        [{"text": BACK[0], "callback_data": BACK[1]}, {"text": HOME[0], "callback_data": HOME[1]}],
+        [{"text": HOME[0], "callback_data": HOME[1]}],
     ]}
 
 
@@ -462,10 +471,13 @@ def admin_stats_sql(st: Dict) -> str:
 
 # ── ایده ۲۸: آموزش تعاملی (شبیه‌سازی یک دور مینی) ──
 def tutorial_text() -> str:
-    return ("🎓 *آموزش تعاملی — یک دور مینی با بات‌ها*\n" + DIV +
-            "\n🌙 *شب:* سارا (قاتلِ فرضی) رضا را هدف می‌گیرد. پزشک از مریم محافظت می‌کند."
-            "\n☀️ *صبح:* جسد رضا پیدا شد! مدرک E1: 🖐️ اثر انگشت — سه تفسیر دارد، هیچ‌کدام قطعی نیست."
-            "\n💬 *گفتگو:* سارا می‌گوید «من خواب بودم». علی می‌گوید «سارا را نزدیک اتاق دیدم»."
+    return (ribbon("🎓", "آموزش — یک دورِ کوتاه") + "\n" + DIV +
+            "\n🌙 *شب:* سارا (قاتلِ فرضی) رضا را هدف می‌گیرد. پزشک از مریم محافظت می‌کند. "
+            "همدست روی علی پاپوش می‌دوزد. کارآگاه «🙅 امشب کاری نمی‌کنم» می‌زند."
+            "\n☀️ *صبح:* جسد رضا پیدا شد! دو سرنخ: «👣 کفشِ سایز ۴۲» و «🧥 کتِ قرمز». "
+            "سارا کفشِ ۴۲ دارد؛ علی کتِ قرمز — یکی از این دو کاشته است."
+            "\n🧪 شهر «کتِ قرمز» را به آزمایشگاه می‌فرستد: ❌ کاشته! پس علی پاپوش خورده."
+            "\n💬 *گفتگو:* سارا می‌گوید «من خواب بودم». علی می‌گوید «کفشِ ۴۲ مالِ سارا است»."
             "\n🗳️ *رای:* اکثریت به سارا → 🔦 بازجویی (۱ شب)."
             "\n🔦 *بازجویی:* بازجو می‌پرسد «کجا بودی؟» و سرنخ مبهم می‌گیرد: «دستش می‌لرزد»."
             "\n⚖️ دو نفر هیئت منصفه می‌خواهند؛ رای نمی‌آورد → 🔒 حبس موقت (۲ شب)."
@@ -476,7 +488,8 @@ def tutorial_text() -> str:
 
 # ── ایده ۲۹: نگاشت صدای فاز (اگر فایل موجود باشد، آداپتور ویس می‌فرستد) ──
 VOICE = {"night": "night.ogg", "morning": "morning.ogg", "vote": "vote.ogg",
-         "interrogation": "interrogation.ogg", "jail": "jail.ogg", "court": "court.ogg"}
+         "interrogation": "interrogation.ogg", "jail": "jail.ogg", "court": "court.ogg",
+         "end": "end.ogg", "start": "start.ogg"}
 
 
 # ── بهبود ۱: پنل اکشن خصوصی — انتخاب هدف با نام، بدون آیدی عددی ──
@@ -486,11 +499,13 @@ ABILITY_TEXT = {
     "protect": ("💉 محافظت", "امشب از چه کسی محافظت می‌کنی؟"),
     "watch": ("🛡️ نگهبانی", "چه کسی را زیر نظر می‌گیری؟ تعداد ملاقات‌هایش را می‌بینی."),
     "poison": ("☠️ مسموم‌سازی", "چه کسی را مسموم می‌کنی؟ دو شب بعد می‌میرد مگر پزشک برسد."),
-    "frame": ("🧤 پاپوش‌دوزی", "اثر انگشت جعلی روی چه کسی بگذارم؟"),
+    "frame": ("🧤 پاپوش‌دوزی", "روی چه کسی پاپوش بدوزی؟ یک سرنخِ دروغ با مشخصاتِ او کاشته می‌شود و "
+                             "استعلامِ کارآگاه او را «مشکوک» نشان می‌دهد."),
     "spy": ("📞 خبرچینی", "یک نفر را انتخاب کن؛ می‌فهمی بازجو سراغ چه کسی رفته."),
     "hide": ("🚬 مخفی‌کاری", "چه کسی را از دید کارآگاه و نگهبان پنهان می‌کنی؟"),
-    "autopsy": ("🧪 آزمایشگاه", "یک نفر را انتخاب کن؛ اصالت مدرک امشب را می‌فهمی."),
-    "reveal": ("📰 افشاگری", "یک نفر را انتخاب کن؛ یک مدرک اضافه برای کل شهر رو می‌شود."),
+    "autopsy": ("🧪 بررسیِ صحنه", "یک نفر را انتخاب کن؛ سحر می‌فهمی کدام سرنخ‌های امشب راست‌اند و کدام کاشته."),
+    "reveal": ("📰 مصاحبه", "با چه کسی مصاحبه می‌کنی؟ اگر امشب به او حمله شود، صبح یک سرنخِ تاییدشده "
+                          "از ضارب منتشر می‌شود؛ وگرنه تعدادِ ملاقات‌هایش."),
 }
 
 
@@ -517,7 +532,7 @@ def action_panel(s: GameState, p, chosen=None, ab=None, targets=None, passed=Fal
     if targets is not None and not targets:
         done += ("\n\n😶 امشب هدفِ مجازی نداری: بقیه یا در بازداشت‌اند (در امان)، یا هم‌تیمی‌ات‌اند، "
                  "یا قید «دو شب پیاپی» جلویت را گرفته. منتظرت نمی‌مانیم.")
-    return (f"{title} — شب {s.day}\n{DIV}\n{ask}{done}")
+    return (ribbon(title.split(" ", 1)[0], f"{title.split(' ', 1)[-1]} — شب {_fa(s.day)}") + f"\n{ask}{done}")
 
 
 def action_kb(s: GameState, p, targets: List[int], chosen=None, passed=False) -> Dict:
@@ -530,7 +545,7 @@ def action_kb(s: GameState, p, targets: List[int], chosen=None, passed=False) ->
         rows = [[("— امشب هدفِ مجازی نداری —", "notes")]]
     elif cmd == "act":
         rows.append([(("✅ " if passed else "") + "🙅 امشب کاری نمی‌کنم", "pass")])
-    return kb(rows + [[("📋 داشبورد", "dashboard")], [BACK, HOME]])
+    return kb(rows + [[("📋 داشبورد", "dashboard"), HOME]])
 
 
 # ── نسخه ۷: ساعتِ زنده و پنلِ بازیِ جاری ──
@@ -564,8 +579,9 @@ def clock_text(g, detail: bool = False) -> str:
     from . import config
     s = g.s
     icon, title = PHASE_TITLE.get(s.phase.value, ("🎮", s.phase.value + " {d}"))
-    head = f"{icon} *{title.format(d=_fa(s.day))}*"
     left = g.remaining()
+    tick = (left or 0) // 5                                  # هر ویرایشِ ۵ثانیه‌ای یک تیک
+    head = ribbon(icon, title.format(d=_fa(s.day)))
     grace = getattr(s, "grace_day", -1) == s.day and s.phase in (Phase.NIGHT, Phase.INTERROGATION)
     full = (config.NIGHT_GRACE_SECONDS if grace else config.PHASE_SECONDS.get(s.phase.value)) or 0
     if getattr(g, "blitz", False):
@@ -573,12 +589,10 @@ def clock_text(g, detail: bool = False) -> str:
     if s.paused:
         tline = f"⏸️ متوقف — {_mmss(left or 0)} مانده"
     elif left is None:
-        tline = "⏳ بدون مهلت"
+        tline = f"{hourglass(0)} بدون مهلت"
     else:
-        cells = 10
-        filled = round(cells * left / full) if full else 0
-        bar = "🟩" * max(0, min(cells, filled)) + "⬜" * (cells - max(0, min(cells, filled)))
-        tline = f"⏳ {_mmss(left)}  {bar}" + ("  (فرصتِ اضافه)" if grace else "")
+        bar = shiny_bar(left, full, tick, s.phase.value)
+        tline = f"{hourglass(tick)} {_mmss(left)}  {bar}" + ("  (فرصتِ اضافه)" if grace else "")
     lines = [head, tline]
     if detail:
         if s.phase in (Phase.NIGHT, Phase.INTERROGATION):
@@ -593,9 +607,12 @@ def clock_text(g, detail: bool = False) -> str:
 
 
 def live_kb(s: GameState) -> Dict:
-    """دکمه‌های پنلِ گروهیِ بازیِ جاری: کارِ همین فاز + منوی کامل."""
+    """دکمه‌های کارتِ زنده/پنلِ گروهی: کارِ همین فاز + پرونده/دفترچه + منوی کامل.
+    «🔄 بروزرسانی» و «🏠 منو» روی کارتی که خودش به‌روز می‌شود تکراری بودند."""
     base = dashboard_kb(s)
-    rows = [list(r) for r in base["inline_keyboard"]]
+    rows = [[b for b in r if b.get("callback_data") not in ("dashboard", "menu")]
+            for r in base["inline_keyboard"]]
+    rows = [r for r in rows if r]
     rows.append([{"text": "🎛️ همه‌ی دکمه‌ها", "callback_data": "commands", "style": None},
                  {"text": "🏠 منوی کامل", "callback_data": "fullmenu", "style": None}])
     for r in rows:
@@ -671,7 +688,7 @@ def dashboard(s: GameState, remaining=None, pending=(), next_step="") -> str:
         tag = "" if p.custody is Custody.FREE or not p.alive else f" — {p.custody.value}"
         wait = " ⏳" if (not secret and p.uid in pending) else ""
         rows.append(f"{icon} {p.name}{tag}{wait}")
-    timer = f"\n⏳ باقی‌مانده: {remaining} ثانیه" if remaining is not None else ""
+    timer = f"\n{hourglass(remaining // 5)} باقی‌مانده: {_mmss(remaining)}" if remaining is not None else ""
     # در شب حتی *تعداد* را هم نمی‌گوییم: اگر کسی مدام داشبورد را ببیند،
     # لحظه‌ی کم‌شدن عدد می‌گوید چه وقت آن نقشِ مخفی اکشنش را داد.
     if secret:
@@ -680,7 +697,7 @@ def dashboard(s: GameState, remaining=None, pending=(), next_step="") -> str:
         who = "\n⏳ منتظر: " + "، ".join(s.players[u].name for u in pending)
     else:
         who = ""
-    return (f"📋 *داشبورد — روز {s.day} | فاز: {s.phase.value}*{timer}\n{DIV}\n"
+    return (ribbon("📋", f"داشبورد — روز {_fa(s.day)} · {s.phase.value}") + f"{timer}\n{DIV}\n"
             + "\n".join(rows) +
             f"\n{DIV}\n{clue_count(s)}{who}"
             f"\n➡️ *قدم بعدی:* {next_step}")
@@ -709,7 +726,7 @@ def dashboard_kb(s: GameState) -> Dict:
     elif ph is Phase.END:
         rows = [[("🏁 پایان و افشای نقش‌ها", "end")]]
     return kb(rows + [[("🗂️ پرونده", "board"), ("🔄 بروزرسانی", "dashboard")],
-                      [("📝 دفترچه", "notes"), BACK]])
+                      [("📓 دفترچه", "notes"), BACK]])
 
 
 # ── بهبود ۸: گزارش تعادل ──

@@ -148,7 +148,7 @@ def failures(sec: Section) -> None:
     for err in (TimedOut(), NetworkError("reset by peer")):
         fb = FlakyBot(fail_send=lambda chat, text, kw, e=err: e)
         try:
-            sec.check(run(T._send(fb, G, "سلام")) is False, f"{type(err).__name__}: باید False بدهد")
+            sec.check(not run(T._send(fb, G, "سلام")), f"{type(err).__name__}: ارسالِ ناموفق باید «نرسید» برگرداند")
             ok += 1
         except Exception as e:                              # noqa: BLE001
             sec.fail(f"{type(err).__name__} آداپتور را انداخت: {e!r}")

@@ -84,7 +84,14 @@ class Referee:
 
     def on_resolve(self, game, acts) -> None:
         """موتور درست پیش از حلِ شب صدا می‌زند (هر که شب را بسته باشد: دکمه، تایمر، آخرین تصمیم)."""
-        if game.s.chat_id == self.g.s.chat_id and self.watching and self.track_intents:
+        if game.s.chat_id != self.g.s.chat_id:
+            return
+        if not self.watching and self.track_custody:
+            # شبی که Session جلو نبرد (مثلاً شبِ بی‌کار که همان لحظه حل شد) هم یک شبِ بازداشت است
+            for u, p in game.s.players.items():
+                if p.custody is Custody.TEMP_JAIL and p.alive:
+                    self.temp_nights[u] = self.temp_nights.get(u, 0) + 1
+        if self.watching and self.track_intents:
             self.watching = False
             self.pre_dawn(acts)
 
@@ -272,6 +279,27 @@ class Referee:
             return
         hidden = set(acts.get("hide", {}).values())
         killers = acts.get("kill", {})
+        # نسخه ۹: هر سرنخ یک رویدادِ واقعیِ همین شب پشتش است؛ شبِ بی‌جنایت سرنخی ندارد
+        crime = [c for c in new if c["source"] in ("kill", "sk", "poison")]
+        attacked_tonight = bool(killers) or bool(acts.get("poison")) or any(
+            u in self.poisoner for u in died)
+        for c in new:
+            src = c["source"]
+            orphan = (src in ("herring", "witness") and not crime) or \
+                     (src == "frame" and not acts.get("frame")) or \
+                     (src == "reporter" and not acts.get("reveal")) or \
+                     (src in ("kill", "sk") and not killers)
+            if orphan:
+                self.r.find("بحرانی", "سرنخ", "سرنخ بدون رویدادِ واقعی", f"شب {day} · {c['code']} ({src})",
+                            key=f"clue-orphan:{src}")
+            else:
+                self.r.ok(f"سرنخ ({src}) ← رویدادِ واقعیِ همین شب")
+        if not attacked_tonight and not acts.get("frame") and not acts.get("reveal"):
+            if new:
+                self.r.find("بحرانی", "سرنخ", "شبی که کسی حمله/پاپوش نکرد سرنخ ساخت",
+                            f"شب {day}: {[c['code'] for c in new]}", key="clue-without-crime")
+            else:
+                self.r.ok("سرنخ: شبِ بی‌جنایت → بی‌سرنخ")
 
         def bad(title, c, why):
             self.r.find("بحرانی", "سرنخ", title, f"شب {day} · {c['code']} ({c['source']}): {c['text']} — {why}",

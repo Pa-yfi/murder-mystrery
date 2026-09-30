@@ -114,11 +114,15 @@ def _ok(text, keyboard=None, anim=None, private=False, edit=False, announce=Fals
 _OUT: contextvars.ContextVar = contextvars.ContextVar("karagah_outbox", default=None)
 
 
-def _post(dest: int, text: str, keyboard=None) -> None:
-    """پیامی برای چت/کاربرِ دیگر؛ آداپتور بعد از پاسخِ اصلی می‌فرستد."""
+def _post(dest: int, text: str, keyboard=None, effect: Optional[str] = None) -> None:
+    """پیامی برای چت/کاربرِ دیگر؛ آداپتور بعد از پاسخِ اصلی می‌فرستد.
+    effect: نامِ افکتِ پیام (theme.EFFECTS) — فقط در پیوی نمایش داده می‌شود."""
     box = _OUT.get()
     if box is not None and dest:
-        box.append({"chat": dest, "text": text, "keyboard": keyboard})
+        item = {"chat": dest, "text": text, "keyboard": keyboard}
+        if effect:
+            item["effect"] = effect
+        box.append(item)
 
 
 def _push_notes(g: Game) -> None:
@@ -284,6 +288,12 @@ def _handle(cmd: str, chat: int, uid: int = 0, name: str = "", arg: str = "") ->
                     # تا شکستِ نوشتن، تلاشِ دوباره را خفه نکند.
                     db.record_results(g)
                     g.s.finalized = True
+                    for p in g.s.players.values():   # نتیجه‌ی شخصی به پیوی — برنده‌ها با افکتِ 🎉
+                        won = g.is_winner(p)
+                        _post(p.uid, ("🏆 *بردی!* " if won else "🕯️ *این دور را باختی.* ")
+                              + f"برنده: {g.s.winner}\nنقشت: {p.role}",
+                              ui.kb([[("🏁 افشای نقش‌ها", "end"), ("📓 دفترچه", "notes")]]),
+                              effect="party" if won else None)
                     g.s.ended_at = _time.time()
                     LAST_ROSTER[chat] = [(p.uid, p.name) for p in g.s.players.values()]
                 # بازیِ تمام‌شده هم ذخیره می‌ماند تا بعد از ری‌استارت افشای پایانی در دسترس باشد
@@ -294,7 +304,7 @@ def _handle(cmd: str, chat: int, uid: int = 0, name: str = "", arg: str = "") ->
         except RuleError as e:
             return _err(str(e))
         except (ValueError, TypeError):
-            return _err("ورودی نامعتبر است؛ یک عدد/آیدی درست بده.")
+            return _err("این دکمه دیگر معتبر نیست؛ از پیامِ تازه‌ی بازی انتخاب کن.")
         except Exception:
             log.exception("handler %s failed", cmd)
             return _err(f"خطای داخلی هنگام اجرای «{cmd}». دوباره /start بزن.")
@@ -413,10 +423,15 @@ def h_new(chat, uid, name, arg):
     GAMES[chat] = Game(chat, seed=chat or 1, owner=uid)
     if uid:
         GAMES[chat].join(uid, _name(name, uid))     # سازنده خودکار عضو می‌شود
-    return _ok(ui.owner_panel(GAMES[chat].s), ui.owner_kb(chat))
+    res = _ok(ui.lobby_screen(GAMES[chat].s), ui.lobby_kb(chat), anim=ui.ANIM["start"])
+    res["clock"] = True                             # همین پیام، کارتِ زنده‌ی لابی است (ویرایش می‌شود)
+    return res
 
 
 def h_join(chat, uid, name, arg):
+    stop = _no_private_table(chat, uid)         # «ورود به لابی» از پیوی میزِ پیوی نمی‌سازد (بن‌بست A1)
+    if stop:
+        return stop
     g = _ensure(chat, uid, name)                # دکمه هرگز بی‌واکنش نماند
     g.join(uid, _name(name, uid))
     # ویرایش همان پیام لابی؛ پیام جدید فرستاده نمی‌شود تا چت شلوغ نشود
@@ -478,13 +493,12 @@ def h_startgame(chat, uid, name, arg):
                                  [("🔄 دوباره امتحان کن", "startgame")]])
         return res
     db.log_event(chat, uid, "start", g.s.case.title if g.s.case else "")
-    for p in g.s.players.values():               # کارت نقش خودکار به پیوی هر نفر
-        _post(p.uid, ui.role_card(p.role, p.knows), ui.kb([[("🌙 اکشن شبانه", "act")],
-                                                          [("🎯 توانایی‌های من", "abilities")]]))
+    for p in g.s.players.values():               # کارت نقش خودکار به پیوی هر نفر (با افکتِ 🔥)
+        _post(p.uid, ui.role_card(p.role, p.knows), ui.role_kb(p), effect="fire")
     return _ok(ui.case_intro(g.s) + "\n\n" + ui.status_board(g.s) +
                f"\n\n🎭 سناریو: {scenario_name(g.scenario)}"
                "\n🔐 نقش هر کس به پیوی‌اش رفت؛ اگر نرسید «🔐 نقش من» را بزن.",
-               ui.kb([[("🔐 نقش من", "myrole")], [("🌙 پایان شب", "dawn")], [ui.BACK, ui.HOME]]),
+               ui.kb([[("🔐 نقش من", "myrole"), ("🗂️ پرونده", "board")]]),
                anim=ui.ANIM["night"], announce=True)
 
 
@@ -547,14 +561,18 @@ def h_pass(chat, uid, name, arg):
     return out
 
 
-def _dawn_if_all_decided(g: Game, chat: int) -> None:
-    """آخرین نقش تصمیم گرفت → صبح همین حالا در گروه، بی‌معطلیِ تایمر."""
+def _dawn_if_all_decided(g: Game, chat: int, empty_night: bool = False) -> None:
+    """آخرین نقش تصمیم گرفت → صبح همین حالا در گروه، بی‌معطلیِ تایمر.
+    empty_night: شب همین حالا شروع شده و هیچ‌کس کاری برای انجام دادن ندارد (همه‌ی نقش‌های
+    شبانه کشته/بازداشت‌اند) — قبلاً گروه ۶۰ ثانیه بی‌دلیل منتظر می‌ماند."""
     if not g.all_decided():
         return
     since = len(g.s.log)
     ev = g.advance_night()
     res = _morning(g, ev["result"], since)
-    _post(chat, "🌅 همه‌ی نقش‌ها تصمیمشان را گرفتند؛ شب تمام شد.\n\n" + res["text"], res.get("keyboard"))
+    head = ("🌅 امشب هیچ نقشی کاری برای انجام دادن نداشت؛ شب تمام شد." if empty_night
+            else "🌅 همه‌ی نقش‌ها تصمیمشان را گرفتند؛ شب تمام شد.")
+    _post(chat, head + "\n\n" + res["text"], res.get("keyboard"))
 
 
 def _grace_notice(g: Game, ev: Dict) -> Dict:
@@ -588,7 +606,7 @@ def _morning(g: Game, r: Dict, since: int = 0) -> Dict:
     if g.s.phase is Phase.JURY:
         extra += (f"\n\n⚖️ *بازجو نمی‌تواند حکم بدهد؛ هیئت منصفه درباره‌ی "
                   f"{g.s.players[g.s.suspect_uid].name} تصمیم می‌گیرد.* تبرئه یا ادامه؟")
-    txt = (f"☀️ *صبح روز {g.s.day}*{ev_line}\n{ui.DIV}\n⚰️ کشته‌شده: {dead}\n\n"
+    txt = (ui.ribbon("☀️", f"صبح روز {g.s.day}") + f"{ev_line}\n{ui.DIV}\n⚰️ کشته‌شده: {dead}\n\n"
            + ui.clue_block(r.get("clues", [])) + ui.patrol_block(r.get("patrol", []))
            + traces + extra + "\n\n" + ui.status_board(g.s)
            + f"\n➡️ {g.next_step()}")
@@ -606,7 +624,7 @@ def h_dawn(chat, uid, name, arg):
 
 
 def _discussion_open(g: Game) -> Dict:
-    return _ok("💬 *فاز گفتگو باز است.* بحث کنید، اتهام بزنید، دفاع کنید.\n"
+    return _ok(ui.ribbon("💬", "گفتگو") + "\nبحث کنید، اتهام بزنید، دفاع کنید.\n"
                f"➡️ {g.next_step()}",
                ui.kb([[("🗳️ شروع رای‌گیری", "vote")], [ui.BACK, ui.HOME]]), announce=True)
 
@@ -619,7 +637,7 @@ def h_discuss(chat, uid, name, arg):
 
 
 def _vote_open(g: Game) -> Dict:
-    return _ok("🗳️ *رای‌گیری آغاز شد* — چه کسی به بازجویی برود؟\n"
+    return _ok(ui.ribbon("🗳️", "رای‌گیری") + "\nچه کسی به بازجویی برود؟\n"
                "(رای دوباره = عوض کردن رای؛ «⏭️ ممتنع» هم رای حساب می‌شود.)",
                ui.vote_kb(g.s), anim=ui.ANIM["vote"], announce=True)
 
@@ -644,6 +662,13 @@ def h_castvote(chat, uid, name, arg):
 
 
 def _vote_closed(g: Game, who: Optional[int]) -> Dict:
+    res = _vote_closed_msg(g, who)
+    if g.s.phase in (Phase.NIGHT, Phase.INTERROGATION):
+        _dawn_if_all_decided(g, g.s.chat_id, empty_night=True)
+    return res
+
+
+def _vote_closed_msg(g: Game, who: Optional[int]) -> Dict:
     if who is None and g.s.phase is Phase.VOTE:        # تساوی → دور دوم (مرگ ناگهانی)
         names = "، ".join(g.s.players[u].name for u in g.s.tie_leaders)
         return _ok(f"⚔️ *تساوی!* دور دوم (مرگ ناگهانی) فقط بین: {names}\n"
@@ -657,7 +682,7 @@ def _vote_closed(g: Game, who: Optional[int]) -> Dict:
                    ui.kb([[("🌙 پایان شب", "dawn")], [("📋 داشبورد", "dashboard")]]),
                    anim=ui.ANIM["night"], announce=True)
     p = g.s.players[who]
-    return _ok(f"🔦 *{p.name}* به اتاق بازجویی منتقل شد.\n"
+    return _ok(ui.ribbon("🔦", "بازجویی") + f"\n*{p.name}* به اتاق بازجویی منتقل شد.\n"
                f"بازجو امشب سؤال می‌پرسد (پرسش به خودِ متهم می‌رسد)؛ حکم فردا صبح صادر می‌شود.\n"
                f"متهم در بازداشت از حمله‌ی شبانه در امان است. بقیه اکشن شبانه‌شان را دارند.",
                ui.officer_kb(who), anim=ui.ANIM["interrogation"], announce=True)
@@ -725,7 +750,7 @@ def _verdict_given(g: Game, msg: str, jailed: bool) -> Dict:
         kb = ui.kb([[("🏁 پایان و افشای نقش‌ها", "end")]])
     else:
         kb = ui.kb([[("💬 گفتگو", "discuss")], [("📋 داشبورد", "dashboard")]])
-    return _ok(msg + "\n\n" + ui.status_board(g.s), kb, anim=anim, announce=True)
+    return _ok(ui.ribbon("⚖️", "حکم") + "\n" + msg + "\n\n" + ui.status_board(g.s), kb, anim=anim, announce=True)
 
 
 def h_verdict(chat, uid, name, arg):
@@ -758,7 +783,7 @@ def h_clear(chat, uid, name, arg):
 def _jury_open(g: Game, auto: bool = False) -> Dict:
     sus = g.s.players[g.s.suspect_uid].name
     why = "بازجو حکم نداد/نمی‌تواند بدهد؛ " if auto else ""
-    return _ok(f"⚖️ *هیئت منصفه برای {sus} تشکیل شد!* {why}رای بدهید: تبرئه یا ادامه؟\n"
+    return _ok(ui.ribbon("⚖️", "هیئت منصفه") + f"\nبرای *{sus}* تشکیل شد! {why}رای بدهید: تبرئه یا ادامه؟\n"
                f"({g.jury_percent()}٪ تبرئه = آزادی)", ui.jury_kb(), announce=True)
 
 
@@ -798,7 +823,7 @@ def h_end(chat, uid, name, arg):
         return _err("بازی هنوز تمام نشده؛ تا آخر بازی معلوم نمی‌شود قاتل کیست.")
     return _ok(g.ending_report(),
                ui.kb([[("🔁 همین ترکیب، دور جدید", "rematch")], [("🎮 بازی جدید", "new")], [ui.HOME]]),
-               anim=ui.ANIM["court"], announce=True)
+               anim=ui.ANIM["end"], announce=True)
 
 
 def h_profile(chat, uid, name, arg):
@@ -820,6 +845,9 @@ def h_roles(chat, uid, name, arg):
 
 # ================= اشتراک‌گذاری =================
 def h_share(chat, uid, name, arg):
+    stop = _no_private_table(chat, uid)         # دعوت به لابیِ پیوی معنا ندارد
+    if stop:
+        return stop
     g = _ensure(chat, uid, name)
     return _ok(ui.share_screen(chat, len(g.s.players)), ui.share_kb(chat))
 
@@ -837,17 +865,17 @@ def _admin(uid):
 
 def h_admin(chat, uid, name, arg):
     _admin(uid)
-    return _ok("🛠️ *پنل ادمین* (داده‌ها از پایگاه‌داده‌ی SQL)", ui.admin_menu())
+    return _ok("🛠️ *پنل ادمین*", ui.admin_menu(), private=True)
 
 
 def h_admin_games(chat, uid, name, arg):
     _admin(uid)
-    return _ok(ui.admin_games_sql(db.q_active_games()), ui.back_only())
+    return _ok(ui.admin_games_sql(db.q_active_games()), ui.back_only(), private=True)
 
 
 def h_admin_stats(chat, uid, name, arg):
     _admin(uid)
-    return _ok(ui.admin_stats_sql(db.q_stats()), ui.back_only())
+    return _ok(ui.admin_stats_sql(db.q_stats()), ui.back_only(), private=True)
 
 
 def h_admin_users(chat, uid, name, arg):
@@ -855,23 +883,23 @@ def h_admin_users(chat, uid, name, arg):
     _admin(uid)
     if not arg:
         return _ok(ui.admin_users_sql(db.q_users()),
-                   menus.users_kb(db.q_users(), "admin_users"))
+                   menus.users_kb(db.q_users(), "admin_users"), private=True)
     t = int(arg)
     u = db.q_user(t)
     if not u:
         return _err("کاربری با این آیدی در پایگاه‌داده نیست.")
-    return _ok(ui.admin_user_card_sql(u, db.q_user_games(t), db.q_user_events(t)), ui.back_only())
+    return _ok(ui.admin_user_card_sql(u, db.q_user_games(t), db.q_user_events(t)), ui.back_only(), private=True)
 
 
 def h_admin_ban(chat, uid, name, arg):
     _admin(uid)
     if not arg:
         return _ok("🚫 *کدام کاربر مسدود شود؟*",
-                   menus.users_kb(db.q_users(), "admin_ban"))
+                   menus.users_kb(db.q_users(), "admin_ban"), private=True)
     t = int(arg)
     db.ban(t, True)
     db.log_event(chat, t, "ban", f"by {uid}")
-    return _ok(f"🚫 کاربر `{t}` مسدود شد.", ui.back_only())
+    return _ok(f"🚫 کاربر `{t}` مسدود شد.", ui.back_only(), private=True)
 
 
 
@@ -975,10 +1003,16 @@ def clock_view(chat: int) -> Optional[Dict]:
     """پیامِ ساعتِ فاز برای گروه: {"key", "text", "keyboard"} — آداپتور برای هر key یک پیام
     می‌فرستد و بعد همان را مدام ویرایش می‌کند. None یعنی ساعتی لازم نیست (لابی/پایان)."""
     g = GAMES.get(chat)
-    if g is None or g.s.phase in (Phase.LOBBY, Phase.END):
+    if g is None or g.s.phase is Phase.END:
         return None
-    key = f"{g.s.phase.value}:{g.s.day}:{int(g.s.tie_break)}:{int(getattr(g.s, 'grace_day', -1) == g.s.day)}"
     from .l10n import fa_digits, localize_keyboard
+    if g.s.phase is Phase.LOBBY:                 # لابی: کارتِ زنده با ✅ آماده‌ها و ساعت‌شنیِ منتظرها
+        now = _time.time()
+        # ساعت‌شنی فقط تا ۱۰ دقیقه بعد از آخرین فعالیت می‌چرخد؛ لابیِ رهاشده هر ۵ ثانیه ویرایش نمی‌شود
+        tick = int(now // 5) if now - (g.s.touched or now) < 600 else 0
+        return {"key": "lobby", "text": fa_digits(ui.lobby_screen(g.s, tick)),
+                "keyboard": localize_keyboard(ui.lobby_kb(chat))}
+    key = f"{g.s.phase.value}:{g.s.day}:{int(g.s.tie_break)}:{int(getattr(g.s, 'grace_day', -1) == g.s.day)}"
     return {"key": key, "text": fa_digits(ui.clock_text(g, detail=True)),
             "keyboard": localize_keyboard(ui.live_kb(g.s))}
 
@@ -1211,16 +1245,31 @@ def h_blitz(chat, uid, name, arg):                # ایده ۳: لابی سری
                ui.owner_kb(chat))
 
 
-def h_ready(chat, uid, name, arg):                # بهبود ۲
+def h_ready(chat, uid, name, arg):                # بهبود ۲ + نسخه ۹
     g = _g(chat)
+    if g.s.phase is not Phase.LOBBY:
+        res = _ok("🎮 بازی شروع شده است؛ نقشت در همین پیوی است.", ui.kb([[("🔐 نقش من", "myrole")], [ui.HOME]]),
+                  private=True)
+        res["refresh"] = chat
+        return res
+    if uid not in g.s.players:                  # «آماده‌ام» بدون «منم بازی می‌کنم» → همان یک تپ کافی است
+        g.join(uid, _name(name, uid))
     msg = g.mark_ready(uid)
     left = g.not_ready()
+    n = len(g.s.players)
+    meter = ui.dots(n - len(left), n)
     if left:
         names = "، ".join(g.s.players[u].name for u in left)
-        tail = f"\n⏳ مانده: {names}"
+        tail = f"\n{meter}\n⏳ منتظرِ: {names}"
+    elif n < config.MIN_PLAYERS:
+        tail = f"\n{meter}\n🙋 هنوز {n}/{config.MIN_PLAYERS} نفر — دوستانت را دعوت کن."
     else:
-        tail = "\n🟢 همه آماده‌اند — میزبان می‌تواند شروع کند."
-    return _ok(msg + tail, ui.back_only(), private=True)
+        tail = f"\n{meter}\n🟢 همه آماده‌اند — میزبان در گروه «🎬 شروع بازی» را بزند."
+    res = _ok(ui.ribbon("✅", "آماده‌ای") + "\n" + msg + tail +
+              "\n\n🔐 نقشِ محرمانه‌ات با شروعِ بازی به همین پیوی می‌آید. به گروه برگرد.",
+              ui.back_only(), private=True)
+    res["refresh"] = chat                       # کارتِ زنده‌ی لابی در گروه همین حالا ✅ بگیرد
+    return res
 
 
 def h_remind(chat, uid, name, arg):               # بهبود ۷

@@ -252,7 +252,7 @@ def test_first_screen_has_group_and_invite():
 def test_deeplink_owner_vs_newbie():
     handle("new", 1100, 10, "Host")
     assert 10 in GAMES[1100].s.players
-    assert "پنل میزبان" in handle("start", 999, 10, "Host", arg="join_1100")["text"]
+    assert "لابیِ کارآگاه" in handle("start", 999, 10, "Host", arg="join_1100")["text"]
     r = handle("start", 998, 20, "Guest", arg="join_1100")
     assert "خوش آمدی" in r["text"]
     assert 20 in GAMES[1100].s.players

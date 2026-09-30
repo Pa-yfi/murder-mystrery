@@ -56,6 +56,9 @@ class Session:
         self.talk_on = talk
         self.talk = None
         self.interrogated: set = set()
+        from collections import Counter
+        self.moves: Counter = Counter()                  # (نقش، حرکت) → تعداد — ماتریسِ پوششِ حرکت‌ها
+        self.pass_rate = 0.15                            # «🙅 امشب کاری نمی‌کنم»
         self.jailed: set = set()
         report.context = f"{scenario_name(scenario)}، {n} نفره، بذر {seed}، {MODE_FA[mode]}"
 
@@ -174,7 +177,7 @@ class Session:
         """میزبان «📋 داشبورد» گروه را نگاه می‌کند (دکمه‌ی 🔄 یا فرمان منوی ربات)."""
         m = self.host.tap(cb_is("dashboard"), ("group",), depth=1) \
             or self.tg.command(self.host.uid, "/dashboard", self.group)
-        ph = re.search(r"فاز: ([^\*\n]+)\*", m.text)
+        ph = re.search(r"داشبورد — روز \S+ · ([^\*\n]+)\*", m.text) or re.search(r"فاز: ([^\*\n]+)\*", m.text)
         if not ph or ph.group(1).strip() != self.g.s.phase.value:
             self.r.find("متوسط", "رابط", "داشبورد فازِ اشتباه نشان می‌دهد",
                         f"داشبورد: {ph.group(1) if ph else '؟'} — واقعی: {self.g.s.phase.value}")
@@ -276,6 +279,7 @@ class Session:
                 a.say("من بی‌گناهم؛ آن شب تا صبح خانه‌ی خواهرم بودم.")
                 if g.s.defense_text:
                     self.r.ok("متهم: ثبت دفاع")
+                    self.moves[(a.role, "defense")] += 1
                 else:
                     self.r.find("متوسط", "بازجویی", "دفاعِ متهم ثبت نشد", a.last.text if a.last else "")
             return
@@ -285,10 +289,12 @@ class Session:
             m = a.navigate("will")
             if m and "وصیت" in m.text:
                 a.say(f"اگر مُردم، به {self.rng.choice(NAMES[:self.n])} شک کنید.")
+                self.moves[(a.role, "will")] += 1
         if not ab:
             return
         if a.role == "کارآگاه" and a.rng.random() < 0.15:
             if self.expose(a):
+                self.moves[(a.role, "expose")] += 1
                 return
         panel = a.tap(cb_is("act"), ("dm",), depth=3, nav="act")
         if panel is None or panel.chat != a.uid:
@@ -301,6 +307,7 @@ class Session:
                 m = a.press(panel, b)
                 if m and m.ok and p.hunter_target == int(b["callback_data"].split(":")[1]):
                     self.r.ok("شکارچی: ثبت هدف شلیک آخر")
+                    self.moves[(a.role, "hunter")] += 1
                 else:
                     self.r.find("بالا", "توانایی‌ها", "دکمه‌ی هدف شکارچی ثبت نشد", m.text if m else "")
             return
@@ -322,6 +329,9 @@ class Session:
             if a.uid in g.pending_actors():
                 self.r.find("متوسط", "جریان بازی", "بازیکنِ بی‌هدف «منتظرِ اکشن» می‌ماند", key="no-target-pending")
             return
+        if a.rng.random() < self.pass_rate:            # عمداً هیچ کاری نمی‌کند
+            self.do_pass(a, panel)
+            return
         b = self.pick(a, ab, btns)
         tgt = int(b["callback_data"].split(":")[1])
         self.ref.intent(a.uid, ab, tgt)                 # پیش از زدن: آخرین تصمیم خودش شب را می‌بندد
@@ -331,8 +341,12 @@ class Session:
             self.r.find("بالا", "دکمه‌ها", "دکمه‌ی هدفِ پیشنهادیِ خودِ ربات رد شد",
                         f"{a.role} → {b['text']}: {m.text if m else '—'}", key=f"act-rejected:{ab}")
             return
+        self.moves[(a.role, ab)] += 1
         if ab == "investigate" and ("→ پاک" in m.text or "→ مشکوک" in m.text):
             self.r.find("بالا", "توانایی‌ها", "نتیجه‌ی استعلام پیش از سحر داده شد")
+        if a.rng.random() < 0.05 and g.s.phase in (Phase.NIGHT, Phase.INTERROGATION):
+            self.do_pass(a, m, changed=True)            # نظرش برگشت: «کاری نمی‌کنم»
+            return
         # گاهی نظرش عوض می‌شود: دوباره انتخاب = ویرایش اکشن
         if a.rng.random() < 0.15 and len(btns) > 1 and g.s.phase in (Phase.NIGHT, Phase.INTERROGATION):
             other = self.pick(a, ab, [x for x in a.buttons_named(m, "act:") if x is not None])
@@ -341,6 +355,26 @@ class Session:
             m2 = a.press(m, other)
             if not (m2 and m2.ok) and prev:
                 self.ref.intents[a.uid] = prev
+
+    def do_pass(self, a: Agent, panel, changed: bool = False) -> None:
+        """«🙅 امشب کاری نمی‌کنم»: تصمیم ثبت می‌شود، اکشنِ قبلی (اگر بود) لغو، و شب منتظرش نمی‌ماند."""
+        g = self.g
+        pb = next((b for b in panel.buttons() if b.get("callback_data") == "pass"), None) if panel else None
+        if pb is None:
+            self.r.find("بالا", "دکمه‌ها", "پنل اکشن دکمه‌ی «🙅 امشب کاری نمی‌کنم» ندارد", a.role, key="no-pass-btn")
+            return
+        self.ref.intents.pop(a.uid, None)
+        m = a.press(panel, pb)
+        night = g.s.phase in (Phase.NIGHT, Phase.INTERROGATION)
+        if not (m and m.ok):
+            self.r.find("بالا", "دکمه‌ها", "«🙅 امشب کاری نمی‌کنم» رد شد", m.text if m else "", key="pass-rejected")
+            return
+        if night and (not g.passed(a.uid) or g.chosen_target(a.uid) is not None or a.uid in g.pending_actors()):
+            self.r.find("بالا", "شب", "بعد از «کاری نمی‌کنم» اکشن هنوز ثبت است یا شب هنوز منتظر اوست",
+                        a.role, key="pass-state")
+        else:
+            self.r.ok("شب: «🙅 کاری نمی‌کنم» ثبت شد" + (" (بعد از هدف‌زدن)" if changed else ""))
+        self.moves[(a.role, "pass-after-act" if changed else "pass")] += 1
 
     def pick(self, a: Agent, ab: str, btns: List[dict]) -> dict:
         names = [(b, a.name_of_button(b)) for b in btns]
@@ -385,6 +419,7 @@ class Session:
         m = off.tap(cb_is("pass"), ("dm", "group"), depth=8, nav="pass")
         if m and m.ok and (g.passed(off.uid) or g.s.phase not in (Phase.NIGHT, Phase.INTERROGATION)):
             self.r.ok("بازجو: «✅ بازجویی تمام شد» شب را آزاد کرد")
+            self.moves[("بازجو", "finish-interrogation")] += 1
         else:
             self.r.find("بالا", "دکمه‌ها", "دکمه‌ی «✅ بازجویی تمام شد» کار نکرد", m.text if m else "")
 
@@ -422,6 +457,8 @@ class Session:
             back = off.tg.last(off.uid)
             if reply.ok and back and "جواب" in back.text and said in back.text:
                 self.r.ok("بازجویی دونفره: پرسش → متهم → جواب → بازجو")
+                self.moves[("بازجو", "ask")] += 1
+                self.moves[(sus.role, "answer")] += 1
                 if lie and "تناقض" in back.text:
                     self.r.ok("تناقض‌یاب روی جواب واقعی متهم")
             else:
@@ -524,8 +561,10 @@ class Session:
             if confirm and tp.custody is Custody.TEMP_JAIL:
                 self.ref.after_temp_jail(sus)
                 self.r.ok("بازجو: حکم حبس موقت")
+                self.moves[("بازجو", "verdict-jail")] += 1
             elif not confirm and tp.custody is Custody.FREE:
                 self.r.ok("بازجو: حکم آزادی")
+                self.moves[("بازجو", "verdict-free")] += 1
             self.ref.check_invariants("حکم")
             self.ref.check_win("حکم")
         elif not offp.free or off.uid == sus:
@@ -573,6 +612,7 @@ class Session:
             r = a.press(m, pick)
             if r and r.ok and "باور دارند" in r.text:
                 self.r.ok("رای تفسیر مدرک")
+                self.moves[(a.role, "believe-clue")] += 1
 
     def lab(self, a: Agent) -> None:
         m = a.navigate("lab")
@@ -584,6 +624,8 @@ class Session:
         code = b["callback_data"].split(":")[1]
         hit = a.find(cb_is(f"lab:{code}:N"), ("dm", "group"), 2)
         r = a.press(*hit) if hit else None
+        if r and r.ok:
+            self.moves[(a.role, "lab")] += 1
         if r and r.ok and code not in self.lab_due:
             from karagah.roles import scenario_rules
             self.lab_due[code] = self.g.s.day + scenario_rules(self.scenario)["lab_nights"]
@@ -620,6 +662,7 @@ class Session:
             b = a.find(cb_is(f"sos:{target.uid}"), ("dm",), 1)
             if b:
                 last = a.press(*b)
+                self.moves[(a.role, "emergency-vote")] += 1
         if target.custody is Custody.TEMP_JAIL:
             self.r.ok("رای اضطراری ۸۰٪: مستقیم به حبس موقت")
             self.ref.after_temp_jail(target.uid)
@@ -651,6 +694,8 @@ class Session:
                        and b["callback_data"] != "vote:0"]
             if a.rng.random() < 0.08:
                 r = a.press(msg, next(b for b in msg.buttons() if b["callback_data"] == "vote:0"))
+                if r and r.ok:
+                    self.moves[(a.role, "abstain")] += 1
                 if r and not r.ok:
                     self.r.find("متوسط", "دکمه‌ها", "دکمه‌ی «⏭️ رای ممتنع» خطا می‌دهد",
                                 f"پاسخ: «{r.text}». vote:0 به castvote با هدف ۰ می‌رود و موتور "
@@ -660,6 +705,8 @@ class Session:
             if b is None:
                 continue
             r = a.press(msg, b)
+            if r and r.ok:
+                self.moves[(a.role, "vote")] += 1
             if r and not r.ok and "خودت" in r.text:
                 self.r.find("پایین", "رابط", "کیبورد رای دکمه‌ی خودِ رای‌دهنده را هم نشان می‌دهد",
                             "vote_kb یک کیبورد مشترک برای همه است؛ زدن اسم خودت خطا می‌دهد.", key="self-vote")
@@ -714,6 +761,7 @@ class Session:
             if r and r.ok:
                 total += 1
                 yes += int(bool(acquit))
+                self.moves[(a.role, "jury-acquit" if acquit else "jury-continue")] += 1
         if self.mode == "timer":
             self.run_timer()
         else:
@@ -753,6 +801,7 @@ class Session:
                 "roles": {a.name: a.role for a in self.agents},
                 "talk": self.talk.summary() if self.talk else None,
                 "arrests": self.arrests(), "clues": self.clue_stats(),
+                "moves": {f"{r}|{m}": c for (r, m), c in self.moves.items()},
                 "rumors": list(self.ref.rumors) if self.ref else [0, 0],
                 "winner_team": self.winner_team()}
 

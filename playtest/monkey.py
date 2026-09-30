@@ -34,6 +34,8 @@ ALLOWED = {
     (Phase.JURY, Phase.MORNING): 0,
     (Phase.DISCUSSION, Phase.VOTE): 0,
     (Phase.VOTE, Phase.NIGHT): 1, (Phase.VOTE, Phase.INTERROGATION): 1,
+    # نسخه ۹: شبی که هیچ نقشی کاری ندارد همان لحظه به صبح (یا هیئت منصفه‌ی خودکار) می‌رسد
+    (Phase.VOTE, Phase.MORNING): 1, (Phase.VOTE, Phase.JURY): 1,
 }
 LIVE = (Phase.NIGHT, Phase.INTERROGATION, Phase.MORNING, Phase.DISCUSSION, Phase.VOTE, Phase.JURY)
 MENU_MARK = "🏠 *منوی اصلی*"
@@ -118,8 +120,7 @@ class Monkey:
         a = self.rng.choice(self.sess.agents)
         m = a.say(self.rng.choice(("سلام", "من بی‌گناهم", "کی شب تموم میشه؟")))
         g = self.g
-        if g.s.phase in LIVE and m.cause == "text" and LIVE_MARK not in m.text \
-                and not m.text.startswith(("✅", "📝", "🛡️", "📜", "💬", "🗣️", "⛔")):
+        if g.s.phase in LIVE and m.cause == "text" and m.text.lstrip("\u200f").startswith(MENU_MARK):
             self.r.find("متوسط", "منو", "متن در پیوی وسط بازی منوی ربات را نشان داد", key="menu-in-game:text")
         return f"{a.name}:text"
 

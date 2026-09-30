@@ -17,12 +17,14 @@ from telegram.ext import (ApplicationBuilder, CommandHandler, CallbackQueryHandl
                           MessageHandler, ContextTypes, filters)
 
 try:
+    from . import theme
     from . import bot as botmod
     from .bot import GAMES
     from .bot import (handle, ENDPOINTS, COMMANDS, restore_games,
                       is_dup_callback, route_chat, take_pending)
     from .config import BOT_TOKEN as CONFIG_BOT_TOKEN
 except ImportError:
+    import theme
     import bot as botmod
     from bot import GAMES
     from bot import (handle, ENDPOINTS, COMMANDS, restore_games,
@@ -49,7 +51,10 @@ def parse_callback(data: str):
     return data, ""                       # دکمه‌ی ساده = نام اندپوینت (بدون نگاشت)
 
 
-def _kb(k):
+ICONS_OK = True           # اگر تلگرام آیکونِ ایموجیِ سفارشی را رد کرد (صاحبِ ربات Premium ندارد) → خاموش
+
+
+def _kb(k, icons: bool = True):
     if not k:
         return None
     rows = []
@@ -60,8 +65,11 @@ def _kb(k):
                 r.append(InlineKeyboardButton(b["text"], url=b["url"]))
             else:
                 # style: danger 🔴 / success 🟢 / primary 🔵 (Bot API ≥ 9.4؛ کلاینت قدیمی نادیده می‌گیرد)
+                # icon_custom_emoji_id: ایموجیِ متحرکِ سفارشی کنارِ متن (theme.BUTTON_EMOJI در .env)
+                icon = theme.button_icon(b["callback_data"]) if icons and ICONS_OK else None
+                kw = {"icon_custom_emoji_id": icon} if icon else {}
                 r.append(InlineKeyboardButton(b["text"], callback_data=b["callback_data"],
-                                              style=b.get("style")))
+                                              style=b.get("style"), **kw))
         rows.append(r)
     return InlineKeyboardMarkup(rows)
 
@@ -124,32 +132,42 @@ def chunks(text: str, limit: int = TG_LIMIT - 96) -> list:
     return out
 
 
-async def _send(bot, dest: int, text: str, keyboard=None) -> bool:
-    """Markdown، و اگر خراب شد متن ساده. پیامِ بلند تکه‌تکه؛ کیبورد زیرِ تکه‌ی آخر. True یعنی رسید."""
-    kb = _kb(keyboard)
+async def _send(bot, dest: int, text: str, keyboard=None, effect: str = None):
+    """Markdown، و اگر خراب شد متن ساده. پیامِ بلند تکه‌تکه؛ کیبورد زیرِ تکه‌ی آخر.
+    effect: افکتِ پیام (🎉 🔥 …) فقط در پیوی (dest > 0)؛ اگر تلگرام رد کرد، بی‌افکت.
+    خروجی: آخرین پیامِ فرستاده‌شده (truthy) یا None."""
+    global ICONS_OK
     parts = chunks(text)
+    last = None
     ok = True
+    eff = theme.effect_id(effect) if dest and dest > 0 else None
     for i, part in enumerate(parts):
-        markup = kb if i == len(parts) - 1 else None
-        sent = False
-        for pm in ("Markdown", None):
+        final = i == len(parts) - 1
+        sent = None
+        attempts = [("Markdown", True, eff), ("Markdown", False, None), (None, False, None)]
+        for pm, icons, e in attempts:
             try:
+                kw = {"reply_markup": _kb(keyboard, icons) if final else None}
                 if pm:
-                    await bot.send_message(dest, part, parse_mode=pm, reply_markup=markup)
-                else:
-                    await bot.send_message(dest, part, reply_markup=markup)
-                sent = True
+                    kw["parse_mode"] = pm
+                if e and final:
+                    kw["message_effect_id"] = e
+                sent = await bot.send_message(dest, part, **kw) or True
                 break
-            except Exception as e:
-                log.warning("send to %s failed (%s): %s", dest, pm or "plain", e)
-        ok = ok and sent
-    return ok
+            except Exception as ex:
+                err = str(ex).lower()
+                if "emoji" in err and icons:
+                    ICONS_OK = False                 # آیکونِ سفارشی مجاز نیست؛ دیگر امتحان نکن
+                log.warning("send to %s failed (%s): %s", dest, pm or "plain", ex)
+        ok = ok and bool(sent)
+        last = sent or last
+    return last if ok else None
 
 
 async def _flush_outbox(bot, res: dict) -> None:
     """پیام‌هایی که هندلر برای دیگران گذاشته (پرسش بازجو به متهم، نتیجه‌ی شب، کارت نقش)."""
     for m in res.get("outbox") or []:
-        await _send(bot, m["chat"], m["text"], m.get("keyboard"))
+        await _send(bot, m["chat"], m["text"], m.get("keyboard"), m.get("effect"))
 
 
 ANIM_DELAY = 0.6        # ثانیه بین فریم‌های ایموجیِ متحرک
@@ -174,8 +192,22 @@ async def _reply(update: Update, res: dict):
     if res.get("anim") and not res.get("private"):
         dest = res.get("_target") if res.get("announce") and res.get("_target") else update.effective_chat.id
         await _animate(update.get_bot(), dest, res["anim"])
-    await _deliver(update, res)
+    sent = await _deliver(update, res)
     await _flush_outbox(update.get_bot(), res)
+    # نسخه ۹: کارتِ زنده (لابی/ساعتِ فاز) همین حالا به‌روز شود، نه ۵ ثانیه بعد
+    game_chat = res.get("refresh") or res.get("_target") or update.effective_chat.id
+    if game_chat in GAMES and game_chat < 0:
+        if res.get("clock") and sent is not None and hasattr(sent, "message_id"):
+            view = botmod.clock_view(game_chat)
+            if view:
+                old = CLOCKS.pop(game_chat, None)
+                if old:
+                    try:
+                        await update.get_bot().delete_message(game_chat, old["mid"])
+                    except Exception:
+                        pass
+                CLOCKS[game_chat] = {"key": view["key"], "mid": sent.message_id, "text": res["text"]}
+        await _update_clock(update.get_bot(), game_chat)
 
 
 async def _deliver(update: Update, res: dict):
@@ -188,22 +220,24 @@ async def _deliver(update: Update, res: dict):
     target = res.get("_target")
     here = update.effective_chat.id
     if res.get("announce") and target and target != here and not res.get("private"):
-        if await _send(bot, target, res["text"], res.get("keyboard")):
+        m = await _send(bot, target, res["text"], res.get("keyboard"))
+        if m:
             await _send(bot, here, "📣 در گروهِ بازی اعلام شد.")
-            return
+            return m
     if res.get("edit") and q and q.message and not res.get("private") and len(res["text"]) <= TG_LIMIT:
         for pm in ("Markdown", None):
             try:
                 await q.edit_message_text(res["text"], parse_mode=pm, reply_markup=kb)
-                return
+                return q.message
             except Exception as e:
                 if "not modified" in str(e).lower():
-                    return                      # همان محتوا؛ ویرایش لازم نیست
+                    return q.message            # همان محتوا؛ ویرایش لازم نیست
         # اگر ویرایش نشد (پیام پاک شده و ...) → به ارسال عادی برگرد
     private = bool(res.get("private"))
     dest = update.effective_user.id if private else update.effective_chat.id
-    if await _send(bot, dest, res["text"], res.get("keyboard")):
-        return
+    m = await _send(bot, dest, res["text"], res.get("keyboard"), res.get("effect") if private else None)
+    if m:
+        return m
     # پیوی شکست خورد. متن محرمانه (نقش/سرنخ) هرگز نباید در گروه بیفتد —
     # فقط یک تذکر بی‌محتوا می‌فرستیم.
     if private:
@@ -320,12 +354,15 @@ async def _update_clock(bot, chat: int) -> None:
         cur = None
     if view is None:
         return
-    kb = _kb(view["keyboard"])
+    global ICONS_OK
+    kb = _kb(view["keyboard"], ICONS_OK)
     if cur is None:
         try:
             msg = await bot.send_message(chat, view["text"], parse_mode="Markdown", reply_markup=kb)
             CLOCKS[chat] = {"key": view["key"], "mid": msg.message_id, "text": view["text"]}
         except Exception as e:
+            if "emoji" in str(e).lower():
+                ICONS_OK = False
             log.warning("clock send %s: %s", chat, e)
         return
     if cur["text"] == view["text"]:
