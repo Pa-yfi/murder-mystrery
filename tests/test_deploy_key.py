@@ -99,6 +99,27 @@ def test_putty_key_is_named(tmp_path, monkeypatch, capsys):
 
 
 @pytest.mark.parametrize("secret,words", [("", "empty"), ("   \n ", "empty"),
-                                          ("my server password", "no -----BEGIN")])
+                                          ("line one\nline two\n" * 30, "no -----BEGIN")])
 def test_empty_or_unrelated_text_is_named(tmp_path, monkeypatch, capsys, secret, words):
     _fails_with(tmp_path, monkeypatch, capsys, secret, words)
+
+
+def test_only_the_middle_of_the_key_is_repaired(tmp_path, monkeypatch, capsys):
+    key, pub = _keygen(tmp_path, "k", "-t", "ed25519")
+    middle = "\n".join(key.strip().splitlines()[1:-1])
+    code, text, loaded = _run(tmp_path, monkeypatch, capsys, middle)
+    assert code == 0, text
+    assert loaded == pub
+
+
+def test_fingerprint_and_randomart_are_named(tmp_path, monkeypatch, capsys):
+    out = subprocess.run(["ssh-keygen", "-t", "ed25519", "-N", "", "-C", "github-deploy",
+                          "-f", str(tmp_path / "k")], capture_output=True, text=True, check=True).stdout
+    shown = out.split("The key fingerprint is:")[1]          # what ssh-keygen printed while making the key
+    _fails_with(tmp_path, monkeypatch, capsys, shown, "fingerprint")
+    art = shown.split("randomart image is:")[1]             # just the picture
+    _fails_with(tmp_path, monkeypatch, capsys, art, "fingerprint")
+
+
+def test_password_is_named(tmp_path, monkeypatch, capsys):
+    _fails_with(tmp_path, monkeypatch, capsys, "Sup3r$ecretVpsPass", "password")

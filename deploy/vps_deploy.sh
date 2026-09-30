@@ -122,9 +122,6 @@ as_root systemctl restart "$SERVICE"
 say "Waiting 15 seconds to be sure the bot stays up"
 sleep 15
 logs=$(as_root journalctl -u "$SERVICE" --since "@$started" --no-pager -o cat 2>/dev/null | tail -n 40 || true)
-echo "::group::Bot log since start"
-printf '%s\n' "$logs"
-echo "::endgroup::"
 if printf '%s' "$logs" | grep -q 'Conflict'; then
   echo "::warning::Telegram says another copy of this bot is running somewhere else (your PC or an older install). Stop the other copy."
 fi
@@ -132,9 +129,14 @@ if [ "$(as_root systemctl is-active "$SERVICE")" = active ] \
    && [ "$(as_root systemctl show -p NRestarts --value "$SERVICE")" = 0 ]; then
   rm -rf "$APP_DIR/app.bad"
   say "✅ The bot is running: service '$SERVICE', code in $APP_DIR/app, database $db"
-  echo "::notice::Deployed to $RUN_AS@$(hostname) as service '$SERVICE' (database $db)"
+  echo "::notice::Deployed: the bot is running as service '$SERVICE'."
   exit 0
 fi
+
+# Only a failed start prints the bot's log (Actions logs of a public repository are public).
+echo "::group::Bot log since start"
+printf '%s\n' "$logs"
+echo "::endgroup::"
 
 hint="The log is above; if it says the token is invalid, fix the BOT_TOKEN secret."
 if [ -d "$APP_DIR/app.old" ]; then

@@ -3,8 +3,9 @@
 Used by .github/workflows/deploy.yml:  python3 deploy/prepare_key.py OUT_FILE   (the key comes from $VPS_SSH_KEY)
 
 Repairs the usual copy/paste damage without asking: line breaks turned into spaces or lost, Windows line
-endings, indentation, a shell prompt or other text around the key. Names what it cannot repair: the public
-key instead of the private one, a PuTTY key, a key cut off before its END line, a key with a passphrase.
+endings, indentation, a shell prompt or other text around the key, only the middle of the key copied.
+Names what it cannot repair: the public key instead of the private one, the fingerprint or randomart picture,
+a password, a PuTTY key, a key cut off before its END line, a key with a passphrase.
 """
 from __future__ import annotations
 
@@ -15,6 +16,7 @@ import sys
 
 HELP = "On the VPS run `cat ~/.ssh/github_deploy` (step 1 in DEPLOY.md) and paste everything it prints."
 PUBLIC = re.compile(r"(ssh-(ed25519|rsa|dss)|ecdsa-sha2-\S+|sk-\S+)\s+AAAA")
+OPENSSH_BODY = "b3BlbnNzaC1rZXktdjE"          # base64 of "openssh-key-v1", how every OpenSSH private key starts
 
 
 class BadKey(Exception):
@@ -34,7 +36,17 @@ def normalize(raw: str) -> str:
         if PUBLIC.search(text):
             raise BadKey("this is the PUBLIC key (the .pub file, starting with ssh-…). "
                          "GitHub needs the PRIVATE key, the one without .pub. " + HELP)
-        raise BadKey("no -----BEGIN … PRIVATE KEY----- line found. " + HELP)
+        if "".join(text.split()).startswith(OPENSSH_BODY):     # only the middle was copied
+            text = f"-----BEGIN OPENSSH PRIVATE KEY-----\n{text}\n-----END OPENSSH PRIVATE KEY-----"
+            begin = re.search(r"-----BEGIN ([A-Z0-9 ]+)-----", text)
+        elif "SHA256:" in text or "randomart" in text or re.search(r"\+-+\[", text):
+            raise BadKey("this is the key's fingerprint / picture that ssh-keygen shows while making the key, "
+                         "not the key itself. " + HELP)
+        elif "\n" not in text and len(text) < 200:
+            raise BadKey("this looks like a password or a short code, not a key. GitHub logs in with the "
+                         "private key file, not with the VPS password. " + HELP)
+        else:
+            raise BadKey("no -----BEGIN OPENSSH PRIVATE KEY----- line found. " + HELP)
     kind = begin.group(1)
     end = text.find(f"-----END {kind}-----", begin.end())
     if end < 0:

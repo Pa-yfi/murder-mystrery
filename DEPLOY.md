@@ -98,6 +98,9 @@ Open the failed run on the **Actions** tab. The red message tells you what to fi
 | `The VPS_HOST secret is not set yet` | Do step 2. |
 | `These secrets are missing: …` | Add the secrets it names. |
 | `VPS_SSH_KEY: this is the PUBLIC key` | You pasted the `.pub` file. Paste the output of `cat ~/.ssh/github_deploy` (no `.pub`). |
+| `VPS_SSH_KEY: … fingerprint / picture` | You copied what `ssh-keygen` printed while making the key (`SHA256:…` and the box of symbols). Run `cat ~/.ssh/github_deploy` and copy **that** output. |
+| `VPS_SSH_KEY: … looks like a password` | GitHub logs in with the key file, not with the VPS password. Paste the output of `cat ~/.ssh/github_deploy`. |
+| `VPS_SSH_KEY: no -----BEGIN … line found` | Whatever was pasted isn't a key. Paste the output of `cat ~/.ssh/github_deploy`. |
 | `VPS_SSH_KEY: the key is cut off` / `is damaged` | Part of the key is missing. Copy it again, from `-----BEGIN` to `-----END … KEY-----`. |
 | `VPS_SSH_KEY: … protected by a passphrase` | GitHub can't type a password. Make the key exactly as in step 1 (`-N ""` means no passphrase). |
 | `VPS_SSH_KEY: this is a PuTTY (.ppk) key` | Make a new key as in step 1, or export it from PuTTYgen with *Conversions → Export OpenSSH key*. |
@@ -110,6 +113,8 @@ Open the failed run on the **Actions** tab. The red message tells you what to fi
 | warning `another copy of this bot is running` | Stop the bot anywhere else (your PC, an older install). Only one copy may run per token. |
 
 ## Security
+
+- If the repository is public, anyone can read its Actions logs. Secrets are always shown as `***`, and after a successful deploy the log shows nothing about your server beyond that the bot is running. Only a failed start prints the bot's own log, because it's needed to see what went wrong.
 
 - The key lets GitHub log in to your server. It is stored only in GitHub secrets, which are encrypted and hidden in logs.
 - Anyone who can push to this repository could change the workflow and use the key, so give write access only to people you trust.
