@@ -31,6 +31,15 @@ case "$APP_DIR" in *[[:space:]]*) die "VPS_APP_DIR must not contain spaces (got 
 as_root true 2>/dev/null \
   || die "User '$RUN_AS' needs sudo without a password to install the service. Use root as VPS_USER, or see DEPLOY.md."
 
+# ── 0. Enough disk space? (a full disk makes apt/pip fail with confusing errors) ──
+mkdir -p "$APP_DIR"
+for dir in "$APP_DIR" /var /tmp; do
+  free_mb=$(df -Pm "$dir" 2>/dev/null | awk 'NR==2 {print $4}')
+  if [ -n "$free_mb" ] && [ "$free_mb" -lt 400 ]; then
+    die "The VPS disk is almost full: only ${free_mb} MB free for $dir (the bot needs about 400 MB). Free space on the server (see DEPLOY.md: 'disk is almost full'), then run the workflow again."
+  fi
+done
+
 # ── 1. Python 3.10+ and a virtualenv ─────────────────────────────────────────
 install_pkgs() {
   command -v apt-get >/dev/null || die "Please install $* on the server (this script only knows apt-get)."

@@ -108,6 +108,7 @@ Open the failed run on the **Actions** tab. The red message tells you what to fi
 | `The VPS refused the key` | `VPS_USER` is wrong, or the `github-deploy` line isn't in that user's `~/.ssh/authorized_keys`. Repeat step 1 as that user. |
 | `User '…' needs sudo without a password` | Use `root` as `VPS_USER`, or on the server run `echo "$USER ALL=(ALL) NOPASSWD:ALL" \| sudo tee /etc/sudoers.d/github-deploy`. This gives that user full sudo. |
 | `User '…' cannot write to /data` | On the server run the `sudo chown …` command the message shows. |
+| `The VPS disk is almost full` / `No space left on device` | On the server, `df -h /` shows free space. Free some with `sudo apt-get clean`, `sudo journalctl --vacuum-size=100M`, and `sudo du -xh / --max-depth=2 \| sort -h \| tail -20` to find what is big. Or pick a bigger disk in your provider's panel. |
 | `DB_PATH … is a folder` / `must end with a file name` | Use a file path, e.g. `/data/karagah.db`. |
 | `The new version did not stay up …` | The previous version is running again. The bot's log is in the same job output (expand *Bot log since start*). An invalid token means the `BOT_TOKEN` secret is wrong. |
 | warning `another copy of this bot is running` | Stop the bot anywhere else (your PC, an older install). Only one copy may run per token. |
