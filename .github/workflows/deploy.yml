@@ -1,0 +1,128 @@
+# Deploy the bot to your own VPS from GitHub.
+# Every push to main (after the tests pass), or "Run workflow" on the Actions tab:
+#   GitHub ──SSH with the VPS_SSH_KEY secret──▶ VPS: uploads this commit + the settings, runs deploy/vps_deploy.sh
+# The server never needs access to GitHub. Until the VPS_HOST secret exists this job only prints a warning.
+# One-time setup, step by step: DEPLOY.md
+name: deploy
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:                     # never two deploys at once (two bot copies would fight over Telegram)
+  group: deploy-vps
+  cancel-in-progress: false
+
+jobs:
+  tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - run: pip install -r requirements.txt
+      - name: Unit & integration
+        run: python -m pytest -q
+
+  deploy:
+    needs: tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      VPS_HOST: ${{ secrets.VPS_HOST }}
+      VPS_USER: ${{ secrets.VPS_USER }}
+      VPS_PORT: ${{ secrets.VPS_PORT }}
+      VPS_SSH_KEY: ${{ secrets.VPS_SSH_KEY }}
+      VPS_KNOWN_HOSTS: ${{ secrets.VPS_KNOWN_HOSTS }}
+      APP_DIR: ${{ vars.VPS_APP_DIR }}
+      SERVICE: ${{ vars.VPS_SERVICE }}
+      BOT_TOKEN: ${{ secrets.BOT_TOKEN }}
+      BOT_USERNAME: ${{ secrets.BOT_USERNAME }}
+      DB_PATH: ${{ secrets.DB_PATH }}
+      ADMIN_IDS: ${{ secrets.ADMIN_IDS }}
+      BOT_EXTRA_ENV: ${{ secrets.BOT_EXTRA_ENV }}
+    steps:
+      - name: Check the secrets
+        id: cfg
+        run: |
+          if [ -z "$VPS_HOST" ]; then
+            echo "::warning::The VPS_HOST secret is not set yet, so nothing was deployed. See DEPLOY.md."
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          missing=""
+          for v in VPS_USER VPS_SSH_KEY BOT_TOKEN; do
+            if [ -z "${!v}" ]; then missing="$missing $v"; fi
+          done
+          if [ -n "$missing" ]; then
+            echo "::error::These secrets are missing:$missing (see DEPLOY.md)"
+            exit 1
+          fi
+          echo "ready=true" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/checkout@v4
+        if: steps.cfg.outputs.ready == 'true'
+
+      - name: Connect to the VPS
+        if: steps.cfg.outputs.ready == 'true'
+        run: |
+          port=${VPS_PORT:-22}
+          sshd="$RUNNER_TEMP/ssh"                    # key, host keys and config live only for this job
+          install -m 700 -d "$sshd"
+          printf '%s\n' "$VPS_SSH_KEY" | tr -d '\r' > "$sshd/key"
+          chmod 600 "$sshd/key"
+          if ! ssh-keygen -y -P "" -f "$sshd/key" > /dev/null 2>&1; then
+            echo "::error::VPS_SSH_KEY is not a private key without a passphrase. Paste the whole key, from -----BEGIN to END-----."
+            exit 1
+          fi
+          if [ -n "$VPS_KNOWN_HOSTS" ]; then
+            printf '%s\n' "$VPS_KNOWN_HOSTS" | tr -d '\r' > "$sshd/known_hosts"
+          else
+            ssh-keyscan -T 20 -p "$port" "$VPS_HOST" > "$sshd/known_hosts" 2> /dev/null || true
+          fi
+          if [ ! -s "$sshd/known_hosts" ]; then
+            echo "::error::Could not reach SSH on $VPS_HOST port $port. Check VPS_HOST / VPS_PORT and that the firewall allows SSH from anywhere."
+            exit 1
+          fi
+          cat > "$sshd/config" <<EOF
+          Host vps
+            HostName $VPS_HOST
+            User $VPS_USER
+            Port $port
+            IdentityFile $sshd/key
+            IdentitiesOnly yes
+            UserKnownHostsFile $sshd/known_hosts
+            BatchMode yes
+            ConnectTimeout 20
+            ServerAliveInterval 15
+          EOF
+          if ! ssh -F "$sshd/config" vps true; then
+            echo "::error::Could not log in to $VPS_HOST as $VPS_USER with VPS_SSH_KEY. Check VPS_USER, and that the matching public key is in ~/.ssh/authorized_keys of that user on the VPS (see DEPLOY.md)."
+            exit 1
+          fi
+          echo "Connected to $VPS_USER@$VPS_HOST"
+
+      - name: Deploy
+        if: steps.cfg.outputs.ready == 'true'
+        run: |
+          umask 077
+          env_file="$RUNNER_TEMP/bot.env"
+          : > "$env_file"
+          for v in BOT_TOKEN BOT_USERNAME DB_PATH ADMIN_IDS; do
+            val=$(printf '%s' "${!v}" | tr -d '\r\n')
+            if [ -n "$val" ]; then printf '%s=%s\n' "$v" "$val" >> "$env_file"; fi
+          done
+          if [ -n "$BOT_EXTRA_ENV" ]; then        # any other setting, one NAME=value per line
+            printf '%s\n' "$BOT_EXTRA_ENV" | tr -d '\r' | grep -E '^[A-Z_][A-Z0-9_]*=' >> "$env_file" || true
+          fi
+          bundle="$RUNNER_TEMP/bundle.tar"
+          git archive --format=tar --prefix=app/ -o "$bundle" HEAD
+          tar -rf "$bundle" -C "$RUNNER_TEMP" bot.env
+          remote="umask 077; d=\$(mktemp -d) && tar -xzf - -C \"\$d\" && APP_DIR=$(printf %q "$APP_DIR") SERVICE=$(printf %q "$SERVICE") bash \"\$d/app/deploy/vps_deploy.sh\" \"\$d\""
+          gzip -c "$bundle" | ssh -F "$RUNNER_TEMP/ssh/config" vps "$remote"

@@ -33,6 +33,8 @@ except ImportError:
 
 logging.basicConfig(level=logging.INFO,
                     format="%(asctime)s %(levelname)s %(name)s: %(message)s")
+# httpx هر getUpdates را با آدرسِ کامل (همراه توکن) در INFO لاگ می‌کند → روی سرور هر چند ثانیه یک خط و توکن در لاگ
+logging.getLogger("httpx").setLevel(logging.WARNING)
 log = logging.getLogger("karagah.telegram")
 
 TOKEN = CONFIG_BOT_TOKEN

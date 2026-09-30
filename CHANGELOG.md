@@ -2,6 +2,19 @@
 
 Every version below is one commit. Each commit message has the full detail, and this file is the map. Test numbers are the full pytest suite at that commit.
 
+## Deploy from GitHub to a VPS
+- New `.github/workflows/deploy.yml`: on every push to `main` (or "Run workflow") it runs the tests, logs in to the VPS with the `VPS_SSH_KEY` secret and uploads the commit plus a settings file built from the secrets (`BOT_TOKEN`, `BOT_USERNAME`, `DB_PATH`, `ADMIN_IDS`, `BOT_EXTRA_ENV`). The server needs no GitHub access. Until `VPS_HOST` is set, it only prints a warning.
+- New `deploy/vps_deploy.sh` (runs on the server):
+  - installs Python/venv if missing;
+  - keeps the venv and the database between deploys;
+  - checks `DB_PATH` (folder or trailing `/`, inside the code folder, relative name) and creates its folder;
+  - writes and starts the systemd service `karagah`, which restarts after crashes and reboots;
+  - waits 15 s and, if the bot didn't stay up, starts the previous version again and fails the job with the bot's log;
+  - warns about a second copy (`Conflict`).
+- Tested end to end over real SSH with a local sshd: first deploy, redeploy, rollback after a crashing build (database kept), root and non-root users with and without sudo, and every error message.
+- `telegram_app.py`: `httpx` logs at WARNING. At INFO it logged every getUpdates call with the token in the URL, a line every few seconds on a 24/7 server.
+- Step-by-step guide: `DEPLOY.md`.
+
 ## v9: visual design, live lobby card, cleanup (`3db5cc0`)
 **Design**
 - New `karagah/theme.py`: ribbon headers (`🌙 ┈┈ شبِ ۲ ┈┈ 🌙`) on every announcement.
