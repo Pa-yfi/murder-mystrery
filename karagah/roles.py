@@ -24,23 +24,23 @@ class RoleDef:
 
 ROLES: Dict[str, RoleDef] = {r.name: r for r in [
     # ---------------- تیم شهر ----------------
-    RoleDef("کارآگاه", Align.CITY, "🕵️", "investigate", "align_check",
+    RoleDef("کارآگاه", Align.CITY, "🕵️", "investigate", "sightings",
             "هر شب هویت تیمی یک نفر را استعلام می‌کند (خنثی‌ها «مشکوک» نشان داده می‌شوند)."),
-    RoleDef("بازجو", Align.CITY, "🔦", "", "interrogation_hints",
+    RoleDef("بازجو", Align.CITY, "🔦", "", "police_files",
             "متهمِ داخل بازجویی را استنطاق می‌کند و سرنخ‌های مبهم دریافت می‌کند؛ حکم حبس موقت با اوست."),
-    RoleDef("پزشک قانونی", Align.CITY, "🧪", "autopsy", "forensic",
+    RoleDef("پزشک قانونی", Align.CITY, "🧪", "autopsy", "forensic_files",
             "هر شب نتیجه‌ی آزمایشگاهیِ یک مدرک را زودتر می‌بیند."),
-    RoleDef("پزشک", Align.CITY, "💉", "protect", "save_log",
+    RoleDef("پزشک", Align.CITY, "💉", "protect", "hospital",
             "هر شب از یک نفر محافظت می‌کند؛ نمی‌تواند دو شب پشت‌سرهم یک نفر را انتخاب کند."),
-    RoleDef("نگهبان", Align.CITY, "🛡️", "watch", "visit_count",
+    RoleDef("نگهبان", Align.CITY, "🛡️", "watch", "visit_log",
             "هر شب یک نفر را زیر نظر می‌گیرد و تعداد ملاقات‌های او را می‌بیند."),
-    RoleDef("خبرنگار", Align.CITY, "📰", "reveal", "public_leak",
+    RoleDef("خبرنگار", Align.CITY, "📰", "reveal", "press_archive",
             "هر شب یک مدرک اضافه برای کل شهر رو می‌کند."),
-    RoleDef("وکیل", Align.CITY, "⚖️", "", "jury_power",
+    RoleDef("وکیل", Align.CITY, "⚖️", "", "court_records",
             "می‌تواند بدون هم‌قسم شدن با دیگران، به‌تنهایی درخواست هیئت منصفه بدهد."),
     RoleDef("شهروند", Align.CITY, "👤", "", "none",
             "بدون قدرت ویژه؛ فقط منطق و رای."),
-    RoleDef("کالبدشکاف", Align.CITY, "🔬", "", "autopsy_detail",
+    RoleDef("کالبدشکاف", Align.CITY, "🔬", "", "forensic_files",
             "بعد از هر قتل، ساعت دقیق مرگ و نوع سلاح را می‌فهمد."),
     RoleDef("شکارچی", Align.CITY, "🏹", "hunter", "none",
             "اگر حبس ابد بخورد یا کشته شود، یک نفر را با شلیک آخر با خود می‌برد."),
@@ -51,7 +51,7 @@ ROLES: Dict[str, RoleDef] = {r.name: r for r in [
             "هر شب اثر انگشت جعلی روی یک نفر می‌گذارد؛ مدرک روز بعد به او اشاره می‌کند."),
     RoleDef("سم‌ساز", Align.KILLER, "☠️", "poison", "team_ids",
             "هدفش دو شب بعد می‌میرد مگر پزشک او را نجات دهد."),
-    RoleDef("خبرچین", Align.KILLER, "📞", "spy", "watch_officer",
+    RoleDef("خبرچین", Align.KILLER, "📞", "spy", "police_radio",
             "هر شب می‌فهمد بازجو چه کسی را استنطاق کرده است."),
     # ---------------- خنثی ----------------
     RoleDef("سپر بلا", Align.NEUTRAL, "🎭", "", "none",
@@ -119,3 +119,22 @@ def assign_with_cooldown(uids, n, rng, last_roles):
         if repeats == 0:
             break
     return dict(zip(uids, roles))
+
+
+# ── نام‌های نمایشی (role-names.md) ──────────────────────────────────
+# فقط نمایش. هیچ مجوزی، شرط بردی یا پاداشی به این رشته‌ها وابسته نیست؛
+# شناسه‌ی نقش همچنان کلیدِ ROLES است.
+DISPLAY_FA = {
+    "کارآگاه": "ردبین", "بازجو": "رازپرس", "پزشک قانونی": "اثرکاو",
+    "پزشک": "جان‌بان", "نگهبان": "شب‌پای", "خبرنگار": "پرده‌گشا",
+    "وکیل": "دادخواه", "شهروند": "هم‌محله", "کالبدشکاف": "مرگ‌خوان",
+    "شکارچی": "واپسین‌تیر", "قاتل": "خاموشگر", "همدست": "ردساز",
+    "سم‌ساز": "زهرریز", "خبرچین": "سایه‌شنو", "سپر بلا": "بلاگردان",
+    "جانی سریالی": "تنهاکُش", "بقال محله": "پچ‌پچ‌فروش", "قاچاقچی": "ردپوش",
+}
+
+
+def title_of(role: str) -> str:
+    """«ردبین — کارآگاه»: نام تازه برجسته، نام آشنا کنارش."""
+    d = DISPLAY_FA.get(role)
+    return f"{d} — {role}" if d else role

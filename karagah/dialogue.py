@@ -3,7 +3,7 @@
 """
 from __future__ import annotations
 import hashlib
-from typing import List
+from typing import List, Optional
 from .models import Player, Align
 
 CALM = [
@@ -31,6 +31,27 @@ TELLS = [
     "کاملاً آرام است؛ شاید زیادی آرام.",
 ]
 
+# سرنخ‌های گره‌خورده به همین پرونده — جای کلیدها از روی Case پر می‌شود
+CASE_TELLS = [
+    "وقتی اسم «{place}» می‌آید، حرفش را عوض می‌کند.",
+    "می‌گوید {weapon} را هرگز ندیده — ولی بی‌آنکه بپرسی توصیفش کرد.",
+    "درباره‌ی {victim} به زمان گذشته حرف می‌زند، انگار از قبل می‌دانسته.",
+    "ادعا می‌کند ساعت {t} خواب بوده؛ صدای {place} همان ساعت شنیده شده.",
+    "تا حرف «{motive}» شد، ساکت شد.",
+    "می‌گوید کل شب تنها بوده و هیچ شاهدی ندارد.",
+    "جزئیاتی از صحنه می‌داند که هنوز عمومی نشده است.",
+]
+
+# سرنخ‌هایی که از اتفاقِ واقعیِ دیشب می‌آیند، نه از هوا
+FACT_TELLS = {
+    "visited": "دیشب جایی رفته بود؛ می‌گوید «هوا خوردن»، ولی مسیرش را نمی‌گوید.",
+    "was_visited": "می‌گوید دیشب کسی در خانه‌اش را زده و او باز نکرده.",
+    "framed": "اثر انگشتش روی صحنه هست — و خودش هم از این بابت جا خورده.",
+    "blackout": "می‌گوید در قطعی برق هیچ‌جا نرفت؛ ولی چراغ‌قوه‌اش خالی است.",
+    "storm": "لباس‌هایش از طوفان دیشب خیس است، هرچند می‌گوید بیرون نرفته.",
+    "threatened": "دستش به تلفن می‌رود و پشیمان می‌شود؛ انگار از کسی می‌ترسد.",
+}
+
 
 def _h(*parts) -> int:
     return int(hashlib.sha256("|".join(map(str, parts)).encode()).hexdigest(), 16)
@@ -55,17 +76,95 @@ def answer(p: Player, question: str, day: int) -> str:
     return base
 
 
-def interrogation_hints(suspect: Player, day: int, n: int = 3) -> List[str]:
-    """سرنخ‌های مبهم برای بازجو — هرگز قطعی نیست.
-    قاتل شانس بیشتری برای «tell» مجرمانه دارد، اما بی‌گناهِ پراسترس هم می‌تواند همان را بدهد."""
+def interrogation_hints(suspect: Player, day: int, case=None,
+                        facts: Optional[dict] = None, n: int = 3) -> List[str]:
+    """سرنخ‌های بازجو — مبهم ولی *مشخص*: به همین پرونده و همین شب گره خورده‌اند.
+
+    سه لایه روی هم: یک نشانه‌ی رفتاری، یک نشانه از جزئیاتِ همین پرونده، و
+    نشانه‌هایی که از اتفاقِ واقعیِ دیشب می‌آیند. چون seed شامل روز است،
+    شب دوم و سوم و چهارم هرگز همان متن قبلی را نمی‌دهند.
+    قاتل شانس بیشتری برای «tell» مجرمانه دارد، اما بی‌گناهِ پراسترس هم می‌تواند همان را بدهد.
+    """
+    facts = facts or {}
     s = stress_of(suspect)
-    guilty_bias = _h(suspect.uid, day, "bias") % 100
-    tells = []
-    for i in range(n):
-        idx = _h(suspect.uid, day, i, s) % len(TELLS)
-        tells.append(TELLS[idx])
+    out: List[str] = []
+
+    # لایه ۱ — رفتار
+    for i in range(max(1, n - 2)):
+        out.append(TELLS[_h(suspect.uid, day, i, s) % len(TELLS)])
+
+    # لایه ۲ — جزئیات همین پرونده
+    if case is not None:
+        tpl = CASE_TELLS[_h(suspect.uid, day, "case") % len(CASE_TELLS)]
+        t = case.timeline[2].split("—")[0].strip() if len(case.timeline) > 2 else "۲۳:۱۵"
+        out.append(tpl.format(place=case.place, weapon=case.weapon,
+                              victim=case.victim, motive=case.motive, t=t))
+
+    # لایه ۳ — آنچه دیشب واقعاً اتفاق افتاد
+    for key, line in FACT_TELLS.items():
+        if facts.get(key):
+            out.append(line)
+
     conf = "ضعیف" if s < 35 else ("متوسط" if s < 70 else "بالا")
-    tells.append(f"سطح تنش: {conf} (این سطح، اثباتِ گناه نیست).")
-    if guilty_bias < 20:
-        tells.append("⚠️ نشانه‌ی متناقض: داستانش با تایم‌لاین کمی جور در نمی‌آید.")
-    return tells
+    out.append(f"سطح تنش: {conf} (این سطح، اثباتِ گناه نیست).")
+    if _h(suspect.uid, day, "bias") % 100 < 20:
+        out.append("⚠️ نشانه‌ی متناقض: داستانش با تایم‌لاین کمی جور در نمی‌آید.")
+    return out
+
+
+# ── سرنخ پایانیِ بازجو (rules.md R07.2) ────────────────────────────
+# سه قاعده‌ی سخت:
+#  ۱) ربات «عرق» و «لرزش دست» را نمی‌بیند. اگر می‌آید، فقط به‌عنوان
+#     «روایت صحنه» و از روی ژستی که خودِ متهم انتخاب کرده.
+#  ۲) «وکیل خواست» فقط وقتی که واقعاً در متنش نوشته باشد.
+#  ۳) شدتِ هیچ نشانه‌ای از align/نقش ساخته نمی‌شود.
+STANCE_FA = {
+    "nervous": ("روایت صحنه: دست‌های شخصیت می‌لرزید و مدام جابه‌جا می‌شد.",
+                "این توصیف نمایشی است؛ ترس از اتهام هم آن را توضیح می‌دهد."),
+    "calm":    ("روایت صحنه: شخصیت آرام نشست و بی‌مکث جواب داد.",
+                "آرامش هم اثبات بی‌گناهی نیست."),
+    "hot":     ("روایت صحنه: از گرمای اتاق شکایت داشت و عرق کرده بود.",
+                "این شکایت پیش از طرح اتهام ثبت شده؛ به اتهام نسبتش نده."),
+    "angry":   ("روایت صحنه: با تندی جواب داد و به بازجو اعتراض کرد.",
+                "عصبانیت، نشانه‌ی گناه نیست."),
+}
+
+LAWYER_WORDS = ("وکیل", "دادخواه", "حق قانونی")
+
+
+def closing_hint(suspect: Player, qa: List[tuple], case=None) -> List[str]:
+    """سرنخِ پایانی — فقط از آنچه *واقعاً* در اتاق گذشت.
+
+    qa = [(پرسش، پاسخِ واقعیِ خودِ متهم), ...] به ترتیبِ زمانی.
+    """
+    out: List[str] = []
+
+    # ۱) ژستِ نمایشیِ انتخابیِ خودش
+    if suspect.stance in STANCE_FA:
+        line, limit = STANCE_FA[suspect.stance]
+        out.append(f"{line} ({limit})")
+
+    # ۲) درخواست وکیل — فقط اگر واقعاً نوشته باشد
+    for i, (_q, a) in enumerate(qa, 1):
+        if any(w in a for w in LAWYER_WORDS):
+            out.append(f"در پاسخ {i} درخواست وکیل کرد. این حقِ دفاع است و "
+                       "دلالتی بر گناه ندارد.")
+            break
+
+    # ۳) ترتیب و تناقضِ واقعی: دو گفته‌ی خودش کنار هم
+    if len(qa) >= 2:
+        out.append(f"پاسخ ۱: «{qa[0][1][:70]}» — پاسخ {len(qa)}: "
+                   f"«{qa[-1][1][:70]}». ترتیبشان ثبت شده؛ خودت بسنج.")
+    elif qa:
+        out.append(f"تنها گفته‌اش: «{qa[0][1][:90]}» (در پاسخ «{qa[0][0][:60]}»).")
+
+    # ۴) زمینه‌ی نقش‌محور — بدون افشای نقش
+    if case is not None and qa:
+        out.append(f"می‌توانی گفته‌اش را با {case.place} و ساعت حادثه بسنجی.")
+
+    if not out:
+        out.append("نشانهٔ رفتاری قابل اتکایی ثبت نشد. تصمیم را بر مدارک "
+                   "منتشرشده و پاسخ‌های واقعی بنا کن.")
+    out.append("❗ هیچ‌کدام اثبات نیست. بی‌گناه و مجرم هر دو می‌توانند آرام، "
+               "عصبی یا متناقض باشند.")
+    return out

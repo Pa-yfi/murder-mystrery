@@ -40,15 +40,26 @@ GROUPS: List[Tuple[str, str, List[tuple]]] = [
     ]),
     ("interro", "🔦 بازجویی و دادگاه", [
         ("🔦 سرنخ‌ها", "hints"), ("💬 پرسش از متهم", "ask"),
-        ("⚖️ حکم بازجو", "verdict"), ("🕊️ آزادی زندانی قبلی", "clear"),
-        ("🛡️ دفاع من", "defense"), ("⚖️ هیئت منصفه", "jury"),
+        ("⚖️ حکم بازجو", "verdict"), ("⚖️ ارجاع به هیئت منصفه", "refer"),
+        ("🕊️ آزادی زندانی قبلی", "clear"),
+        ("🗣️ پاسخ به بازجو", "reply"), ("📕 پایان گفتگو", "closeroom"),
+        ("🎭 ژست شخصیت من", "stance"),
+        ("🕊️ بازبینی آزادی", "closerelease"),
+        ("🛡️ دفاع من", "defense"), ("⚖️ هیئت دو نفره", "jury"),
         ("📊 نتیجه‌ی هیئت", "closejury"), ("🚨 رای اضطراری", "sos"),
     ]),
     ("clues", "🔎 مدارک و دفترچه", [
+        ("🗂️ بایگانی نقش من", "archive"), ("🚗 استعلام مالک پلاک", "plate"),
         ("🧪 آزمایشگاه", "lab"), ("🧠 تفسیر مدرک", "interp"),
-        ("🔍 راستی‌آزمایی مدرک", "expose"), ("📝 یادداشت تازه", "note"),
+        ("🔍 راستی‌آزمایی مدرک", "expose"), ("👤 استعلام مشخصات", "inspect"),
+        ("📝 یادداشت تازه", "note"),
+        ("📥 سپردن یادداشت به گروه", "share_note"),
         ("📓 دفترچه‌ی من", "notes"), ("📜 وصیت‌نامه", "will"),
         ("🏹 هدف شلیک آخر", "hunter"),
+    ]),
+    ("dark", "🔪 کارهای شبانه‌ی قاتل", [
+        ("🔪 جعبه‌ابزار قاتل", "killer"), ("🧾 سرنخ جعلی", "fakeclue"),
+        ("🤝 جواب به دعوت", "recruit"),
     ]),
     ("progress", "🏆 پیشرفت", [
         ("📊 پروفایل", "profile"), ("🏆 برترین‌ها", "top"),
@@ -60,6 +71,7 @@ GROUPS: List[Tuple[str, str, List[tuple]]] = [
         ("📺 تماشاچی", "spectate"), ("🕶️ ناشناس/علنی", "voteanon"),
         ("🔁 دور دوباره", "rematch"), ("⏰ یادآوری", "remind"),
         ("⏸️ توقف بازی", "pause"), ("▶️ ادامه‌ی بازی", "resume"),
+        ("🏳️ تسلیم می‌شوم", "surrender"), ("🛠️ مدیریت همین بازی", "manage"),
         ("👑 انتقال میزبانی", "host"), ("⏳ بررسی تایمر", "tick"),
     ]),
     ("guide", "📚 راهنما", [
@@ -92,8 +104,85 @@ def all_buttons() -> List[str]:
     return [cb for _k, _t, items in GROUPS for _label, cb in items]
 
 
-def commands_menu() -> Dict:
-    rows = [[(title, f"group:{key}")] for key, title, _items in GROUPS]
+# وسط بازی فقط این دسته‌ها دیده می‌شوند. «پیشرفت»، «میز و میزبانی» و
+# «راهنما» بیرون می‌مانند چون یا ربطی به دور جاری ندارند یا دکمه‌هایی
+# دارند که بازیِ در جریان را دور می‌اندازند.
+IN_GAME_GROUPS = {"play", "interro", "clues", "dark"}
+
+# دکمه‌هایی که وسط بازی نباید جایی دیده شوند: هر کدام یا لابیِ تازه می‌سازند
+# یا بازیکن را از دور جاری بیرون می‌برند.
+PREGAME_ONLY = {"new", "blitz", "newtable", "join", "leave", "startgame",
+                "ready", "rematch", "table", "spectate"}
+
+
+# دکمه‌هایی که فقط یک نقشِ مشخص می‌تواند بزند. کلید = callback،
+# مقدار = تابعی که می‌گوید این بازیکن مجاز است یا نه.
+# §۱۳ ST02/ST03: منو باید از روی «کارهای قانونیِ همین بازیکن» ساخته شود،
+# نه یک فهرستِ ثابت که بعد از کلیک خطا می‌دهد.
+def _has_night_action(g, p) -> bool:
+    r = ROLES.get(p.role)
+    return bool(r and r.ability and r.ability != "hunter")
+
+
+def _is_killer_tool_user(g, p) -> bool:
+    return (p.align.value == "قاتل‌ها" and not p.recruited
+            and bool(ROLES[p.role].ability))
+
+
+CAPABILITY = {
+    "act":        lambda g, p: _has_night_action(g, p),
+    "hunter":     lambda g, p: ROLES[p.role].ability == "hunter",
+    "expose":     lambda g, p: p.role == "کارآگاه",
+    "plate":      lambda g, p: ROLES[p.role].info in ("police_files", "sightings"),
+    "hints":      lambda g, p: p.uid == g.s.officer_uid,
+    "ask":        lambda g, p: p.uid == g.s.officer_uid,
+    "verdict":    lambda g, p: p.uid == g.s.officer_uid,
+    "refer":      lambda g, p: p.uid == g.s.officer_uid,
+    "clear":      lambda g, p: p.uid == g.s.officer_uid,
+    "defense":    lambda g, p: g.s.suspect_uid == p.uid,
+    "reply":      lambda g, p: g.s.suspect_uid == p.uid,
+    "stance":     lambda g, p: g.s.suspect_uid == p.uid,
+    "inspect":    lambda g, p: ROLES[p.role].info == "sightings",
+    "closeroom":  lambda g, p: p.uid in (g.s.officer_uid, g.s.suspect_uid),
+    "closerelease": lambda g, p: bool(g.s.release_ballots),
+    "killer":     _is_killer_tool_user,
+    "fakeclue":   _is_killer_tool_user,
+    "recruit":    lambda g, p: g.s.recruit_offer == p.uid,
+    "pause":      lambda g, p: p.uid == g.owner,
+    "resume":     lambda g, p: p.uid == g.owner,
+    "host":       lambda g, p: p.uid == g.owner,
+    "voteanon":   lambda g, p: p.uid == g.owner,
+}
+
+
+def may_use(cb: str, g=None, p=None) -> bool:
+    """آیا این دکمه برای این بازیکن معنا دارد؟ (مجوزِ سرور جداست.)"""
+    if g is None or p is None:
+        return True
+    check = CAPABILITY.get(cb)
+    return True if check is None else bool(check(g, p))
+
+
+def visible_groups(state=None, g=None, p=None) -> List[Tuple[str, str, List[tuple]]]:
+    """دسته‌های دیدنی در این لحظه — و داخل هر دسته، فقط دکمه‌های همین بازیکن."""
+    from .models import Phase as _P
+    live = state is not None and state.phase not in (_P.LOBBY, _P.END)
+    if not live:
+        return GROUPS
+    out = []
+    for key, title, items in GROUPS:
+        if key not in IN_GAME_GROUPS:
+            continue
+        keep = [(lbl, cb) for lbl, cb in items
+                if cb not in PREGAME_ONLY and may_use(cb, g, p)]
+        if keep:                       # دسته‌ی خالی اصلاً نشان داده نمی‌شود
+            out.append((key, title, keep))
+    return out
+
+
+def commands_menu(state=None, g=None, p=None) -> Dict:
+    rows = [[(title, f"group:{key}")]
+            for key, title, _items in visible_groups(state, g, p)]
     return kb(rows + [[HOME]])
 
 
@@ -103,8 +192,11 @@ def commands_screen() -> str:
             "\nهر دکمه‌ای که ورودی بخواهد، خودش فهرست انتخاب‌ها را نشان می‌دهد.")
 
 
-def group_kb(key: str) -> Dict:
-    items = next(items for k, _t, items in GROUPS if k == key)
+def group_kb(key: str, state=None, g=None, p=None) -> Dict:
+    groups = visible_groups(state, g, p)
+    items = next((items for k, _t, items in groups if k == key), None)
+    if items is None:                    # دسته‌ای که وسط بازی پنهان است
+        return commands_menu(state, g, p)
     return kb(_pairs(items) + [[BACK, HOME]])
 
 
@@ -137,8 +229,9 @@ def roles_kb() -> Dict:
 
 
 def role_detail(name: str) -> str:
+    from .roles import title_of
     r = ROLES[name]
-    return (f"{r.emoji} *{r.name}*\n" + "─" * 18 +
+    return (f"{r.emoji} *{title_of(r.name)}*\n" + "─" * 18 +
             f"\n🎯 تیم: {r.align.value}"
             f"\n🌙 کار شبانه: {ABILITY_FA.get(r.ability, r.ability)}"
             f"\n📜 {r.desc}")
@@ -167,14 +260,21 @@ def abilities_text(g, p) -> str:
         return "\n".join(lines)
 
     now: List[str] = []
+    killer = p.align.value == "قاتل‌ها"
     if s.phase in (Phase.NIGHT, Phase.INTERROGATION):
         if p.custody is Custody.INTERROGATION:
             now.append("🔦 امشب در اتاق بازجویی‌ای — اکشن شبانه نداری.")
             now.append("🛡️ می‌توانی «دفاع من» را بفرستی.")
+        elif killer:
+            now.append("🔪 «جعبه‌ابزار قاتل» را باز کن: قتل، نکشتن، اثر انگشت جعلی،")
+            now.append("   سرنخ جعلی، تهدید، یا دعوت به همکاری.")
         elif r.ability and r.ability != "hunter":
             now.append("🌙 «اکشن شبانه» را بزن و هدفت را انتخاب کن.")
         else:
             now.append("😴 امشب کاری از تو برنمی‌آید؛ صبح بحث کن.")
+        if p.role == "پزشک":
+            now.append("💉 یک بار در کل بازی می‌توانی خودت را هم نجات دهی"
+                       + (" — استفاده شده ✔️" if p.self_save_used else " — هنوز دستِ نخورده."))
         if r.ability == "hunter":
             now.append("🏹 «هدف شلیک آخر» را از قبل مشخص کن.")
         if p.role == "کارآگاه":
@@ -209,10 +309,15 @@ def abilities_text(g, p) -> str:
 def abilities_kb(g, p) -> Dict:
     rows: List[List[tuple]] = []
     r = ROLES[p.role] if p.role else None
-    if r and r.ability and r.ability != "hunter":
+    if p.align.value == "قاتل‌ها":
+        rows.append([("🔪 جعبه‌ابزار قاتل", "killer")])
+    elif r and r.ability and r.ability != "hunter":
         rows.append([("🌙 اکشن شبانه", "act")])
     if r and r.ability == "hunter":
         rows.append([("🏹 هدف شلیک آخر", "hunter")])
+    if p.uid == g.s.officer_uid and g.s.suspect_uid:
+        rows.append([("🔦 سرنخ‌ها", "hints"), ("💬 پرسش", "ask")])
+        rows.append([("⚖️ حکم بازجو", "verdict")])
     rows.append([("📓 دفترچه", "notes"), ("🔐 نقش من", "myrole")])
     rows.append([("🎛️ همه‌ی دکمه‌ها", "commands"), HOME])
     return kb(rows)
@@ -269,6 +374,15 @@ PROMPTS = {
     "will": ("📜 *وصیت‌نامه*", "متن وصیتت را بفرست؛ اگر کشته شوی صبح خوانده می‌شود."),
     "ask": ("💬 *پرسش از متهم*", "سؤالت را بفرست تا از متهم پرسیده شود."),
     "defense": ("🛡️ *دفاع تو*", "متن دفاعت را بفرست."),
+    "reply": ("🗣️ *پاسخ به بازجو*",
+              "جوابت را بنویس. عیناً همین متن به بازجو می‌رسد؛ "
+              "ربات به‌جای تو حرف نمی‌زند."),
+    "fakeclue": ("🧾 *سرنخ جعلی*",
+                 "متن سرنخی که می‌خواهی صبح در شهر بپیچد را بفرست.\n"
+                 "کنار سرنخ‌های واقعی خوانده می‌شود و از آن‌ها جدا نیست."),
+    "share_note": ("📥 *سپردن یادداشت به گروه*",
+                   "متنش را بفرست. تا وقتی آزادی کسی آن را نمی‌بیند؛\n"
+                   "همان لحظه‌ای که به حبس موقت بروی، در گروه خوانده می‌شود."),
 }
 
 

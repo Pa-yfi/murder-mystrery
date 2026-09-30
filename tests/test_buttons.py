@@ -128,12 +128,18 @@ def test_bad_role_index_shows_the_catalog():
 
 
 def test_my_abilities_is_private_and_offers_the_action_button():
+    """قاتل جعبه‌ابزار می‌گیرد؛ بقیه‌ی نقش‌های شب‌کار، پنل اکشن."""
     g = _started()
     killer = next(p for p in g.s.players.values() if p.role == "قاتل")
     r = handle("abilities", CHAT, killer.uid)
     assert r["ok"] and r["private"]
-    assert "اکشن شبانه" in r["text"]
-    assert "act" in _cbs(r["keyboard"])
+    assert "جعبه‌ابزار" in r["text"]
+    assert "killer" in _cbs(r["keyboard"])
+
+    doc = next(p for p in g.s.players.values() if ROLES[p.role].ability == "protect")
+    r2 = handle("abilities", CHAT, doc.uid)
+    assert "اکشن شبانه" in r2["text"]
+    assert "act" in _cbs(r2["keyboard"])
 
 
 def test_abilities_changes_with_the_phase():
@@ -201,13 +207,18 @@ def test_verdict_without_argument_offers_the_two_rulings():
     assert "verdict:1" in cbs and "verdict:0" in cbs
 
 
-def test_clear_without_argument_lists_only_jailed_players():
+def test_release_review_opens_only_for_prisoners_with_an_open_ballot():
+    """v2 R07.4: آزادی با رای شهر است و فقط وقتی متهم تازه‌ای وارد شود."""
     g = _started()
     jailed = next(p for p in g.s.alive_players() if p.uid != g.s.officer_uid)
     jailed.custody = Custody.TEMP_JAIL
-    cbs = _cbs(handle("clear", CHAT, g.s.officer_uid)["keyboard"])
-    assert f"clear:{jailed.uid}" in cbs
-    assert len([c for c in cbs if c.startswith("clear:")]) == 1
+    g.s.pending_jail.append(jailed.uid)
+    assert handle("clear", CHAT, g.s.officer_uid)["ok"] is False   # هنوز باز نشده
+    other = next(p.uid for p in g.s.alive_players()
+                 if p.uid not in (jailed.uid, g.s.officer_uid))
+    g.send_to_interrogation(other)                 # متهم تازه → بازبینی باز شد
+    cbs = _cbs(handle("clear", CHAT, 2)["keyboard"])
+    assert f"clear:{jailed.uid}:1" in cbs and f"clear:{jailed.uid}:0" in cbs
 
 
 def test_host_without_argument_offers_players_instead_of_self_transfer():

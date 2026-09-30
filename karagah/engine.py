@@ -32,7 +32,9 @@ class Game:
         self.blitz = blitz                        # ایده ۳: حالت سریع
         d = 2 if blitz else 1
         self.interrogation_nights = max(1, INTERROGATION_NIGHTS // d)
-        self.temp_jail_nights = max(1, TEMP_JAIL_NIGHTS // d)
+        # R07.3: «دو شبِ کاملِ بعدی، در همه‌ی حالت‌ها» — بلیتز فقط مهلت‌های
+        # تعامل را نصف می‌کند، نه طولِ حکم را.
+        self.temp_jail_nights = TEMP_JAIL_NIGHTS
         self.rng = random.Random(seed)
 
     # ---------------- ایده ۱: تایمر فاز ----------------
@@ -163,15 +165,26 @@ class Game:
             info = ROLES[p.role].info
             if info == "team_ids":
                 p.knows = [f"هم‌تیمی: {self.s.players[u].name}" for u in killers if u != p.uid] or ["تنها هستی."]
-            elif info == "forensic":
+            elif info == "forensic_files":
                 p.knows = [f"آزمایشگاه: {self.s.case.evidence[0]['title']}"]
-            elif info == "interrogation_hints":
-                p.knows = ["تو بازجویی؛ حکم حبس موقت با توست."]
+            elif info == "police_files":
+                p.knows = ["تو بازجویی؛ پرونده‌های پلیس و پلاک خودرو دست توست."]
             elif info == "rumor":
                 p.knows = [f"شایعه: سلاح احتمالاً «{self.s.case.weapon}» بوده."]
             else:
                 p.knows = []
+        # ظاهرِ شخصیت‌ها — با برخوردِ عمدی، تا شهادتِ شاهد هیچ‌وقت یک‌نفره نباشد
+        from . import people
+        for u, app in people.assign(list(self.s.players), self.rng).items():
+            self.s.players[u].appearance = app
         self.s.officer_uid = next(p.uid for p in self.s.players.values() if p.role == "بازجو")
+        # مالک پلاک: نیمی از مواقع یکی از قاتل‌ها، نیمی از مواقع یک بی‌گناه.
+        # اگر همیشه قاتل بود، استعلام پلاک بازی را یک‌شبه تمام می‌کرد.
+        kl = [u for u in killers if u != self.s.officer_uid]
+        others = [q.uid for q in self.s.players.values()
+                  if q.uid not in killers and q.uid != self.s.officer_uid]
+        pick = kl if (kl and self.rng.random() < 0.5) else (others or kl)
+        self.s.plate_owner = self.rng.choice(pick) if pick else None
         city = [p.uid for p in self.s.players.values() if p.align is Align.CITY]
         if len(city) >= 4 and len(self.s.players) >= 7:   # ایده ۸: زوج سرنوشت (فقط بازی بزرگ)
             pair = tuple(self.rng.sample(city, 2))
@@ -205,10 +218,12 @@ class Game:
         if ab == "kill" and target == uid:
             raise RuleError("نمی‌توانی خودت را هدف بگیری.")
         if ab == "protect":
+            edit = f"protect:{uid}" in self.s.night_actions   # ویرایش همان اکشن
             if target == uid:
-                raise RuleError("پزشک نمی‌تواند خودش را نجات دهد.")
-            if getattr(self.s, "_protect_prev", None) == target and \
-               f"protect:{uid}" not in self.s.night_actions:
+                # نجاتِ خود: یک بار در کل بازی. نجات دیگران بی‌سقف است.
+                if p.self_save_used and not edit:
+                    raise RuleError("خودت را یک بار نجات داده‌ای؛ از این به بعد فقط دیگران.")
+            elif self.s._protect_prev == target and not edit:
                 raise RuleError("دو شب پیاپی نمی‌توانی یک نفر را نجات دهی.")
         if ab == "investigate":
             if self.s.night_actions.get(f"_inv_last:{uid}") == target:
@@ -357,6 +372,13 @@ class Game:
                 res = "پاک" if t.align is Align.CITY else "مشکوک"
             p.notes.append(f"شب {day}: {t.name} → {res}")
 
+        for actor, tgt in acts.get("protect", {}).items():
+            doc, t = self.s.players[actor], self.s.players[tgt]
+            who = "خودت" if actor == tgt else t.name
+            hit = tgt in [v for v in acts.get("kill", {}).values()]
+            doc.notes.append(f"💉 شب {day}: از {who} محافظت کردی — "
+                             + ("حمله دفع شد ✅" if hit else "حمله‌ای به او نشد."))
+
         for actor, tgt in acts.get("watch", {}).items():
             p, t = self.s.players[actor], self.s.players[tgt]
             n = 0 if tgt in self.s.hidden else visits.get(tgt, 0)
@@ -398,18 +420,22 @@ class Game:
                               "شاهد ناشناس 👁️" if roll < 0.32 else "")
         acts = self._committed_actions()
         protected = set(acts.get("protect", {}).values())
+        for actor, tgt in acts.get("protect", {}).items():
+            if actor == tgt:
+                self.s.players[actor].self_save_used = True
         self.s.hidden = list(set(acts.get("hide", {}).values()))
         # سم: هدف دو شب بعد می‌میرد مگر پزشک همان شب نجاتش دهد
         for tgt in acts.get("poison", {}).values():
             self.s.poison_queue.setdefault(tgt, self.s.day + 2)
         # پاپوش‌دوزی همدست: مدرک فردا به این نفر اشاره می‌کند
-        for tgt in acts.get("frame", {}).values():
+        for tgt in list(acts.get("frame", {}).values()) + list(acts.get("plant", {}).values()):
             self.s.framed[tgt] = self.s.day + 1
         # حمله‌ی مستقیم امشب — طوفان فقط همین را لغو می‌کند
         killed: List[int] = []
         for tgt in acts.get("kill", {}).values():
             if tgt not in protected and tgt not in killed:
                 killed.append(tgt)
+                self.s.death_cause[tgt] = "حمله‌ی مستقیم"
         if self.s.night_event.startswith("طوفان") and killed:
             self.s.log.append("⛈️ طوفان راه‌ها را بست؛ حمله‌ی امشب ناکام ماند.")
             killed = []
@@ -425,14 +451,17 @@ class Game:
             elif tgt not in killed:
                 del self.s.poison_queue[tgt]
                 killed.append(tgt)
+                self.s.death_cause[tgt] = "اثر تأخیریِ سم (تماس، شب‌ها پیش‌تر)"
                 self.s.log.append(f"☠️ {self.s.players[tgt].name} بر اثر سم از پا درآمد.")
         # ایده ۸: زوج سرنوشت
         if self.s.fate_pair:
             a, b = self.s.fate_pair
             if a in killed and b not in killed and self.s.players[b].in_game:
                 killed.append(b)
+                self.s.death_cause[b] = "پیامدِ زنجیره‌ای (زوج سرنوشت)"
             elif b in killed and a not in killed and self.s.players[a].in_game:
                 killed.append(a)
+                self.s.death_cause[a] = "پیامدِ زنجیره‌ای (زوج سرنوشت)"
         # ایده ۱۵: شلیک آخر شکارچی
         extra = []
         for uid in list(killed):
@@ -441,6 +470,7 @@ class Game:
                 tgt = self.s.players[p.hunter_target]
                 if tgt.in_game and p.hunter_target not in killed:
                     extra.append(p.hunter_target)
+                    self.s.death_cause[p.hunter_target] = "شلیک آخرِ شکارچی"
                     self.s.log.append(f"🏹 شلیک آخر {p.name}: {tgt.name} را با خود برد!")
         killed += extra
         for uid in killed:
@@ -453,7 +483,11 @@ class Game:
         if killed:
             for p in self.s.players.values():
                 if p.role == "کالبدشکاف" and p.in_game:
-                    p.notes.append(f"🔬 شب {self.s.day}: مرگ حوالی ۲۳:۱۵ با {self.s.case.weapon}.")
+                    for u in killed:
+                        cause = self.s.death_cause.get(u, "نامشخص")
+                        p.notes.append(
+                            f"🔬 شب {_fa(self.s.day)}: {self.s.players[u].name} — "
+                            f"دسته‌ی علت: {cause}.")
         # ایده ۱۰: تحویل نتایج آزمایشگاه سررسیدشده
         ready = [c for c, d in self.s.lab_queue.items() if d <= self.s.day]
         for c in ready:
@@ -464,6 +498,7 @@ class Game:
         self.s._protect_prev = self.s.night_actions.get("_last_protect")
         self.s.night_actions.clear()
         self.s.phase = Phase.MORNING
+        self.s.last_report_night = self.s.day    # §۱۳.۵: شب واقعاً حل شد
         self.s.deadline = None
         ev = self.s.case.evidence[min(self.s.day - 1, len(self.s.case.evidence) - 1)]
         self.s.revealed_evidence.append(ev["code"])
@@ -482,6 +517,8 @@ class Game:
             self.s.log.append("😴 چند شب بی‌حرکت: " + "، ".join(afk))
         self._build_traces(acts, killed)
         self._deliver_night_info(acts)
+        self._new_day_hint(acts, killed)
+        self._deliver_plate()        # نتیجه‌ی استعلامِ دیشبِ پلیس
         self.s.log.append(f"شب {self.s.day}: کشته‌ها={[self.s.players[u].name for u in killed]}")
         self._check_win()
         return {"killed": killed, "evidence": ev}
@@ -519,9 +556,13 @@ class Game:
     def vote(self, voter: int, target: int) -> None:
         if self.s.phase is not Phase.VOTE:
             raise RuleError("الان رای‌گیری نیست.")
-        v, t = self.s.players.get(voter), self.s.players.get(target)
+        v = self.s.players.get(voter)
         if not v or not v.can_vote:
             raise RuleError("حق رای نداری.")
+        if target == 0:                  # ممتنع: رای قبلی پس گرفته می‌شود
+            self.s.votes.pop(voter, None)
+            return
+        t = self.s.players.get(target)
         if not t or not t.can_speak:
             raise RuleError("هدف نامعتبر است.")
         if voter == target:
@@ -571,132 +612,332 @@ class Game:
         p.cleared = False
         p.stress += 20
         self.s.suspect_uid = uid
+        # پرونده‌ی بازداشتِ تازه (R07.1): اتاق، سرنخ و هیئت همه از نو
+        self.s.episode += 1
+        self.s.room_qa = []
+        self.s.room_pending_q = ""
+        self.s.room_closed = False
+        self.s.hint_ack = False
+        self.s.jury_panel = []
+        self.s.jury_locked = False
+        self._open_release_votes()      # R07.4: فرصتِ آزادیِ زندانی‌های موقت
         self.s.phase = Phase.INTERROGATION
         self.s.day += 1                 # شبِ بازجویی آغاز شد
         self._arm()
         self.s.log.append(f"🔦 {p.name} به بازجویی رفت (فاصله: ۱ شب).")
 
     def officer_hints(self, officer_uid: int) -> List[str]:
+        """سرنخِ پایانی — فقط بعد از بسته‌شدن گفتگو (R07.1/R07.2).
+
+        خواندنش دروازه‌ی تصمیم را باز می‌کند، ولی خودش حکم نیست. محتوا فقط
+        از آنچه واقعاً در اتاق گذشت ساخته می‌شود: ژستی که خودِ متهم انتخاب
+        کرده، متنی که خودش نوشته، و ترتیبِ ثبت‌شده‌ی پاسخ‌ها. هیچ نشانه‌ای
+        از روی نقش یا تیمِ او ساخته نمی‌شود.
+        """
         if officer_uid != self.s.officer_uid:
             raise RuleError("فقط بازجو دسترسی دارد.")
         if not self.s.suspect_uid:
             raise RuleError("کسی در بازجویی نیست.")
-        return dialogue.interrogation_hints(self.s.players[self.s.suspect_uid], self.s.day)
-
-    def ask(self, officer_uid: int, question: str) -> str:
-        if officer_uid != self.s.officer_uid:
-            raise RuleError("فقط بازجو می‌تواند استنطاق کند.")
+        if not self.s.room_closed:
+            raise RuleError("سرنخ پایانی بعد از «📕 پایان گفتگو» می‌آید.")
         sus = self.s.players[self.s.suspect_uid]
-        sus.stress += 5
-        ans = dialogue.answer(sus, question, self.s.day)
-        prev = sus.qa.get(question)
-        sus.qa[question] = ans
-        if prev is not None and prev != ans:
-            return ans + "\n⚠️ تناقض: جوابش با دفعه‌ی قبل فرق دارد!"
-        return ans
+        self.s.hint_ack = True            # دروازه باز شد
+        return dialogue.closing_hint(sus, self.s.room_qa, self.s.case)
 
-    def officer_verdict(self, officer_uid: int, confirm: bool) -> str:
-        """confirm=True → حبس موقت (۲ شب). confirm=False → آزادی + تایید بی‌گناهی."""
-        if officer_uid != self.s.officer_uid:
-            raise RuleError("فقط بازجو حکم می‌دهد.")
-        if self.s.suspect_uid is None:
-            raise RuleError("کسی در بازجویی نیست.")
-        p = self.s.players[self.s.suspect_uid]
-        if p.custody_nights < self.interrogation_nights:
-            raise RuleError("حکم بعد از گذشتن یک شب بازجویی صادر می‌شود.")
-        if confirm:
-            p.custody = Custody.TEMP_JAIL
-            p.custody_nights = 0
+    def _detain(self, p: Player, why: str) -> str:
+        """حبس موقت: دو شبِ کاملِ بعدی (R07.3)."""
+        p.custody = Custody.TEMP_JAIL
+        p.custody_nights = 0
+        if p.uid not in self.s.pending_jail:
             self.s.pending_jail.append(p.uid)
-            msg = f"🔒 {p.name} به حبس موقت رفت (۲ شب). آزادی‌اش فقط با تایید بی‌گناهی توسط بازجو، آن هم وقتی متهم جدیدی وارد بازجویی شده باشد."
-        else:
-            p.custody = Custody.FREE
-            p.cleared = True
-            p.stress = max(0, p.stress - 15)
-            msg = f"🔓 {p.name} آزاد شد؛ بازجو بی‌گناهی‌اش را تایید کرد."
+        self._publish_notes(p)
         self.s.suspect_uid = None
         self.s.defense_text = ""
+        msg = (f"🔒 {p.name} به حبس موقت رفت ({why}) — دو شبِ کاملِ بعدی. "
+               "آزادی فقط با رای‌گیری وقتی متهم تازه‌ای وارد بازجویی شود.")
+        return msg
+
+    def officer_verdict(self, officer_uid: int, confirm: bool) -> str:
+        """confirm=True → حبس موقت. confirm=False → آزادی تشریفاتی."""
+        if not confirm and self.s.suspect_uid is not None and self.incomplete_release():
+            p = self.s.players[self.s.suspect_uid]     # گفتگوی ناتمام
+            p.custody = Custody.FREE
+            p.custody_nights = 0
+            self.s.suspect_uid = None
+            self.s.defense_text = ""
+            msg = f"🕊️ {p.name} آزاد شد — گفتگو ناتمام ماند؛ آزادیِ تشریفاتی."
+            self.s.log.append(msg)
+            if self.s.phase is Phase.INTERROGATION:
+                self.s.phase = Phase.MORNING
+            self._arm()
+            self._check_win()
+            return msg
+        self._decision_gate(officer_uid)
+        p = self.s.players[self.s.suspect_uid]
+        if confirm:
+            msg = self._detain(p, "حکم بازجو")
+        else:
+            p.custody = Custody.FREE
+            p.custody_nights = 0
+            p.stress = max(0, p.stress - 15)
+            msg = (f"🕊️ {p.name} آزاد شد؛ شواهد کافی نبود. "
+                   "این اعلامِ بی‌گناهی نیست.")
+            self.s.suspect_uid = None
+            self.s.defense_text = ""
         self.s.log.append(msg)
-        # شب قبلاً گذشته؛ روز از همین صبح ادامه می‌دهد.
+        self.post(0, msg)
         if self.s.phase is Phase.INTERROGATION:
             self.s.phase = Phase.MORNING
         self._arm()
         self._check_win()
         return msg
 
-    # ---------------- مرحله ۲: حبس موقت + آزادسازی مشروط ----------------
-    def clear_previous(self, officer_uid: int, uid: int) -> str:
-        """آزادی از حبس موقت: فقط وقتی یک متهم *جدید* داخل بازجویی است."""
+    # ================= اتاق بازجویی — گفتگوی واقعیِ دو آدم (R08) =================
+    # هیچ جوابی ساخته نمی‌شود. پرسش به پیویِ متهم می‌رود و *خودش* تایپ می‌کند.
+    # جوابِ موتورساخته را به اسم آدم جا زدن، هم غیرمنصفانه است و هم R08 صریح
+    # منعش کرده.
+    def ask(self, officer_uid: int, question: str) -> str:
         if officer_uid != self.s.officer_uid:
-            raise RuleError("فقط بازجو می‌تواند تایید کند.")
+            raise RuleError("فقط بازجو می‌تواند بپرسد.")
         if self.s.suspect_uid is None:
-            raise RuleError("برای آزادی حبس موقت، باید متهم جدیدی وارد بازجویی شده باشد.")
-        if self.s.suspect_uid == uid:
-            raise RuleError("متهم فعلی نمی‌تواند خودش را تبرئه کند.")
-        p = self.s.players[uid]
-        if p.custody is not Custody.TEMP_JAIL:
-            raise RuleError("این بازیکن در حبس موقت نیست.")
-        p.custody = Custody.FREE
-        p.cleared = True
-        p.custody_nights = 0
-        self.s.pending_jail.remove(uid)
-        msg = f"🕊️ {p.name} از حبس موقت آزاد شد (تایید بی‌گناهی توسط بازجو)."
-        self.s.log.append(msg)
-        return msg
-
-    # ---------------- هیئت منصفه ----------------
-    def request_jury(self, uid: int) -> bool:
-        """بعد از یک شب در بازجویی، هم‌تیمی‌ها می‌توانند هیئت منصفه تشکیل دهند.
-        وکیل به‌تنهایی کافی است؛ بقیه حداقل ۲ نفر."""
-        sus = self.s.suspect_uid
-        if sus is None:
             raise RuleError("کسی در بازجویی نیست.")
-        target = self.s.players[sus]
-        if target.custody_nights < self.interrogation_nights:
-            raise RuleError("هیئت منصفه فقط بعد از یک شب بازجویی ممکن است.")
-        if target.jury_used:
-            raise RuleError("برای این متهم قبلاً هیئت منصفه تشکیل شده.")
-        req = self.s.jury_requests.setdefault(sus, set())
-        req.add(uid)
-        need = 1 if self.s.players[uid].role == "وکیل" else JURY_MIN_REQUESTS
-        if len(req) >= need:
-            self.s.phase_before_jury = self.s.phase
-            self.s.phase = Phase.JURY
-            self.s.jury_votes.clear()
-            target.jury_used = True
-            return True
-        return False
+        if self.s.room_closed:
+            raise RuleError("گفتگو بسته شده؛ پرسش تازه ثبت نمی‌شود.")
+        if self.s.room_pending_q:
+            raise RuleError("یک پرسش بی‌جواب داری؛ منتظر پاسخ متهم بمان.")
+        q = question.strip()[:1000]
+        if len(q) < 2:
+            raise RuleError("متن پرسش خیلی کوتاه است.")
+        self.s.room_pending_q = q
+        sus = self.s.players[self.s.suspect_uid]
+        sus.stress += 5
+        self.post(sus.uid, f"🔦 *بازجو پرسید:*\n«{q}»\n\n"
+                           "جوابت را همین‌جا بنویس و بفرست. هرچه بنویسی عیناً "
+                           "به بازجو می‌رسد؛ ربات به‌جای تو حرف نمی‌زند.")
+        return "📨 پرسش به متهم رسید. منتظر جوابِ خودش باش."
+
+    def reply(self, uid: int, text: str) -> str:
+        """پاسخِ واقعیِ متهم. فقط خودِ متهم و فقط وقتی پرسشی باز است."""
+        if uid != self.s.suspect_uid:
+            raise RuleError("فقط متهمِ داخل اتاق می‌تواند پاسخ بدهد.")
+        if not self.s.room_pending_q:
+            raise RuleError("پرسشی در انتظار پاسخ نیست.")
+        a = text.strip()[:1000]
+        if len(a) < 1:
+            raise RuleError("پاسخ خالی است.")
+        q = self.s.room_pending_q
+        self.s.room_pending_q = ""
+        self.s.room_qa.append((q, a))
+        self.post(self.s.officer_uid,
+                  f"🗣️ *پاسخ {self.s.players[uid].name}:*\n«{a}»\n"
+                  f"_(پرسش: «{q}»)_")
+        return "✅ پاسخت عیناً به بازجو رسید."
+
+    def set_stance(self, uid: int, stance: str) -> str:
+        """R07.2: نشانه‌های صحنه‌ای را *خودِ بازیکن* انتخاب می‌کند.
+
+        ربات نمی‌تواند لرزش دست یا عرق را ببیند؛ پس یا بازیکن نقش‌بازی
+        می‌کند و آن را اعلام می‌کند، یا هیچ نشانه‌ای ثبت نمی‌شود.
+        """
+        from .dialogue import STANCE_FA
+        if uid != self.s.suspect_uid:
+            raise RuleError("فقط متهمِ داخل اتاق ژست انتخاب می‌کند.")
+        if self.s.room_closed:
+            raise RuleError("گفتگو بسته شده است.")
+        if stance not in STANCE_FA:
+            raise RuleError("این ژست را نمی‌شناسم.")
+        self.s.players[uid].stance = stance
+        return "🎭 ژستِ شخصیتت ثبت شد؛ بازجو آن را به‌عنوان «روایت صحنه» می‌بیند."
+
+    def exchange_done(self) -> bool:
+        """R07.1: دست‌کم یک پرسشِ واقعی و یک پاسخِ واقعی."""
+        return len(self.s.room_qa) >= 1
+
+    def close_room(self, uid: int) -> str:
+        """هر یک از دو طرف می‌تواند گفتگو را ببندد (R07.1)."""
+        if self.s.suspect_uid is None:
+            raise RuleError("اتاقی باز نیست.")
+        if uid not in (self.s.officer_uid, self.s.suspect_uid):
+            raise RuleError("فقط بازجو یا متهم می‌تواند گفتگو را ببندد.")
+        if self.s.room_closed:
+            raise RuleError("گفتگو از قبل بسته است.")
+        self.s.room_closed = True
+        if not self.exchange_done():
+            # R07.1: گفتگوی ناتمام هرگز به محکومیت نمی‌رسد.
+            self.s.log.append("🔇 گفتگو بدون تبادلِ کامل بسته شد.")
+            return ("🔇 گفتگو ناتمام بسته شد. چون پرسش و پاسخِ واقعی ثبت نشده، "
+                    "این پرونده با *آزادی تشریفاتی* تمام می‌شود.")
+        self.post(self.s.officer_uid,
+                  "📕 گفتگو بسته شد. حالا «🔦 سرنخ پایانی» را باز کن؛ "
+                  "دکمه‌های تصمیم بعد از آن فعال می‌شوند.")
+        return "📕 گفتگو بسته شد."
+
+    def incomplete_release(self) -> bool:
+        return self.s.room_closed and not self.exchange_done()
+
+    def _decision_gate(self, officer_uid: int) -> None:
+        """R07.1: تصمیم فقط بعد از «گفتگوی بسته + سرنخِ خوانده‌شده»."""
+        if officer_uid != self.s.officer_uid:
+            raise RuleError("فقط بازجو تصمیم می‌گیرد.")
+        if self.s.suspect_uid is None:
+            raise RuleError("کسی در بازجویی نیست.")
+        if self.s.jury_locked:
+            raise RuleError("پرونده به هیئت دو نفره رفته؛ نتیجه‌اش را عوض نمی‌کنی.")
+        if not self.s.room_closed:
+            raise RuleError("اول گفتگو را ببند («📕 پایان گفتگو»).")
+        if not self.exchange_done():
+            raise RuleError("گفتگو ناتمام ماند؛ تنها راه، آزادی تشریفاتی است.")
+        if not self.s.hint_ack:
+            raise RuleError("اول «🔦 سرنخ پایانی» را باز کن.")
+
+    # ================= هیئت دو نفره‌ی خصوصی (R05) =================
+    def _juror_pool(self) -> List[int]:
+        """R05.1: شهرِ تبدیل‌نشده، زنده، آزاد، نه متهم و نه بازجو."""
+        return [q.uid for q in self.s.players.values()
+                if q.align is Align.CITY and not q.recruited
+                and q.alive and q.custody is Custody.FREE
+                and q.uid not in (self.s.suspect_uid, self.s.officer_uid)]
+
+    def refer_jury(self, officer_uid: int) -> str:
+        self._decision_gate(officer_uid)
+        pool = self._juror_pool()
+        if len(pool) < 2:
+            # R05.2/R07.6: نه هیئت یک‌نفره، نه افشای دلیلِ ردِ نامزدها.
+            raise RuleError("هیئت دو نفره در این دور قابل تشکیل نیست.")
+        panel = self.rng.sample(sorted(pool), 2)
+        self.s.jury_panel = panel
+        self.s.jury_locked = True
+        self.s.jury_votes.clear()
+        self.s.phase_before_jury = self.s.phase
+        self.s.phase = Phase.JURY
+        sus = self.s.players[self.s.suspect_uid]
+        sus.jury_used = True
+        for u in panel:
+            self.post(u, f"⚖️ برای پرونده‌ی {_fa(self.s.episode)} در دور "
+                         f"{_fa(self.s.day)} عضو هیئت منصفه شدی.\n"
+                         f"درباره‌ی حبس موقتِ *{sus.name}* رای بده.\n\n"
+                         "نقش افراد و گفتگوی خصوصی در اختیار هیئت قرار نمی‌گیرد. "
+                         "هر دو داور باید «حبس موقت» بدهند تا حکم صادر شود.")
+        names = "، ".join(self.s.players[u].name for u in panel)
+        self.s.log.append("⚖️ پرونده به هیئت دو نفره رفت.")
+        # R05.1: بازجو نامِ داورها را می‌بیند، نقششان را نه. گروه هیچ‌کدام را.
+        self.post(0, f"⚖️ پرونده‌ی *{sus.name}* به هیئت منصفه رفت. "
+                     "دو داور در خلوت رای می‌دهند.")
+        return f"⚖️ داورها: {names}\n(نقششان به تو گفته نمی‌شود.)"
 
     def jury_vote(self, uid: int, acquit: bool) -> None:
         if self.s.phase is not Phase.JURY:
             raise RuleError("هیئت منصفه فعال نیست.")
+        if uid not in self.s.jury_panel:
+            raise RuleError("تو عضو این هیئت نیستی.")
         p = self.s.players[uid]
-        if not p.can_vote:
-            raise RuleError("حق رای در هیئت منصفه نداری.")
+        if not (p.alive and p.custody is Custody.FREE):
+            raise RuleError("دیگر واجد شرایط داوری نیستی.")
         self.s.jury_votes[uid] = acquit
 
     def close_jury(self) -> str:
+        """R05.2: فقط «حبس + حبس» حبس می‌آورد. هر چیز دیگر آزادیِ تشریفاتی."""
         if self.s.phase is not Phase.JURY:
             raise RuleError("فاز اشتباه است.")
-        p = self.s.players[self.s.suspect_uid]
-        yes = sum(1 for v in self.s.jury_votes.values() if v)
-        total = max(1, len(self.s.jury_votes))
+        sus = self.s.players[self.s.suspect_uid]
+        # داورِ بی‌صلاحیت‌شده رایش باطل است (R05.2)
+        valid = {u: v for u, v in self.s.jury_votes.items()
+                 if u in self.s.jury_panel
+                 and self.s.players[u].alive
+                 and self.s.players[u].custody is Custody.FREE}
+        jail_votes = [u for u, acquit in valid.items() if not acquit]
         back = self.s.phase_before_jury or Phase.MORNING
-        if yes * 100 >= JURY_ACQUIT_PERCENT * total:
-            p.custody = Custody.FREE
-            p.cleared = True
-            p.custody_nights = 0
-            self.s.suspect_uid = None
-            msg = f"⚖️ هیئت منصفه {p.name} را تبرئه کرد."
+        if len(valid) == 2 and len(jail_votes) == 2:
+            msg = self._detain(sus, "حکم هیئت دو نفره")
         else:
-            msg = f"⚖️ هیئت منصفه رای به ادامه‌ی بازجویی داد؛ حکم نهایی با بازجوست."
-        # شبِ بازجویی قبلاً گذشته؛ به همان روز برمی‌گردیم.
+            reason = ("رای هیئت" if len(valid) == 2 else "نرسیدنِ دو رای معتبر")
+            sus.custody = Custody.FREE
+            sus.custody_nights = 0
+            msg = (f"🕊️ {sus.name} آزاد شد ({reason}) — *آزادی تشریفاتی*، "
+                   "نه اعلام بی‌گناهی.")
+            self.s.suspect_uid = None
+        self.s.jury_panel = []
+        self.s.jury_locked = False
         self.s.phase = Phase.MORNING if back is Phase.INTERROGATION else back
         self.s.phase_before_jury = None
         self.s.log.append(msg)
+        self.post(0, msg)
+        self._check_win()
         return msg
 
-    # ---------------- پایان ----------------
+    # ================= R07.4: رای‌گیری عمومیِ آزادی =================
+    def _open_release_votes(self) -> None:
+        """با ورودِ هر متهمِ *تازه*، برای هر زندانیِ موقت یک فرصتِ آزادی باز می‌شود.
+
+        این رای‌گیری عمومی است و با هیئتِ دو نفره فرق دارد: همه‌ی زنده‌های آزاد
+        رای می‌دهند، از هر تیمی. فیلترِ «فقط شهر» اینجا به کار نمی‌رود، چون
+        خودِ فهرستِ رای‌دهنده‌ها هم‌ترازی را لو می‌داد.
+        """
+        for u in list(self.s.pending_jail):
+            p = self.s.players.get(u)
+            if not p or p.custody is not Custody.TEMP_JAIL:
+                continue
+            key = (self.s.episode, u)
+            if key in self.s.release_done:
+                continue          # هر جفتِ (اپیزود، زندانی) فقط یک بار
+            self.s.release_done.append(key)
+            self.s.release_ballots[u] = {}
+            self.post(0, f"🗳️ *بازبینی آزادیِ {p.name}* باز شد. "
+                         "هر کس رای بدهد: آزادی یا ادامه‌ی حبس.")
+
+    def release_electorate(self) -> List[int]:
+        """زنده و آزاد؛ بدون خودِ زندانی و بدون متهمِ داخل اتاق."""
+        return [q.uid for q in self.s.players.values()
+                if q.alive and q.custody is Custody.FREE
+                and q.uid != self.s.suspect_uid]
+
+    def release_vote(self, uid: int, prisoner: int, free: bool) -> str:
+        if prisoner not in self.s.release_ballots:
+            raise RuleError("بازبینی آزادی‌ای برای این زندانی باز نیست.")
+        if uid not in self.release_electorate():
+            raise RuleError("حق رای در این بازبینی نداری.")
+        self.s.release_ballots[prisoner][uid] = free
+        got = sum(1 for v in self.s.release_ballots[prisoner].values() if v)
+        need = len(self.release_electorate()) // 2 + 1
+        return (f"🗳️ رای ثبت شد — آزادی: {_fa(got)} از {_fa(need)} رای لازم.")
+
+    def close_release(self, prisoner: int) -> str:
+        """R07.4: بیش از نیمِ کلِ واجدان شرایط، نه نیمِ رای‌دهنده‌ها."""
+        ballots = self.s.release_ballots.pop(prisoner, None)
+        if ballots is None:
+            raise RuleError("بازبینی‌ای باز نیست.")
+        p = self.s.players[prisoner]
+        yes = sum(1 for v in ballots.values() if v)
+        need = len(self.release_electorate()) // 2 + 1
+        if yes >= need:
+            p.custody = Custody.FREE
+            p.custody_nights = 0
+            p.cleared = True
+            if prisoner in self.s.pending_jail:
+                self.s.pending_jail.remove(prisoner)
+            msg = (f"🕊️ {p.name} با رای شهر آزاد شد ({_fa(yes)}/{_fa(need)}) — "
+                   "*آزادی تشریفاتی*، نه اعلام بی‌گناهی.")
+        else:
+            msg = (f"🔒 رای آزادی به حد نصاب نرسید ({_fa(yes)}/{_fa(need)}؛ "
+                   f"{p.name} در حبس می‌ماند). شمارشِ شب‌هایش عوض نمی‌شود.")
+        self.s.log.append(msg)
+        self.post(0, msg)
+        return msg
+
+    def open_releases(self) -> List[int]:
+        return list(self.s.release_ballots)
+
+    def jury_state(self) -> str:
+        if self.s.phase is Phase.JURY:
+            return f"هیئت دو نفره باز است ({_fa(len(self.s.jury_votes))} از ۲ رای)."
+        if self.s.suspect_uid is None:
+            return "کسی در بازجویی نیست. اول با رای‌گیری یک متهم بفرستید."
+        if not self.s.room_closed:
+            return "اول گفتگوی بازجو و متهم باید بسته شود."
+        if not self.s.hint_ack:
+            return "بازجو هنوز سرنخ پایانی را باز نکرده است."
+        return "بازجو می‌تواند حکم بدهد یا پرونده را به هیئت دو نفره بسپارد."
+
     def _check_win(self) -> Optional[str]:
         alive = self.s.alive_players()
         k = [p for p in alive if p.align is Align.KILLER]
@@ -706,17 +947,23 @@ class Game:
                           and p.custody is Custody.LIFE_JAIL]
         if jailed_neutral:
             self.s.winner = "سپر بلا 🎭"
+            self.s.winner_uids = [q.uid for q in jailed_neutral]
             self.s.win_reason = ("🎭 سپر بلا حبس ابد گرفت — شرط بردش دقیقاً همین بود؛ "
                                  "شهر گناه را گردن او انداخت.")
         elif len(alive) == 1 and alive[0].role == "جانی سریالی":
             self.s.winner = "جانی سریالی 🩸"    # ایده ۱۸: تنها بازمانده
+            self.s.winner_uids = [alive[0].uid]
             self.s.win_reason = "🩸 جانی سریالی تنها بازمانده شد — شرط بردش تنهایی بود."
         elif not k:
             self.s.winner = "شهر 🕵️"
+            self.s.winner_uids = [q.uid for q in self.s.players.values()
+                                  if q.align is Align.CITY]
             self.s.win_reason = ("🕵️ هیچ قاتلی در بازی نماند (کشته یا حبس ابد) — "
                                  "شهر همه را پیدا کرد.")
         elif len(k) >= len(c):         # ایده ۴: برد قاتل با برابری (parity)
             self.s.winner = "قاتل‌ها 🔪"
+            self.s.winner_uids = [q.uid for q in self.s.players.values()
+                                  if q.align is Align.KILLER]
             self.s.win_reason = (f"🔪 قاتل‌ها {len(k)} نفر ماندند و بقیه {len(c)} نفر — "
                                  "وقتی قاتل‌ها کم‌تر نباشند دیگر رای شهر جلودارشان نیست.")
         if self.s.winner:
@@ -725,9 +972,11 @@ class Game:
         return self.s.winner
 
     def _payout(self) -> None:
+        # R10: برنده‌ها داده‌ی صریح‌اند. مقایسه‌ی پیشوندِ رشته‌ی ترجمه‌شده با
+        # نام تیم هم شکننده بود و هم با نام‌های نمایشیِ تازه می‌شکست.
+        winners = set(self.s.winner_uids)
         for p in self.s.players.values():
-            win = (self.s.winner or "").startswith(p.align.value[:3]) or \
-                  (p.role == "سپر بلا" and self.s.winner.startswith("سپر"))
+            win = p.uid in winners
             p.xp += 120 if win else 40
             p.coins += 60 if win else 20
             p.xp += 10 * len([n for n in p.notes if n.startswith("شب")])
@@ -771,6 +1020,7 @@ class Game:
             t.custody = Custody.TEMP_JAIL
             t.custody_nights = 0
             self.s.pending_jail.append(t.uid)
+            self._publish_notes(t)      # صندوق امانات همین‌جا باز می‌شود
             self.s.sos_votes.clear()
             self.s.log.append(f"🚨 رای اضطراری شهر: {t.name} مستقیم به حبس موقت رفت!")
             return f"🚨 تصویب شد! {t.name} مستقیم به حبس موقت رفت."
@@ -880,3 +1130,513 @@ class Game:
             if p.xp >= th:
                 return name
         return "کارآگاه تازه‌کار 🧢"
+
+    # ================= پیام خصوصی از دل موتور =================
+    # موتور شبکه ندارد؛ فقط پیام را در صندوق می‌گذارد و لایه‌ی ربات خالی‌اش می‌کند.
+    # uid=0 یعنی «این را در گروه بگو».
+    def post(self, uid: int, text: str) -> None:
+        self.s.outbox.append((uid, text))
+
+    def drain(self) -> List[tuple]:
+        out, self.s.outbox = list(self.s.outbox), []
+        return out
+
+    # ================= سرنخِ تازه‌ی هر روز =================
+    def _new_day_hint(self, acts: Dict[str, Dict[int, int]], killed: List[int]) -> None:
+        """سرنخ روزِ تازه از سه چیز ساخته می‌شود: پرونده، کارِ واقعیِ دیشب،
+        و رویداد شب. پس روز دوم و سوم و چهارم هرگز متنِ تکراری نمی‌گیرند."""
+        from .cases import day_clue
+        facts = {
+            "visits": sum(len(v) for ab, v in acts.items()
+                          if ab not in ("investigate", "expose", "watch")),
+            "killed": [self.s.players[u].name for u in killed],
+            "event": self.s.night_event,
+            "framed": [self.s.players[u].name for u, d in self.s.framed.items()
+                       if d >= self.s.day],
+        }
+        self.s.hints_from = len(self.s.day_hints)     # سرنخ‌های همین صبح از اینجا
+        self.s.day_hints.append(day_clue(self.s.case, self.s.day, facts))
+        w = self._witness_clue(acts)
+        if w:
+            self.s.day_hints.append(w)
+        if self.s.day == 1 and self.s.case.vehicle:
+            # رنگ و مدل برای همه؛ پلاک فقط در پرونده‌ی پلیس می‌ماند.
+            from .cases import vehicle_clue
+            self.s.day_hints.append(vehicle_clue(self.s.case))
+        self.s.day_hints += self.s.fake_clues      # سرنخ‌های جعلیِ قاتل، بی‌نشان
+        self.s.fake_clues = []
+
+    def today_hints(self) -> List[str]:
+        """همه‌ی سرنخ‌های همین صبح — واقعی و جعلی، به همان ترتیب و بی‌نشان."""
+        return self.s.day_hints[self.s.hints_from:]
+
+    def today_hint(self) -> str:
+        return self.s.day_hints[-1] if self.s.day_hints else ""
+
+    # ================= جعبه‌ابزار قاتل (همه از پیوی) =================
+    def _killer(self, uid: int) -> Player:
+        p = self.s.players.get(uid)
+        if not p or p.align is not Align.KILLER or not p.in_game:
+            raise RuleError("فقط تیم قاتل به این کار دسترسی دارد.")
+        # عضویت در تیم، ابزارِ تخصصی نمی‌آورد: شهروندی که دعوت را پذیرفته
+        # هم‌تیمی هست ولی جعبه‌ابزار ندارد (hints.md §۱۲.۲).
+        if p.recruited or not ROLES[p.role].ability:
+            raise RuleError("تو به تیم پیوسته‌ای، ولی ابزار شبانه‌ی تخصصی نداری.")
+        if self.s.phase not in (Phase.NIGHT, Phase.INTERROGATION):
+            raise RuleError("این کار فقط در شب ممکن است.")
+        if p.custody in (Custody.INTERROGATION, Custody.TEMP_JAIL):
+            raise RuleError("در بازداشتی؛ امشب کاری از تو برنمی‌آید.")
+        return p
+
+    def skip_kill(self, uid: int) -> str:
+        """امشب نکشتن هم یک انتخاب است — نه جسدی، نه ردی."""
+        p = self._killer(uid)
+        if ROLES[p.role].ability != "kill":
+            raise RuleError("تصمیمِ قتل با نقشِ قاتل است.")
+        self.s.night_actions.pop(f"kill:{uid}", None)
+        self.s.night_actions[f"_skip:{uid}"] = 1
+        return "🚫 امشب کسی را نمی‌کشی. سکوت هم یک حرکت است."
+
+    def plant_print(self, uid: int, target: int) -> str:
+        """اثر انگشت جعلی: مدرکِ فردا به این نفر اشاره می‌کند و کارآگاه «مشکوک» می‌بیند."""
+        self._killer(uid)
+        t = self.s.players.get(target)
+        if not t or not t.in_game or target == uid:
+            raise RuleError("هدف نامعتبر است.")
+        self.s.night_actions[f"plant:{uid}"] = target
+        return f"🖐️ اثر انگشت جعلی روی {t.name} کاشته شد؛ فردا مدرک به او اشاره می‌کند."
+
+    def plant_clue(self, uid: int, text: str) -> str:
+        """سرنخ جعلی: صبح کنار سرنخ‌های واقعی خوانده می‌شود و از آن‌ها جدا نیست."""
+        self._killer(uid)
+        text = text.strip()[:120]
+        if len(text) < 3:
+            raise RuleError("متن سرنخ خیلی کوتاه است.")
+        self.s.fake_clues.append(f"🕯️ {text}")
+        return "🧾 سرنخ جعلی کاشته شد؛ فردا صبح میان سرنخ‌های واقعی خوانده می‌شود."
+
+    def threaten(self, uid: int, target: int) -> str:
+        """تهدید: هدف فقط می‌فهمد تهدید شده، نه اینکه از طرف کیست."""
+        self._killer(uid)
+        t = self.s.players.get(target)
+        if not t or not t.in_game or target == uid:
+            raise RuleError("هدف نامعتبر است.")
+        t.stress += 20
+        self.post(target,
+                  "😈 *پیامی بی‌امضا به دستت رسید:*\n"
+                  "«می‌دانم دیشب کجا بودی. فردا در گروه اسم مرا نیاور — "
+                  "وگرنه شب بعد نوبت توست.»\n\n"
+                  "_نمی‌دانی از طرف کیست. می‌توانی در گروه بگویی، یا نگویی._")
+        return f"😈 تهدید برای {t.name} فرستاده شد — بدون نام تو."
+
+    def offer_recruit(self, uid: int, target: int) -> str:
+        """دعوت به همکاری: فقط «شهروند»ِ بی‌قدرت می‌تواند بپذیرد.
+
+        هر کسی که نقش ویژه دارد هم پیام را می‌بیند — همین باعث می‌شود دعوت
+        خودش یک سرنخ باشد و فرستادنش برای قاتل ریسک داشته باشد.
+        """
+        self._killer(uid)
+        t = self.s.players.get(target)
+        if not t or not t.in_game or target == uid:
+            raise RuleError("هدف نامعتبر است.")
+        if t.align is Align.KILLER:
+            raise RuleError("او همین حالا هم هم‌تیمی توست.")
+        if self.s.recruit_offer is not None:
+            raise RuleError("یک دعوت در جریان است؛ اول جوابش بیاید.")
+        self.s.recruit_offer = target
+        body = ("🤝 *پیشنهادی در تاریکی:*\n"
+                "«فرستنده‌ی این پیام قاتل است. با من باش تا تا آخر زنده بمانی.»\n")
+        if t.role == "شهروند" and not t.recruited:
+            self.post(target, body + "\nتو نقش ویژه‌ای نداری — *می‌توانی بپذیری یا رد کنی.*")
+        else:
+            self.post(target, body + "\n⚖️ تو نقشِ ویژه داری؛ *امکان پیوستن نداری.* "
+                                     "ولی حالا می‌دانی قاتل سراغ تو آمده.")
+        return f"🤝 دعوت برای {t.name} فرستاده شد."
+
+    def answer_recruit(self, uid: int, accept: bool) -> str:
+        if self.s.recruit_offer != uid:
+            raise RuleError("دعوتی برای تو در جریان نیست.")
+        p = self.s.players[uid]
+        self.s.recruit_offer = None
+        if not accept:
+            return "🚪 دعوت را رد کردی. کسی خبردار نمی‌شود."
+        if p.role != "شهروند" or p.recruited:
+            raise RuleError("نقش تو اجازه‌ی پیوستن نمی‌دهد.")
+        p.align = Align.KILLER
+        p.recruited = True
+        mates = [q.name for q in self.s.players.values()
+                 if q.align is Align.KILLER and q.uid != uid]
+        p.knows.append("🔪 به تیم قاتل پیوستی. هم‌تیمی: " + ("، ".join(mates) or "—"))
+        for q in self.s.players.values():
+            if q.align is Align.KILLER and q.uid != uid:
+                self.post(q.uid, f"🤝 {p.name} دعوت را پذیرفت؛ حالا هم‌تیمی توست.")
+        self.s.log.append("🕯️ شایعه‌ای در شهر: دیشب کسی طرف عوض کرد.")
+        return "🔪 پذیرفتی. حالا با تیم قاتل می‌بری — ولی اکشن شبانه نداری."
+
+    # ================= یادداشتِ سپرده به گروه =================
+    def share_note(self, uid: int, text: str) -> str:
+        """یادداشت در صندوق امانات می‌ماند و *فقط* وقتی این بازیکن به حبس موقت
+        برود در گروه خوانده می‌شود — پس سپردنش یک شرط‌بندی است."""
+        p = self.s.players[uid]
+        if not p.in_game:
+            raise RuleError("از بازی بیرونی.")
+        p.shared_notes.append(text.strip()[:200])
+        return ("📥 یادداشتت در صندوق امانات ماند.\n"
+                "اگر به حبس موقت بروی، همان لحظه در گروه خوانده می‌شود.")
+
+    def _publish_notes(self, p: Player) -> None:
+        if p.notes_published or not p.shared_notes:
+            return
+        p.notes_published = True
+        body = "\n".join(f"  • {n}" for n in p.shared_notes)
+        self.post(0, f"📂 *صندوق امانات {p.name} باز شد:*\n{body}")
+        self.s.log.append(f"📂 یادداشت‌های سپرده‌ی {p.name} علنی شد.")
+    def surrender(self, uid: int) -> str:
+        """بازیکن وسط بازی کنار می‌کشد.
+
+        مثل مرگ عمل می‌کند نه مثل «خروج»: نقشش تا پایان فاش نمی‌شود، وگرنه
+        هر کس می‌توانست با تسلیم شدن نقشش را به شهر اعلام کند. اکشنِ ثبت‌شده‌ی
+        امشبش هم پاک می‌شود تا از آن سوءاستفاده نشود.
+        """
+        p = self.s.players.get(uid)
+        if not p:
+            raise RuleError("تو در این بازی نیستی.")
+        if self.s.phase in (Phase.LOBBY, Phase.END):
+            raise RuleError("بازی در جریان نیست؛ برای بیرون رفتن «🚪 خروج از لابی» را بزن.")
+        if not p.in_game:
+            raise RuleError("همین حالا هم از بازی بیرونی.")
+        p.alive = False
+        p.custody = Custody.FREE
+        for k in [k for k in self.s.night_actions if k.endswith(f":{uid}")]:
+            del self.s.night_actions[k]
+        self.s.votes.pop(uid, None)
+        self.s.jury_votes.pop(uid, None)
+        if self.s.suspect_uid == uid:          # متهم رفت → اتاق بازجویی خالی شد
+            self.s.suspect_uid = None
+            self.s.room_closed = True
+            self.s.jury_locked = False
+            self.s.jury_panel = []
+            if self.s.phase is Phase.INTERROGATION:
+                self.s.phase = Phase.MORNING
+        if uid == self.owner:                  # میزبانی به یک بازیکنِ زنده برسد
+            nxt = next((q.uid for q in self.s.alive_players()), None)
+            if nxt:
+                self.owner = nxt
+                self.s.log.append(f"👑 میزبانی به {self.s.players[nxt].name} رسید.")
+        self.s.log.append(f"🏳️ {p.name} تسلیم شد و از بازی کنار کشید.")
+        self.post(0, f"🏳️ *{p.name} تسلیم شد.*\nنقشش تا پایان بازی فاش نمی‌شود.")
+        self._check_win()
+        return "🏳️ تسلیم شدی. نقشت تا پایان بازی فاش نمی‌شود."
+
+    # ================= چرخه‌ی دسترسیِ سرویس‌های محرمانه =================
+    def _may_query(self, uid: int) -> Player:
+        """اجازه‌ی یک *جستجوی تازه*. (خواندن بایگانیِ قبلی جدا حساب می‌شود.)
+
+        قاعده‌ی hints.md §۱۲.۳: بازداشت دسترسی را معلق می‌کند؛ مرگ، حبس ابد
+        و تسلیم آن را می‌گیرند؛ بازیِ متوقف هم جلوی جستجوی تازه را می‌گیرد.
+        آنچه قبلاً تحویل داده شده هرگز پس گرفته نمی‌شود.
+        """
+        p = self.s.players.get(uid)
+        if not p:
+            raise RuleError("تو در این بازی نیستی.")
+        if self.s.phase is Phase.LOBBY:
+            raise RuleError("پس از شروع بازی و دریافت نقش فعال می‌شود.")
+        if not p.alive or p.custody is Custody.LIFE_JAIL:
+            raise RuleError("از بازی بیرون رفته‌ای؛ فقط بایگانیِ قبلی‌ات خواندنی است.")
+        if p.custody in (Custody.INTERROGATION, Custody.TEMP_JAIL):
+            raise RuleError("در بازداشتی؛ تا آزادی درخواست تازه‌ای ثبت نمی‌شود. "
+                            "بایگانیِ قبلی‌ات باز است.")
+        if self.s.paused:
+            raise RuleError("بازی متوقف است؛ سهمیه‌ات دست‌نخورده می‌ماند.")
+        return p
+
+    # ================= پلاک خودرو =================
+    # رنگ و مدل علنی است؛ پلاک فقط در پرونده‌ی پلیس. استعلامِ پلاک یک سرنخِ
+    # قوی می‌دهد — به همین دلیل قاتل هم می‌تواند یک بار پلاک را جعل کند،
+    # دقیقاً مثل اثر انگشت. هیچ سرنخی در این بازی غیرقابل‌دستکاری نیست.
+    def plate_lookup(self, uid: int) -> str:
+        """استعلام را ثبت می‌کند؛ نتیجه سحر می‌رسد، نه همین حالا.
+
+        جوابِ فوری یعنی بازجو در یک شب پرونده را می‌بندد. تأخیرِ یک شب همان
+        چیزی است که به قاتل فرصتِ جعل سند می‌دهد (hints.md §۱۲.۵).
+        """
+        # ترتیب مهم است: اول فاز/زنده‌بودن، بعد نقش. در لابی هنوز نقشی پخش
+        # نشده و ROLES[""] با KeyError کل فرمان را می‌ترکاند.
+        self._may_query(uid)
+        p = self.s.players[uid]
+        # مالکِ بازی: پلاک را کارآگاه هم می‌گیرد، کنارِ بازجو. سهمیه جداست،
+        # پس یکی سهمِ دیگری را خرج نمی‌کند.
+        if not p.role or ROLES[p.role].info not in ("police_files", "sightings"):
+            raise RuleError("استعلام پلاک فقط از پرونده‌ی پلیس یا دفتر کارآگاه ممکن است.")
+        if self.s.plate_owner is None:
+            raise RuleError("هنوز پلاکی ثبت نشده است.")
+        if uid in self.s.plate_queries:
+            raise RuleError("استعلامت ثبت شده؛ نتیجه‌اش سحر می‌رسد.")
+        if (uid, self.s.day) in self.s.plate_nights:
+            raise RuleError("امشب استعلامت را خرج کرده‌ای؛ شب بعد دوباره.")
+        self.s.plate_queries[uid] = self.s.day
+        self.s.plate_nights.append((uid, self.s.day))
+        if uid not in self.s.plate_lookups:
+            self.s.plate_lookups.append(uid)
+        return (f"🔎 استعلام پلاک `{self.s.case.vehicle['plate']}` ثبت شد.\n"
+                "نتیجه سحرِ فردا به همین پیوی می‌رسد.")
+
+    # ================= استعلامِ ظاهرِ یک نفر (روزی یک بار) =================
+    def inspect_person(self, uid: int, target: int) -> str:
+        """کارآگاه هر روز مشخصات ظاهریِ یک نفر را می‌گیرد.
+
+        این توانایی جدا از استعلامِ شبانه‌ی هویت است: آن یکی می‌گوید «پاک یا
+        مشکوک»، این یکی می‌گوید «بلندقامت، پالتو تیره». ارزشش وقتی معلوم
+        می‌شود که شهادتِ شاهد را کنارش بگذاری — و چون چند نفر ویژگی مشترک
+        دارند، تطبیق هیچ‌وقت یک‌نفره نیست.
+        """
+        self._may_query(uid)
+        p = self.s.players[uid]
+        if not p.role or ROLES[p.role].info != "sightings":
+            raise RuleError("استعلام مشخصات فقط از دفتر کارآگاه ممکن است.")
+        t = self.s.players.get(target)
+        if not t or not t.in_game:
+            raise RuleError("هدف نامعتبر است.")
+        if (uid, self.s.day) in self.s.inspect_days:
+            raise RuleError("امروز استعلامت را خرج کرده‌ای؛ فردا یکی دیگر.")
+        self.s.inspect_days.append((uid, self.s.day))
+        from . import people
+        desc = people.describe(t.appearance)
+        line = f"👤 روز {_fa(self.s.day)}: {t.name} — {desc}"
+        p.notes.append(line)
+        hits = []
+        for w in self.s.day_hints:
+            m = people.matches(t.appearance, w)
+            if m:
+                hits.append("، ".join(m))
+        tail = ("\n🔗 با شهادتِ منتشرشده هم‌خوانی دارد در: " + "؛ ".join(hits)
+                if hits else "\n🔗 با هیچ شهادتِ منتشرشده‌ای تطبیق مستقیم ندارد.")
+        return (f"👤 *مشخصات {t.name}*\n{'─' * 18}\n{desc}{tail}\n\n"
+                "⚠️ ویژگی‌های ظاهری بین چند نفر مشترک‌اند؛ تطبیق، اثبات نیست.")
+
+    def _witness_clue(self, acts: Dict[str, Dict[int, int]]) -> str:
+        """شهادتِ ناقصِ یک شاهد درباره‌ی کسی که واقعاً دیشب بیرون بوده.
+
+        از *اکشنِ واقعی* ساخته می‌شود، نه از هوا: فقط کسانی که واقعاً به کسی
+        سر زده‌اند دیده می‌شوند. پس پزشک و نگهبان هم می‌توانند سوژه‌ی شهادت
+        باشند — و همین است که شهادت را قابل بحث می‌کند نه قطعی.
+        """
+        from . import people
+        movers = [a for ab, pairs in acts.items()
+                  if ab not in ("investigate", "expose", "watch")
+                  for a in pairs]
+        movers = [u for u in dict.fromkeys(movers)
+                  if u in self.s.players and u not in self.s.hidden]
+        self.s.witness_of = None
+        if not movers:
+            return ""
+        rng = random.Random(self.s.chat_id * 31 + self.s.day)
+        who = rng.choice(sorted(movers))
+        self.s.witness_of = who
+        return "👁️ " + people.witness_line(self.s.players[who].appearance, rng)
+
+    def _deliver_plate(self) -> None:
+        """سحر: نتیجه‌ی استعلام دیشب.
+
+        اگر استعلام‌کننده دیگر در بازی نیست، نتیجه تحویل *نمی‌شود* و کسی
+        آن را ارث نمی‌برد (hints.md §۱۲.۳: «officer unavailable»).
+        """
+        pending, self.s.plate_queries = dict(self.s.plate_queries), {}
+        owner = self.s.players.get(self.s.plate_owner)
+        for uid in pending:
+            p = self.s.players.get(uid)
+            if not p or not p.in_game:
+                self.s.log.append("🚗 یک استعلام پلاک بی‌تحویل ماند.")
+                continue
+            if owner is None:
+                continue
+            p.notes.append(f"🚗 روز {_fa(self.s.day)}: مالک ثبت‌شده‌ی پلاک → {owner.name}")
+            self.post(uid,
+                      "🔎 *نتیجه‌ی استعلام پلاک* — محرمانه\n"
+                      f"خودرو: {self.s.case.vehicle['model']} {self.s.case.vehicle['color']}\n"
+                      f"شناسه‌ی پلاکِ ساختگیِ بازی: `{self.s.case.vehicle['plate']}`\n"
+                      f"مالک ثبت‌شده در زمان واقعه: *{owner.name}*\n\n"
+                      "⚠️ مالکیت، رانندگیِ آن شب را ثابت نمی‌کند؛ سند هم قابل جعل است. "
+                      "این یک سرنخ است، نه حکم.")
+
+    def swap_plate(self, uid: int, target: int) -> str:
+        """قاتل یک بار در بازی سند خودرو را به نام دیگری می‌زند."""
+        self._killer(uid)
+        if self.s.plate_swapped:
+            raise RuleError("یک بار پلاک را جعل کرده‌ای؛ بیش از این نمی‌شود.")
+        t = self.s.players.get(target)
+        if not t or not t.in_game:
+            raise RuleError("هدف نامعتبر است.")
+        self.s.plate_owner = target
+        self.s.plate_swapped = True
+        for u in self.s.plate_lookups:      # هر کس قبلاً استعلام گرفته، خبردار شود
+            self.post(u, "🚗 *اصلاحیه‌ی راهنمایی و رانندگی:* سند خودروی پرونده "
+                         "دوباره ثبت شده. استعلام قبلی‌ات دیگر معتبر نیست.")
+        return f"🚗 سند خودرو به نام {t.name} خورد؛ استعلام پلاک حالا او را نشان می‌دهد."
+
+    # ================= بایگانی اختصاصی هر نقش =================
+    def archive(self, uid: int) -> Tuple[str, List[str]]:
+        """داده‌ی اختصاصیِ هر نقش — همان چیزی که کارت نقش وعده می‌دهد.
+
+        از وضعیت واقعیِ بازی ساخته می‌شود، پس هر روز تازه است. هیچ نقشی
+        دستِ خالی برنمی‌گردد: حتی شهروند هم می‌فهمد دقیقاً چه چیزی ندارد.
+        """
+        p = self.s.players.get(uid)
+        if not p:
+            raise RuleError("تو در این بازی نیستی.")
+        if not self.s.case:
+            raise RuleError("بازی هنوز شروع نشده است.")
+        # §۱۲.۳: بایگانی همیشه خواندنی است — حتی برای کشته و تسلیم‌شده —
+        # ولی وقتی دسترسی معلق/گرفته شده، *داده‌ی زنده‌ی تازه* نمی‌آید.
+        try:
+            self._may_query(uid)
+            frozen = ""
+        except RuleError as e:
+            frozen = f"🔒 {e}\n{'─' * 18}\n"
+        kind = ROLES[p.role].info
+        day, c = self.s.day, self.s.case
+        L: List[str] = []
+
+        if kind == "hospital":          # 💉 پزشک
+            title = "🏥 *پرونده‌ی درمانگاه*"
+            L.append("🛏️ سهمیه‌ی نجاتِ خودت: "
+                     + ("سوخته ✔️" if p.self_save_used else "دستِ نخورده"))
+            # فقط چیزی که واقعاً ثبت شده. رتبه‌بندیِ «فشار عصبی» حذف شد:
+            # آن عدد از هم‌ترازی می‌آمد و عملاً یک فالِ تیمی به پزشک می‌داد.
+            mine = [n for n in p.notes if n.startswith("💉")]
+            L.append("📋 مراجعه‌های ثبت‌شده‌ی خودت:")
+            L += [f"   • {n}" for n in mine] or ["   — هنوز محافظتی ثبت نکرده‌ای —"]
+            dead = [(q.name, self.s.death_cause.get(q.uid, "نامشخص"))
+                    for q in self.s.players.values() if not q.alive]
+            L.append("⚰️ فوتی‌های تأییدشده:")
+            L += [f"   • {n} — {cz}" for n, cz in dead] or ["   — هیچ —"]
+            L.append("_این گزارش لحظه‌ی ثبت را می‌گوید؛ سلامتِ همین حالا را تضمین نمی‌کند._")
+
+        elif kind == "forensic_files":  # 🧪 پزشک قانونی / 🔬 کالبدشکاف
+            title = "🔬 *گزارش کالبدشکافی*"
+            # توییستِ پرونده و فهرستِ مدارکِ جعلی اینجا نمی‌آید: آن‌ها جوابِ
+            # معما هستند و فقط با خرج‌کردنِ اکشن شبانه به دست می‌آیند.
+            L.append(f"🕰️ ساعت مرگ در پرونده‌ی اولیه: {self._death_hour()}")
+            L.append(f"📍 محل کشف: {c.place}")
+            L.append("")
+            L.append("🧪 نتیجه‌های آزمایشِ خودت:")
+            L += [f"   • {n}" for n in p.notes if n.startswith("🧪")] or                  ["   — هنوز مدرکی را آزمایش نکرده‌ای —"]
+            L.append("🔬 گزارش‌های کالبدشکافیِ خودت:")
+            L += [f"   • {n}" for n in p.notes if n.startswith("🔬")] or                  ["   — هنوز مرگی ثبت نشده —"]
+
+        elif kind == "police_files":    # 🔦 بازجو
+            title = "👮 *پرونده‌های پلیس*"
+            L.append(f"🚗 پلاک خودروی صحنه: `{c.vehicle['plate']}`")
+            L.append(f"   ({c.vehicle['model']} {c.vehicle['color']})")
+            L.append("   «🚗 استعلام مالک» را بزن تا نام مالک ثبت‌شده بیاید.")
+            L.append("")
+            L.append("🗂️ سوابق کیفری:")
+            for q in self.alive_in_game():
+                L.append(f"   • {q.name} — {self._record_of(q)}")
+            jailed = [q.name for q in self.s.players.values()
+                      if q.custody is not Custody.FREE]
+            L.append("🔒 بازداشتی‌ها: " + ("، ".join(jailed) if jailed else "—"))
+
+        elif kind == "sightings":       # 🕵️ کارآگاه
+            title = "🕵️ *دفتر مشاهدات*"
+            L.append(f"🚗 خودروی نزدیک صحنه: *{c.vehicle['model']} {c.vehicle['color']}*")
+            L.append("   پلاک در پرونده‌ی پلیس است، نه دست تو.")
+            checked = [n for n in p.notes if n.startswith("شب")]
+            L.append("🔎 استعلام‌های خودت:")
+            L += [f"   • {n}" for n in checked] or ["   — هنوز هیچ —"]
+
+        elif kind == "visit_log":       # 🛡️ نگهبان
+            title = "🛡️ *دفتر نگهبانی*"
+            L += [f"   • {n}" for n in p.notes if n.startswith("🛡️")] or \
+                 ["   — هنوز شبی را زیر نظر نگرفته‌ای —"]
+            L.append("👥 هم‌مکانی‌هایی که دیده‌ای:")
+            L += [f"   • {n}" for n in p.notes if n.startswith("👥")] or ["   —"]
+
+        elif kind == "press_archive":   # 📰 خبرنگار
+            title = "📰 *بایگانی تحریریه*"
+            L.append("🗞️ مدارکی که تا امروز رو شده:")
+            L += [f"   • {e['code']} — {e['title']}" for e in c.evidence
+                  if e["code"] in self.s.revealed_evidence] or ["   —"]
+            L.append("🔔 با «🌙 اکشن شبانه» یک مدرک اضافه برای کل شهر رو می‌کنی.")
+
+        elif kind == "court_records":   # ⚖️ وکیل
+            title = "⚖️ *دفتر ثبت دادگاه*"
+            for q in self.s.players.values():
+                mark = ("تبرئه‌شده" if q.cleared else
+                        q.custody.value if q.custody is not Custody.FREE else "بی‌سابقه")
+                L.append(f"   • {q.name} — {mark}"
+                         + (" (یک‌بار هیئت منصفه داشته)" if q.jury_used else ""))
+            L.append("")
+            L.append("🔑 امتیاز تو: به‌تنهایی می‌توانی هیئت منصفه بخواهی.")
+
+        elif kind == "police_radio":    # 📞 خبرچین
+            title = "📞 *بی‌سیم پلیس*"
+            L += [f"   • {n}" for n in p.notes if n.startswith("📞")] or \
+                 ["   — هنوز چیزی نشنیده‌ای —"]
+            sus = self.s.suspect_uid
+            L.append("🔦 همین حالا در اتاق بازجویی: "
+                     + (self.s.players[sus].name if sus else "کسی نیست"))
+
+        elif kind == "rumor":           # 🏪 بقال محله
+            title = "🏪 *شایعه‌های امروز*"
+            L.append(self.daily_rumor())
+            L.append("_۷۰٪ شایعه‌ها درست‌اند؛ ۳۰٪ نه. کدام کدام است، معلوم نیست._")
+
+        elif kind == "team_ids":        # 🔪 تیم قاتل
+            title = "🔪 *پرونده‌ی تیم*"
+            L += [f"   • {k}" for k in p.knows] or ["   • تنها هستی."]
+            L.append(f"🚗 خودروی صحنه: {c.vehicle['model']} {c.vehicle['color']}")
+            L.append("   پلیس پلاکش را دارد — می‌توانی یک بار سند را به نام دیگری بزنی.")
+
+        else:                           # شهروند / سپر بلا / شکارچی / جانی / قاچاقچی
+            title = "🗂️ *بایگانی تو*"
+            L.append("این نقش پرونده‌ی اختصاصی ندارد — و همین خودش اطلاعات است:")
+            L.append("هر کس ادعا کند گزارشِ محرمانه دارد، یا نقشش را لو می‌دهد یا دروغ می‌گوید.")
+            L.append("")
+            L.append("📓 چیزی که *داری*: یادداشت‌های خودت و هرچه در گروه شنیده‌ای.")
+            if p.knows:
+                L += [f"   • {k}" for k in p.knows]
+
+        L.append("")
+        if frozen:
+            # دسترسی معلق یا گرفته شده: همین‌ها آخرین چیزی است که رسیده.
+            L.append(f"🧊 این نسخه در روز {_fa(day)} فریز شده؛ تازه نمی‌شود.")
+            return title, [frozen.rstrip()] + L
+        L.append(f"📅 روز {_fa(day)} — این پرونده هر روز تازه می‌شود.")
+        L.append("_گزارش‌ها لحظه‌ی ثبت را می‌گویند، نه تضمینِ همین حالا را._")
+        return title, L
+
+    def alive_in_game(self) -> List[Player]:
+        return [q for q in self.s.players.values() if q.in_game]
+
+    def _stress_band(self, q: Player) -> str:
+        s = dialogue.stress_of(q)
+        return "آرام" if s < 35 else ("بی‌قرار" if s < 70 else "در آستانه‌ی فروپاشی")
+
+    def _death_hour(self) -> str:
+        tl = self.s.case.timeline
+        return tl[2].split("—")[0].strip() if len(tl) > 2 else "۲۳:۱۵"
+
+    def _record_of(self, q: Player) -> str:
+        """سابقه‌ی کیفریِ ساختگی ولی قطعی — به نقش گره نخورده، پس لو نمی‌دهد."""
+        recs = ["بی‌سابقه", "یک شکایت مالی", "نزاع خیابانی (مختومه)",
+                "چک برگشتی", "بی‌سابقه", "تخلف رانندگی مکرر", "بی‌سابقه"]
+        return recs[dialogue._h(q.uid, self.s.chat_id) % len(recs)]
+
+    def daily_rumor(self) -> str:
+        """شایعه‌ی تازه‌ی هر روز — ۷۰٪ درست، قطعی بر اساس روز."""
+        rng = random.Random(self.s.chat_id * 7919 + self.s.day)
+        alive = self.alive_in_game()
+        if not alive or not self.s.case:
+            return "امروز کسی حرفی نزد."
+        true_one = rng.random() < 0.70
+        killers = [q for q in alive if q.align is Align.KILLER]
+        pool = killers if (true_one and killers) else alive
+        who = rng.choice(pool)
+        shapes = [
+            f"«دیشب {who.name} را بیرون از خانه دیدند.»",
+            f"«می‌گویند {who.name} با مقتول دعوا داشته.»",
+            f"«{who.name} درباره‌ی {self.s.case.motive} چیزی می‌دانسته.»",
+            f"«کسی {who.name} را نزدیک {self.s.case.place} دیده.»",
+        ]
+        return "🗣️ " + shapes[rng.randrange(len(shapes))]

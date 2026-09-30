@@ -56,6 +56,12 @@ class Player:
     role_assigned: str = ""
     ready: bool = False            # بهبود ۲: پیویِ ربات را باز کرده و آماده است
     missed: int = 0                # بهبود ۷: شب‌هایی که هیچ اکشنی نداده
+    self_save_used: bool = False   # پزشک: نجاتِ خود فقط یک بار در کل بازی
+    shared_notes: List[str] = field(default_factory=list)  # یادداشتِ سپرده به گروه
+    notes_published: bool = False  # بعد از حبس موقت، سپرده‌ها علنی شدند
+    recruited: bool = False        # شهروندِ بی‌نقش که دعوت قاتل را پذیرفت
+    appearance: Dict[str, str] = field(default_factory=dict)  # قد، هیکل، مو، نشانه، لباس
+    stance: str = ""               # ژستِ نمایشیِ انتخابیِ خودش در اتاق بازجویی
 
     @property
     def in_game(self) -> bool:
@@ -92,6 +98,7 @@ class Case:
     evidence: List[Dict]
     twist: str
     difficulty: int
+    vehicle: Dict = field(default_factory=dict)   # خودروی دیده‌شده نزدیک صحنه
 
 
 @dataclass
@@ -110,6 +117,7 @@ class GameState:
     log: List[str] = field(default_factory=list)
     night_actions: Dict[str, int] = field(default_factory=dict)
     winner: Optional[str] = None
+    winner_uids: List[int] = field(default_factory=list)   # برنده‌ها، صریح
     jury_requests: Dict[int, set] = field(default_factory=dict)
     deadline: Optional[float] = None            # ایده ۱: تایمر فاز
     night_event: str = ""                       # ایده ۴: رویداد شبانه
@@ -128,6 +136,31 @@ class GameState:
     framed: Dict[int, int] = field(default_factory=dict)         # uid → روزِ پاپوش‌دوزی
     hidden: List[int] = field(default_factory=list)              # مخفی‌شده‌های قاچاقچی
     traces: List[str] = field(default_factory=list)   # بهبود ۵: ردِ برخاسته از اکشنِ واقعی
+    outbox: List[tuple] = field(default_factory=list)  # (uid, متن) — uid=0 یعنی گروه
+    fake_clues: List[str] = field(default_factory=list)     # سرنخ‌های کاشته‌ی قاتل
+    day_hints: List[str] = field(default_factory=list)      # سرنخ تازه‌ی هر روز
+    hints_from: int = 0                                     # سرنخ‌های همین صبح از این ایندکس
+    recruit_offer: Optional[int] = None                     # کسی که دعوت قاتل را گرفته
+    plate_owner: Optional[int] = None    # پلاک به نام چه کسی است (قابل جعل)
+    plate_swapped: bool = False          # قاتل یک بار می‌تواند پلاک را عوض کند
+    plate_lookups: List[int] = field(default_factory=list)   # چه کسانی استعلام گرفتند
+    plate_queries: Dict[int, int] = field(default_factory=dict)  # uid → شبِ استعلام
+    plate_nights: List[tuple] = field(default_factory=list)  # (uid، شب) سهمیه‌ی استعلام
+    inspect_days: List[tuple] = field(default_factory=list)  # (uid، روز) استعلام ظاهر
+    witness_of: Optional[int] = None    # شاهدِ دیشب چه کسی را دیده (مخفی)
+    death_cause: Dict[int, str] = field(default_factory=dict)  # uid → علتِ واقعیِ مرگ
+    last_report_night: int = 0            # آخرین شبی که واقعاً حل شد
+    # ── پرونده‌ی بازداشت (rules.md v2 — R07/R05) ──
+    episode: int = 0                      # شماره‌ی پرونده‌ی بازداشت جاری
+    room_qa: List[tuple] = field(default_factory=list)   # (پرسش، پاسخِ واقعیِ آدم)
+    room_pending_q: str = ""              # پرسشی که منتظر جواب آدم است
+    room_closed: bool = False             # گفتگو بسته شد
+    hint_ack: bool = False                # بازجو سرنخ پایانی را باز کرد
+    jury_panel: List[int] = field(default_factory=list)  # دقیقاً دو داور
+    jury_locked: bool = False             # ارجاع شد؛ بازجو دیگر برنمی‌گردد
+    # R07.4: رای‌گیری عمومیِ آزادی، وقتی متهمِ *تازه‌ای* وارد اتاق می‌شود
+    release_ballots: Dict[int, Dict[int, bool]] = field(default_factory=dict)
+    release_done: List[tuple] = field(default_factory=list)  # (اپیزود، زندانی)
     win_reason: str = ""                              # بهبود ۶: چرا این تیم برد
     paused: bool = False                        # بهبود ۷: بازی موقتاً متوقف
     paused_left: Optional[int] = None            # ثانیه‌های باقی‌ماندهی فاز هنگام توقف

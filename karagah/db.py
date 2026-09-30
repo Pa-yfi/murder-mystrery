@@ -232,9 +232,14 @@ def load_snapshots() -> Dict[int, object]:
     out = {}
     for r in conn().execute("SELECT chat_id, blob FROM snapshots").fetchall():
         try:
-            out[r["chat_id"]] = pickle.loads(r["blob"])
+            g = pickle.loads(r["blob"])
+            # اسنپ‌شاتِ نسخه‌ی قدیمی فیلدهای تازه را ندارد و وسط بازی می‌ترکد.
+            # به‌جای کرش، بازیِ کهنه را دور می‌اندازیم.
+            if not hasattr(g.s, "outbox"):
+                raise ValueError("stale snapshot")
+            out[r["chat_id"]] = g
         except Exception:
-            pass                      # اسنپ‌شات خراب → نادیده
+            pass                      # اسنپ‌شات خراب/کهنه → نادیده
     return out
 
 

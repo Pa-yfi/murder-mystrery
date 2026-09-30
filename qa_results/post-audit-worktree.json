@@ -1,0 +1,12 @@
+{
+  "tested_snapshot": "20260920-081824",
+  "tested_head": "0e0dace680b484f3275a46352aa4859207df3094",
+  "current_head": "0e0dace680b484f3275a46352aa4859207df3094",
+  "changed_captured_files": [
+    "karagah/bot.py"
+  ],
+  "new_application_files": [
+    "karagah/menus.py"
+  ],
+  "status": "Later independent worktree edits were preserved and are not covered by the recorded test results."
+}

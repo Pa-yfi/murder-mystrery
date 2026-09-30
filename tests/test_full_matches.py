@@ -69,7 +69,14 @@ def test_full_match_from_lobby_to_reveal():
             handle("dawn", chat)
         elif g.s.phase is Phase.MORNING:
             if g.s.suspect_uid is not None:
-                handle("verdict", chat, g.s.officer_uid, arg="1")
+                off2 = g.s.officer_uid
+                sus2 = g.s.suspect_uid
+                if sus2:
+                    handle("ask", chat, off2, arg="کجا بودی؟")
+                    handle("reply", chat, sus2, arg="خانه بودم.")
+                    handle("closeroom", chat, off2)
+                    handle("hints", chat, off2)
+                handle("verdict", chat, off2, arg="1")
             else:
                 _vote_someone_out(chat, g)
         else:
@@ -128,12 +135,16 @@ def test_full_match_with_a_jury_appeal():
     target = _vote_someone_out(chat, g)
     assert g.s.phase is Phase.INTERROGATION
     handle("dawn", chat)                                 # شبِ بازجویی
-    jurors = [p.uid for p in g.s.alive_players() if p.uid != target][:2]
-    handle("jury", chat, jurors[0])
-    assert handle("jury", chat, jurors[1])["ok"]
-    for u in [p.uid for p in g.s.alive_players() if p.can_vote]:
-        handle("juryvote", chat, u, arg="1")
-    assert "تبرئه" in handle("closejury", chat, jurors[0])["text"]
+    off = g.s.officer_uid
+    handle("ask", chat, off, arg="دیشب کجا بودی؟")
+    handle("reply", chat, target, arg="خانه بودم.")
+    handle("closeroom", chat, off)
+    handle("hints", chat, off)
+    assert handle("refer", chat, off)["ok"]
+    jurors = list(g.s.jury_panel)
+    for u in jurors:
+        handle("juryvote", chat, u, arg="1")       # هر دو: آزادی
+    assert "آزاد" in handle("closejury", chat, jurors[0])["text"]
     assert g.s.players[target].custody is Custody.FREE
     assert g.s.phase is not Phase.NIGHT
 
