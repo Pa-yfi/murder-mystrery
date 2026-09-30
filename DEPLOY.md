@@ -104,8 +104,8 @@ Open the failed run on the **Actions** tab. The red message tells you what to fi
 | `VPS_SSH_KEY: the key is cut off` / `is damaged` | Part of the key is missing. Copy it again, from `-----BEGIN` to `-----END … KEY-----`. |
 | `VPS_SSH_KEY: … protected by a passphrase` | GitHub can't type a password. Make the key exactly as in step 1 (`-N ""` means no passphrase). |
 | `VPS_SSH_KEY: this is a PuTTY (.ppk) key` | Make a new key as in step 1, or export it from PuTTYgen with *Conversions → Export OpenSSH key*. |
-| `Could not reach SSH on …` | Check `VPS_HOST` and `VPS_PORT`. If your firewall only allows SSH from your own IP, GitHub is blocked: it connects from many different addresses. |
-| `Could not log in to … as …` | `VPS_USER` is wrong, or the `github-deploy` line isn't in that user's `~/.ssh/authorized_keys`. Repeat step 1 as that user. |
+| `Could not reach SSH on the VPS …` | Check `VPS_HOST` and `VPS_PORT`. Your server's firewall (ufw, fail2ban, or the provider's control panel) must allow SSH from anywhere, because GitHub connects from changing addresses. The workflow uses a single SSH connection, so `ufw limit` is fine. |
+| `The VPS refused the key` | `VPS_USER` is wrong, or the `github-deploy` line isn't in that user's `~/.ssh/authorized_keys`. Repeat step 1 as that user. |
 | `User '…' needs sudo without a password` | Use `root` as `VPS_USER`, or on the server run `echo "$USER ALL=(ALL) NOPASSWD:ALL" \| sudo tee /etc/sudoers.d/github-deploy`. This gives that user full sudo. |
 | `User '…' cannot write to /data` | On the server run the `sudo chown …` command the message shows. |
 | `DB_PATH … is a folder` / `must end with a file name` | Use a file path, e.g. `/data/karagah.db`. |

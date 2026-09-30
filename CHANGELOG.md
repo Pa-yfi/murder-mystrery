@@ -2,6 +2,11 @@
 
 Every version below is one commit. Each commit message has the full detail, and this file is the map. Test numbers are the full pytest suite at that commit.
 
+## Deploy: one SSH connection per job
+- The third real run passed the key check, then timed out on login right after `ssh-keyscan`. keyscan opens a burst of connections (one per key type), which `ufw limit` or fail2ban treat as an attack.
+- There is no keyscan any more: the host key is learned on the first login (`StrictHostKeyChecking accept-new`, or pinned with `VPS_KNOWN_HOSTS`). An SSH ControlMaster lets the upload reuse that login, so the whole job opens **one** connection (checked against a local sshd).
+- If the login fails, it retries once after 30 s. The error then says which problem it is: unreachable (firewall or port), key refused, or host key mismatch.
+
 ## Deploy: clearer VPS_SSH_KEY check
 - New `deploy/prepare_key.py` replaces the single vague "not a private key" error.
 - It repairs copy/paste damage by itself: line breaks turned into spaces or lost, Windows line endings, indentation, a shell prompt around the key.

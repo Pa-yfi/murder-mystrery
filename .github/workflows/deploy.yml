@@ -76,14 +76,14 @@ jobs:
           sshd="$RUNNER_TEMP/ssh"                    # key, host keys and config live only for this job
           install -m 700 -d "$sshd"
           python3 deploy/prepare_key.py "$sshd/key"   # repairs copy/paste damage, or names the exact mistake
+          # One SSH connection for the whole job (no ssh-keyscan burst, and the upload reuses the login):
+          # firewalls such as `ufw limit` or fail2ban block an address that opens several connections at once.
           if [ -n "$VPS_KNOWN_HOSTS" ]; then
             printf '%s\n' "$VPS_KNOWN_HOSTS" | tr -d '\r' > "$sshd/known_hosts"
+            hostcheck=yes
           else
-            ssh-keyscan -T 20 -p "$port" "$VPS_HOST" > "$sshd/known_hosts" 2> /dev/null || true
-          fi
-          if [ ! -s "$sshd/known_hosts" ]; then
-            echo "::error::Could not reach SSH on $VPS_HOST port $port. Check VPS_HOST / VPS_PORT and that the firewall allows SSH from anywhere."
-            exit 1
+            : > "$sshd/known_hosts"
+            hostcheck=accept-new
           fi
           cat > "$sshd/config" <<EOF
           Host vps
@@ -93,14 +93,31 @@ jobs:
             IdentityFile $sshd/key
             IdentitiesOnly yes
             UserKnownHostsFile $sshd/known_hosts
+            StrictHostKeyChecking $hostcheck
             BatchMode yes
-            ConnectTimeout 20
+            ConnectTimeout 30
             ServerAliveInterval 15
+            ControlMaster auto
+            ControlPath $sshd/cm-%C
+            ControlPersist 15m
           EOF
-          if ! ssh -F "$sshd/config" vps true; then
-            echo "::error::Could not log in to $VPS_HOST as $VPS_USER with VPS_SSH_KEY. Check VPS_USER, and that the matching public key is in ~/.ssh/authorized_keys of that user on the VPS (see DEPLOY.md)."
-            exit 1
-          fi
+          for try in 1 2; do
+            if err=$(ssh -F "$sshd/config" vps true 2>&1); then break; fi
+            echo "Attempt $try: $err"
+            if [ "$try" = 2 ]; then
+              case "$err" in
+                *"Permission denied"*)
+                  echo "::error::The VPS refused the key. Check VPS_USER, and that the matching public key (the github-deploy line) is in ~/.ssh/authorized_keys of that user on the VPS (see DEPLOY.md)." ;;
+                *"timed out"*|*"refused"*|*"No route"*|*"resolve"*|*"closed"*|*"reset"*)
+                  echo "::error::Could not reach SSH on the VPS (port $port). Check VPS_HOST / VPS_PORT, and that the server's firewall (ufw, fail2ban, or the provider's panel) allows SSH from anywhere: GitHub connects from changing addresses." ;;
+                *"Host key verification failed"*|*"REMOTE HOST IDENTIFICATION"*)
+                  echo "::error::The server's identity does not match VPS_KNOWN_HOSTS. Update or delete that secret." ;;
+                *) echo "::error::Could not log in to the VPS: $err" ;;
+              esac
+              exit 1
+            fi
+            sleep 30
+          done
           echo "Connected to $VPS_USER@$VPS_HOST"
 
       - name: Deploy
