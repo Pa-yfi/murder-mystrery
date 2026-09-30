@@ -30,6 +30,7 @@ def main(argv=None) -> int:
     ap.add_argument("--min", type=int, default=config.MIN_PLAYERS)
     ap.add_argument("--max", type=int, default=config.MAX_PLAYERS)
     ap.add_argument("--modes", default="group,timer,dm")
+    ap.add_argument("--scenarios", default="classic,court,chaos")
     ap.add_argument("--out", default=str(Path(__file__).resolve().parent))
     ap.add_argument("--quiet", action="store_true")
     args = ap.parse_args(argv)
@@ -43,15 +44,17 @@ def main(argv=None) -> int:
         print(f"📚 مستندات خوانده‌شده: {', '.join(rb.files)}")
 
     modes = [m for m in args.modes.split(",") if m]
-    for n in range(args.min, args.max + 1):
-        for seed in range(1, args.seeds + 1):
-            for mode in modes:
-                g = run_session(n, seed, report, rb, mode)
-                if not args.quiet:
-                    mark = "✅" if g["finished"] else f"⛔ {g['stuck']}"
-                    print(f"{n:>2} نفر | بذر {seed} | {g['mode']:<12} | {g['case']:<4} | "
-                          f"برنده: {g['winner'] or '—':<14} | روز {g['days']:>2} | "
-                          f"{g['presses']:>4} تپ | {mark}")
+    scenarios = [s for s in args.scenarios.split(",") if s]
+    for scen in scenarios:
+        for n in range(args.min, args.max + 1):
+            for seed in range(1, args.seeds + 1):
+                for mode in modes:
+                    g = run_session(n, seed, report, rb, mode, scen)
+                    if not args.quiet:
+                        mark = "✅" if g["finished"] else f"⛔ {g['stuck']}"
+                        print(f"{g['scenario']:<7} | {n:>2} نفر | بذر {seed} | {g['mode']:<12} | "
+                              f"{g['case']:<4} | برنده: {g['winner'] or '—':<14} | روز {g['days']:>2} | "
+                              f"{g['presses']:>4} تپ | {mark}")
     run_probes(report, rb)
     path = report.write(Path(args.out))
     finished = sum(1 for g in report.games if g["finished"])

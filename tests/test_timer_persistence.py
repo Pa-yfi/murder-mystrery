@@ -70,7 +70,8 @@ def test_timer_finalises_a_game_that_ends_on_a_tick():
     asyncio.run(telegram_app._timer_job(_Ctx()))
     assert g.s.phase is Phase.END
     assert g.s.finalized                  # نتیجه ثبت شد، نه اینکه از قلم بیفتد
-    assert chat not in db.load_snapshots()
+    snap = db.load_snapshots()[chat]      # نسخه ۴: برای افشا بعد از ری‌استارت می‌ماند
+    assert snap.s.phase is Phase.END and snap.s.finalized
 
 
 def test_tiebreak_runoff_gets_a_fresh_deadline():

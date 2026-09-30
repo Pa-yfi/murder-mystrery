@@ -72,6 +72,11 @@ def test_full_match_from_lobby_to_reveal():
                 handle("verdict", chat, g.s.officer_uid, arg="1")
             else:
                 _vote_someone_out(chat, g)
+        elif g.s.phase is Phase.JURY:            # بازجو بیرون است → هیئت منصفه خودکار
+            for p in g.s.alive_players():
+                if p.can_vote:
+                    handle("juryvote", chat, p.uid, arg="0")
+            handle("closejury", chat)
         else:
             _vote_someone_out(chat, g)
 
@@ -163,7 +168,10 @@ def test_restart_does_not_resurrect_a_finished_match():
     g._check_win()
     handle("status", chat, 1)
     GAMES.clear()
-    assert bot.restore_games() == 0
+    bot.restore_games()
+    # برمی‌گردد فقط برای افشا (رفع F-12)، نه به‌عنوان بازیِ در جریان
+    assert GAMES[chat].s.phase is Phase.END and GAMES[chat].s.finalized
+    assert chat not in bot.games_of(1)
 
 
 def test_secret_never_leaks_during_a_real_match():

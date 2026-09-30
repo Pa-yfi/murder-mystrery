@@ -56,6 +56,8 @@ class Player:
     role_assigned: str = ""
     ready: bool = False            # بهبود ۲: پیویِ ربات را باز کرده و آماده است
     missed: int = 0                # بهبود ۷: شب‌هایی که هیچ اکشنی نداده
+    self_saved: bool = False       # نسخه ۴: پزشک فقط یک بار خودش را نجات می‌دهد
+    notes_pushed: int = 0          # نسخه ۴: چند یادداشت به پیوی فرستاده شده
 
     @property
     def in_game(self) -> bool:
@@ -68,6 +70,11 @@ class Player:
     @property
     def can_vote(self) -> bool:
         return self.can_speak and self.custody != Custody.INTERROGATION
+
+    @property
+    def free(self) -> bool:
+        """در بازی و بیرون از بازداشت — فقط او می‌تواند اکشن بزند یا حکم بدهد."""
+        return self.in_game and self.custody is Custody.FREE
 
 
 @dataclass
@@ -133,6 +140,14 @@ class GameState:
     paused_left: Optional[int] = None            # ثانیه‌های باقی‌ماندهی فاز هنگام توقف
     phase_before_jury: Optional[Phase] = None    # بعد از هیئت منصفه به همین فاز برگرد
     finalized: bool = False                     # نتیجه یک‌بار ثبت شد؛ دوباره XP نده
+    # ── نسخه ۴ ──
+    scenario: str = "classic"                   # سناریوی میز (roles.SCENARIOS)
+    tie_leaders: List[int] = field(default_factory=list)   # دور دوم رای فقط بین این‌ها
+    inv_prev: Dict[int, int] = field(default_factory=dict)  # کارآگاه → هدفِ شب قبل
+    kill_heir: Optional[int] = None             # عضو تیم قاتل که چاقو به او رسیده
+    auto_jury: bool = False                     # هیئت منصفه به‌جای بازجوی غایب
+    questions: Dict[int, str] = field(default_factory=dict)  # متهم → آخرین پرسشِ بی‌جواب
+    goat_jailed_alive: bool = False             # سپر بلا زنده حبس ابد گرفت
 
     def alive_players(self) -> List[Player]:
         return [p for p in self.players.values() if p.in_game]

@@ -4,28 +4,33 @@
 کسی به بازجویی برود) تا جای ممکن هم با دکمه انجام می‌شود؛ جایی که لازم است
 صحنه مستقیم چیده شود (مثل رساندن بازی به دو بازمانده) در کد گفته شده.
 خودِ کاری که سنجیده می‌شود همیشه با تپ روی دکمه انجام می‌شود.
+
+هر سناریو قاعده‌ی درست (RULES.md) را می‌سنجد: اگر ربات درست رفتار کند یک ✅
+در جدول «بررسی‌ها» ثبت می‌شود، وگرنه یک یافته با شرح دقیق.
 """
 from __future__ import annotations
 
 import traceback
 from typing import Callable, List, Optional
 
-from karagah import bot
+from karagah import bot, engine
 from karagah.bot import GAMES
 from karagah.models import Align, Custody, Phase
 from karagah.roles import ROLES
 
-from .agent import Agent, cb_is
+from .agent import Agent, cb_is, cb_starts
 from .game import Session
 from .report import Report
 
 
 class Scene:
-    def __init__(self, report: Report, rb, n: int, seed: int, title: str, lobby=True):
-        self.s = Session(n, seed, report, rb, "group")
+    def __init__(self, report: Report, rb, n: int, seed: int, title: str, lobby=True,
+                 scenario: str = "classic"):
+        self.s = Session(n, seed, report, rb, "group", scenario)
         report.context = f"سناریو: {title} ({n} نفره، بذر {seed})"
         self.r = report
         self.ok = self.s.lobby() if lobby else True
+        report.context = f"سناریو: {title} ({n} نفره، بذر {seed})"
 
     @property
     def g(self):
@@ -60,24 +65,41 @@ class Scene:
         return a.find(cb_is(f"act:{target.uid}"), ("dm",), 1) is not None
 
     def dawn(self, by: Optional[Agent] = None):
+        """میزبان «پایان شب» را می‌زند؛ اگر هنوز منتظرِ اکشن است، تا پایان مهلت صبر می‌کند."""
         by = by or self.host
-        return by.tap(cb_is("dawn"), ("group",), depth=60)
+        m = by.tap(cb_is("dawn"), ("group",), depth=60)
+        if m is not None and not m.ok and "⏳" in m.text:
+            self.s.tg.clock.advance((self.g.remaining() or 0) + 1)
+            m = by.tap(cb_is("dawn"), ("group",), depth=60)
+        return m
 
     def discuss_and_vote(self):
         self.host.tap(cb_is("discuss"), ("group",), depth=60)
         return self.host.tap(cb_is("vote"), ("group",), depth=6)
+
+    def close_vote(self):
+        m = self.host.tap(cb_is("closevote"), ("group",), depth=10)
+        if m is not None and not m.ok and "⏳" in m.text:
+            self.s.tg.clock.advance((self.g.remaining() or 0) + 1)
+            m = self.host.tap(cb_is("closevote"), ("group",), depth=10)
+        return m
 
     def vote_all(self, target: Agent):
         for a in self.s.agents:
             p = self.g.s.players[a.uid]
             if p.can_vote and a.uid != target.uid:
                 a.tap(cb_is(f"vote:{target.uid}"), ("group",), depth=60)
-        return self.host.tap(cb_is("closevote"), ("group",), depth=10)
+            elif p.can_vote:
+                a.tap(cb_is("vote:0"), ("group",), depth=60)
+        return self.close_vote()
 
     def no_vote_night(self):
-        """روز بدون بازداشت: گفتگو → رای → بستن بی‌رای → شب."""
+        """روز بدون بازداشت: گفتگو → رای → همه ممتنع → شب."""
         self.discuss_and_vote()
-        return self.host.tap(cb_is("closevote"), ("group",), depth=10)
+        for a in self.s.agents:
+            if self.g.s.players[a.uid].can_vote:
+                a.tap(cb_is("vote:0"), ("group",), depth=60)
+        return self.close_vote()
 
     def verdict(self, x: int):
         off = self.s.agent(self.g.s.officer_uid)
@@ -88,7 +110,7 @@ class Scene:
         """از وضعیت فعلی تا جایی که target در بازجویی است (فقط با دکمه)."""
         if self.g.s.phase in (Phase.NIGHT, Phase.INTERROGATION):
             self.dawn()
-        if self.g.s.suspect_uid is not None and self.g.s.phase is Phase.MORNING:
+        if self.g.awaiting_verdict() and self.g.s.phase is Phase.MORNING:
             self.verdict(0)
         self.discuss_and_vote()
         return self.vote_all(target)
@@ -98,11 +120,11 @@ class Scene:
 
 
 def _try(report: Report, rb, title: str, fn: Callable[[Scene], Optional[bool]],
-         n: int, seeds=range(1, 12)) -> None:
+         n: int, seeds=range(1, 12), scenario: str = "classic") -> None:
     """سناریو را با بذرهای مختلف امتحان کن تا صحنه (بدون طوفان و …) جور شود.
     fn اگر False برگرداند یعنی «صحنه جور نشد، بذر بعدی»."""
     for seed in seeds:
-        sc = Scene(report, rb, n, seed, title)
+        sc = Scene(report, rb, n, seed, title, scenario=scenario)
         try:
             if not sc.ok:
                 continue
@@ -138,27 +160,28 @@ def _lobby_only(report: Report, rb, title: str, fn, n: int = 6) -> None:
 
 # ───────────────────────── دسترسی ─────────────────────────
 def p_early_dawn(sc: Scene):
+    """قاتل اکشنش را می‌زند و فوراً «پایان شب» را می‌زند؛ غریبه «گفتگو» را می‌زند."""
     killer = sc.role("قاتل")
-    doc = sc.role("پزشک")
-    victim = sc.citizen(killer, doc)
+    victim = sc.citizen(killer)
     sc.act(killer, victim)
-    m = sc.dawn(by=killer)                             # قاتل خودش شب را می‌بندد
-    if m and m.ok and sc.g.s.phase is Phase.MORNING:
+    m = killer.tap(cb_is("dawn"), ("group",), depth=60)
+    if m and m.ok:
         sc.r.find("بالا", "دسترسی", "هر کسی — حتی خودِ قاتل — می‌تواند شب را زودتر ببندد",
-                  "قاتل هدفش را زد و بلافاصله «🌙 پایان شب» را در گروه زد؛ شب بسته شد پیش از آنکه "
-                  "پزشک/کارآگاه اکشن بدهند و اکشن‌شان از دست رفت. h_dawn، h_discuss، h_vote، "
-                  "h_closevote و h_closejury هیچ‌کدام نمی‌پرسند چه کسی دکمه را زده (میزبان؟ بازیکن "
-                  "زنده؟ اصلاً عضو بازی؟). همین‌طور قاتل می‌تواند رای‌گیری را وقتی به نفعش است زود ببندد.",
+                  "قاتل اکشنش را زد و «🌙 پایان شب» را زد، پیش از آنکه بقیه اکشن بدهند.",
                   key="phase-authz")
+    else:
+        sc.r.ok("دسترسی: شب تا اکشنِ همه یا پایان مهلت بسته نمی‌شود")
+    sc.dawn()
     outsider = 999_001
     sc.s.tg.names[outsider] = "غریبه"
     grp = sc.s.tg.inbox(sc.s.group)
     msg = next((m for m in reversed(grp) for b in m.buttons() if b.get("callback_data") == "discuss"), None)
-    if msg and sc.g.s.phase is Phase.MORNING:
+    if msg and sc.g.s.phase is Phase.MORNING and not sc.g.awaiting_verdict():
         sc.s.tg.press(outsider, msg, next(b for b in msg.buttons() if b.get("callback_data") == "discuss"))
         if sc.g.s.phase is Phase.DISCUSSION:
-            sc.r.find("بالا", "دسترسی", "کسی که اصلاً در بازی نیست فاز را جلو می‌برد",
-                      "یک عضوِ گروه که وارد لابی نشده «💬 گفتگو» را زد و فاز عوض شد.", key="outsider-phase")
+            sc.r.find("بالا", "دسترسی", "کسی که اصلاً در بازی نیست فاز را جلو می‌برد", key="outsider-phase")
+        else:
+            sc.r.ok("دسترسی: غریبه فاز را جلو نمی‌برد")
 
 
 def p_non_host_start(sc: Scene):
@@ -168,8 +191,9 @@ def p_non_host_start(sc: Scene):
         other.press(*hit)
     if sc.g.s.phase is Phase.NIGHT:
         sc.r.find("متوسط", "دسترسی", "هر عضو لابی — نه فقط میزبان — می‌تواند بازی را شروع کند",
-                  f"{other.name} (غیرمیزبان) «🎬 شروع بازی» را زد و بازی شروع شد. h_startgame "
-                  "مالکیت را نمی‌سنجد.", key="start-authz")
+                  key="start-authz")
+    else:
+        sc.r.ok("دسترسی: فقط میزبان بازی را شروع می‌کند")
 
 
 def p_outsider_jury(sc: Scene):
@@ -185,36 +209,20 @@ def p_outsider_jury(sc: Scene):
     msg = sc.s.tg.command(outsider, "/dashboard", sc.s.group)
     b = next((x for x in msg.buttons() if x.get("callback_data") == "jury"), None)
     if b:
-        sc.s.tg.press(outsider, msg, b)                # جدول Telegram «خطای داخلی» را خودش گزارش می‌کند
-    dead = next((a for a in sc.s.agents if not sc.g.s.players[a.uid].alive), None)
-    if dead and not sc.g.s.players[target.uid].jury_used:
-        msg = sc.s.tg.command(dead.uid, "/dashboard", sc.s.group)
-        b = next((x for x in msg.buttons() if x.get("callback_data") == "jury"), None)
-        if b:
-            res = sc.s.tg.press(dead.uid, msg, b)
-            if res and res.ok:
-                sc.r.find("پایین", "دسترسی", "بازیکنِ مرده می‌تواند هیئت منصفه درخواست کند",
-                          "request_jury نمی‌سنجد درخواست‌دهنده زنده/آزاد یا اصلاً عضو بازی است.",
-                          key="dead-jury")
+        r = sc.s.tg.press(outsider, msg, b)             # «خطای داخلی» را جدول خودش گزارش می‌کند
+        if r and not r.ok and "خطای داخلی" not in r.text:
+            sc.r.ok("هیئت منصفه: غریبه پیام قانون می‌گیرد")
 
 
 def p_outsider_interp(sc: Scene):
-    """غریبه در گروه «/interp» را از منوی دستورهای ربات می‌زند و رای تفسیر می‌دهد."""
+    """غریبه در گروه «/interp» را از منوی دستورهای ربات می‌زند."""
     outsider = Agent(999_003, "غریبه", sc.s.tg, sc.s.rng)
-    sc.s.tg.command(outsider.uid, "/interp", sc.s.group)
-    hit = outsider.find(lambda b: str(b.get("callback_data", "")).startswith("interp:"), ("group",), 1)
-    if not hit:
-        return None
-    m = outsider.press(*hit)
-    opts = [b for b in outsider.buttons_named(m, "interp:") if b["callback_data"].count(":") == 2]
-    if opts:
-        before = dict(sc.g.s.interp_votes.get(hit[1]["callback_data"].split(":")[1], {}))
-        r = outsider.press(m, opts[0])
-        if r and r.ok and outsider.uid not in before and \
-                any(outsider.uid in v for v in sc.g.s.interp_votes.values()):
-            sc.r.find("پایین", "دسترسی", "کسی که در بازی نیست در رای تفسیر مدرک و آزمایشگاه شرکت می‌کند",
-                      "یک عضو گروه که وارد بازی نشده از منوی دستورها «/interp» زد و رایش شمرده شد. "
-                      "h_interp و h_lab بازیکن بودن را نمی‌سنجند.", key="outsider-interp")
+    m = sc.s.tg.command(outsider.uid, "/interp", sc.s.group)
+    if m.ok and outsider.find(cb_starts("interp:"), ("group",), 1):
+        sc.r.find("پایین", "دسترسی", "کسی که در بازی نیست در رای تفسیر مدرک شرکت می‌کند",
+                  key="outsider-interp")
+    else:
+        sc.r.ok("دسترسی: تفسیر/آزمایشگاه فقط برای بازیکن‌ها")
 
 
 def p_ban(sc: Scene):
@@ -228,9 +236,9 @@ def p_ban(sc: Scene):
         sc.host.press(*hit)
         m = victim.tap(cb_is("act"), ("dm",), depth=3, nav="act")
         if m and m.ok and victim.buttons_named(m, "act:"):
-            sc.r.find("متوسط", "امنیت", "کاربرِ مسدودشده به بازی ادامه می‌دهد",
-                      "ادمین از پنل «🚫 مسدودسازی» او را بست؛ db.is_banned() نوشته شده ولی handle() هرگز "
-                      "صدایش نمی‌زند، پس هر دکمه‌ای هنوز کار می‌کند.", key="ban-ignored")
+            sc.r.find("متوسط", "امنیت", "کاربرِ مسدودشده به بازی ادامه می‌دهد", key="ban-ignored")
+        else:
+            sc.r.ok("مسدودسازی: کاربر بسته‌شده دکمه‌ای نمی‌زند")
     finally:
         bot.ADMIN_IDS.remove(sc.host.uid)
 
@@ -248,6 +256,9 @@ def p_pause(sc: Scene):
     sc.s.tg.timer_job()
     if sc.g.s.phase is not Phase.NIGHT:
         sc.r.find("بالا", "تایمر", "بازیِ متوقف با تایمر جلو رفت")
+    m = sc.host.tap(cb_is("dawn"), ("group",), depth=60)
+    if m and m.ok:
+        sc.r.find("متوسط", "میزبانی", "بازیِ متوقف با دکمه جلو رفت", key="paused-advance")
     sc.host.navigate("resume")
     if sc.g.s.paused:
         sc.r.find("متوسط", "میزبانی", "«▶️ ادامه» کار نکرد")
@@ -264,7 +275,7 @@ def p_stale_verdict(sc: Scene):
     old = next((m for m in reversed(sc.s.tg.inbox(sc.s.group))
                 for b in m.buttons() if b.get("callback_data") == f"ver:{x.uid}:1"), None)
     sc.dawn()
-    if sc.g.s.phase is not Phase.MORNING:
+    if sc.g.s.phase is not Phase.MORNING or not sc.g.officer_can_judge():
         return False
     sc.verdict(0)                                      # X آزاد شد
     y = sc.citizen(x)
@@ -279,45 +290,73 @@ def p_stale_verdict(sc: Scene):
     b = next(b for b in old.buttons() if b.get("callback_data") == f"ver:{x.uid}:1")
     sc.s.tg.press(off.uid, old, b)                    # دکمه‌ی حبسِ X روی پیام دیروز
     if sc.g.s.players[y.uid].custody is Custody.TEMP_JAIL:
-        sc.r.find("بالا", "دکمه‌ها", "دکمه‌ی حکمِ کهنه روی متهمِ تازه اجرا می‌شود",
-                  f"بازجو دکمه‌ی «🔒 حبس موقت» زیر پیامِ دیروز (متهم: {x.name}) را زد و {y.name} "
-                  "(متهم امروز) به حبس موقت رفت. callback «ver:<uid>:<x>» آیدی متهم را دارد ولی "
-                  "parse_callback فقط بخش آخر را نگه می‌دارد و h_verdict روی suspect_uid فعلی حکم می‌دهد.",
-                  key="stale-verdict")
+        sc.r.find("بالا", "دکمه‌ها", "دکمه‌ی حکمِ کهنه روی متهمِ تازه اجرا می‌شود", key="stale-verdict")
     else:
         sc.r.ok("دکمه‌ی حکمِ کهنه اثری ندارد")
 
 
-def p_dead_suspect(sc: Scene):
-    goat = sc.role("سپر بلا")
+def p_suspect_immune(sc: Scene):
+    """متهمِ داخل بازجویی در بازداشت است؛ قاتل نباید بتواند او را هدف بگیرد."""
     killer = sc.role("قاتل")
-    if not goat:
+    x = sc.citizen(killer)
+    sc.interrogate(x)
+    if sc.g.s.suspect_uid != x.uid or not sc.g.s.players[killer.uid].free:
         return False
-    sc.interrogate(goat)
-    if sc.g.s.suspect_uid != goat.uid:
+    if sc.offered(killer, x):
+        sc.r.find("بالا", "قواعد", "متهمِ داخل بازجویی هدفِ قتل پیشنهاد می‌شود", key="suspect-killable")
+    else:
+        sc.r.ok("بازداشتی از حمله‌ی شبانه در امان است")
+
+
+def p_officer_suspect(sc: Scene):
+    """گروه بازجو را به بازجویی می‌فرستد: او نباید خودش حکم بدهد؛ هیئت منصفه خودکار تشکیل شود."""
+    off = sc.s.agent(sc.g.s.officer_uid)
+    sc.interrogate(off)
+    if sc.g.s.suspect_uid != off.uid:
         return False
-    sc.act(killer, goat)                               # قاتل متهمِ داخل بازجویی را می‌کشد
     sc.dawn()
-    if sc.stormy() or sc.g.s.players[goat.uid].alive:
+    if sc.g.s.phase is Phase.END:
         return False
-    r = sc.verdict(1)
-    if r and r.ok:
-        sc.r.find("بالا", "بازجویی", "برای متهمی که شب کشته شده حکم حبس صادر می‌شود",
-                  "officer_verdict نمی‌سنجد متهم زنده است؛ مرده به حبس موقت می‌رود و "
-                  "_advance_custody بعد از ۲ شب به او «حبس ابد» می‌دهد.", key="dead-suspect-verdict")
-    for _ in range(3):
-        if sc.g.s.phase is Phase.END:
-            break
-        sc.no_vote_night()
-        sc.dawn()
-    p = sc.g.s.players[goat.uid]
-    if (sc.g.s.winner or "").startswith("سپر"):
-        sc.r.find("بحرانی", "قواعد برد", "سپر بلای مرده با «حبس ابدِ پس از مرگ» برنده می‌شود",
-                  f"{goat.name} (سپر بلا) در شبِ بازجویی کشته شد، صبح حکم حبس گرفت و دو شب بعد — در حالی که "
-                  "مرده بود — «حبس ابد» شد؛ _check_win فقط custody را نگاه می‌کند نه alive، و بازی را به نام "
-                  "سپر بلا تمام کرد.", key="dead-scapegoat-wins")
-    elif p.custody is Custody.LIFE_JAIL and not p.alive:
-        sc.r.find("متوسط", "بازداشت", "بازیکنِ مرده حبس ابد می‌گیرد", key="dead-life-jail")
+    m = off.tap(cb_is(f"ver:{off.uid}:0"), ("group",), depth=60)
+    if m and m.ok and sc.g.s.players[off.uid].custody is Custody.FREE and not sc.g.s.players[off.uid].jury_used:
+        sc.r.find("بحرانی", "بازجویی", "بازجو وقتی خودش متهم است، خودش را تبرئه می‌کند",
+                  key="officer-self-acquit")
+    elif sc.g.s.phase is Phase.JURY and sc.g.s.auto_jury:
+        sc.r.ok("بازجوی متهم → هیئت منصفه‌ی خودکار")
+    else:
+        sc.r.find("بالا", "بازجویی", "وقتی بازجو خودش متهم است هیئت منصفه تشکیل نشد",
+                  f"فاز {sc.g.s.phase.value}")
+
+
+def p_dead_officer(sc: Scene):
+    """قاتل بازجو را می‌کشد، در حالی که متهمی منتظر حکم است."""
+    killer = sc.role("قاتل")
+    off = sc.s.agent(sc.g.s.officer_uid)
+    x = sc.citizen(killer)
+    sc.interrogate(x)
+    if sc.g.s.suspect_uid != x.uid or not sc.g.s.players[killer.uid].free:
+        return False
+    sc.act(killer, off)
+    sc.dawn()
+    if sc.stormy() or sc.g.s.players[off.uid].alive or sc.g.s.phase is Phase.END:
+        return False
+    m = off.tap(cb_is(f"ver:{x.uid}:1"), ("group",), depth=60)
+    if m and m.ok:
+        sc.r.find("بالا", "بازجویی", "بازجوی حذف‌شده هنوز حکم صادر می‌کند", key="dead-officer-verdict")
+    if sc.g.s.phase is Phase.JURY:
+        sc.r.ok("بازجوی کشته → هیئت منصفه‌ی خودکار")
+        for a in sc.s.agents:
+            hit = a.find(cb_is("jury:0"), ("group",), 6)
+            if hit and sc.g.s.players[a.uid].can_vote:
+                a.press(*hit)
+        sc.host.tap(cb_is("closejury"), ("group",), depth=6)
+        if sc.g.s.players[x.uid].custody is Custody.TEMP_JAIL:
+            sc.r.ok("هیئت منصفه‌ی خودکار: تبرئه‌نکردن = حبس موقت")
+        else:
+            sc.r.find("بالا", "هیئت منصفه", "هیئت منصفه‌ی خودکار تبرئه نکرد ولی متهم حبس نشد",
+                      sc.g.s.players[x.uid].custody.value)
+    else:
+        sc.r.find("بالا", "بازجویی", "بازجو کشته شد و هیئت منصفه تشکیل نشد", sc.g.s.phase.value)
 
 
 def p_sos_suspect(sc: Scene):
@@ -331,28 +370,24 @@ def p_sos_suspect(sc: Scene):
             hit = a.find(cb_is(f"sos:{x.uid}"), ("dm",), 1)
             if hit:
                 a.press(*hit)
-    if sc.g.s.phase is Phase.INTERROGATION and sc.g.s.players[x.uid].custody is Custody.TEMP_JAIL:
+    if sc.g.s.players[x.uid].custody is Custody.TEMP_JAIL:
         sc.r.find("متوسط", "قواعد", "رای اضطراری وسط شب روی متهمِ داخل بازجویی اجرا می‌شود",
-                  "g.sos فاز را نمی‌سنجد؛ متهم وسط شبِ بازجویی به حبس موقت رفت ولی suspect_uid هنوز اوست "
-                  "و custody_nights صفر شد، پس صبح بازجو «حکم بعد از گذشتن یک شب…» می‌گیرد.",
                   key="sos-suspect")
+    else:
+        sc.r.ok("رای اضطراری: فقط روز و فقط روی بازیکن آزاد")
 
 
 def p_sos_lobby(sc: Scene):
-    """رای اضطراری پیش از شروع بازی (در لابی)."""
     victim = sc.s.agents[-1]
-    backers = [a for a in sc.s.agents if a is not victim]
-    for a in backers:
+    for a in sc.s.agents:
+        if a is victim:
+            continue
         a.navigate("sos")
         hit = a.find(cb_is(f"sos:{victim.uid}"), ("dm",), 1)
         if hit:
             a.press(*hit)
-    p = sc.g.s.players[victim.uid]
-    if p.custody is Custody.TEMP_JAIL:
-        sc.r.find("بالا", "قواعد", "«🚨 رای اضطراری» در لابی کار می‌کند و بازیکن زندانی وارد بازی می‌شود",
-                  f"پیش از شروع، {len(backers)} نفر رای اضطراری علیه {victim.name} دادند؛ او پیش از پخش "
-                  "نقش‌ها به حبس موقت رفت و start() بازداشت را پاک نمی‌کند. g.sos فاز را نمی‌سنجد "
-                  "(در شب، هیئت منصفه و حتی بعد از پایان هم کار می‌کند).", key="sos-lobby")
+    if sc.g.s.players[victim.uid].custody is Custody.TEMP_JAIL:
+        sc.r.find("بالا", "قواعد", "«🚨 رای اضطراری» در لابی کار می‌کند", key="sos-lobby")
     else:
         sc.r.ok("رای اضطراری در لابی رد شد")
 
@@ -365,11 +400,35 @@ def p_defense_visible(sc: Scene):
     x.navigate("defense")
     x.say("من آن شب در بیمارستان کشیک بودم.")
     grp = "\n".join(m.text for m in sc.s.tg.inbox(sc.s.group))
-    if "آخرین دفاع" not in grp and sc.g.s.defense_text:
-        sc.r.find("پایین", "رابط", "«آخرین دفاعِ» متهم هرگز به گروه نمی‌رسد",
-                  "دفاع با دکمه‌ی پیوی فرستاده می‌شود و پاسخش («🗣️ آخرین دفاع …») در همان پیوی می‌ماند؛ "
-                  "فقط بازجو آن را زیر جواب پرسش‌ها می‌بیند. ایده‌ی ۲ («آخرین دفاع») برای شهر دیده نمی‌شود.",
-                  key="defense-hidden")
+    if "آخرین دفاع" in grp and "بیمارستان" in grp:
+        sc.r.ok("آخرین دفاع متهم در گروه اعلام می‌شود")
+    else:
+        sc.r.find("پایین", "رابط", "«آخرین دفاعِ» متهم به گروه نمی‌رسد", key="defense-hidden")
+
+
+def p_two_way_interrogation(sc: Scene):
+    x = sc.citizen()
+    sc.interrogate(x)
+    if sc.g.s.suspect_uid != x.uid or not sc.g.officer_can_judge():
+        return False
+    off = sc.s.agent(sc.g.s.officer_uid)
+    off.navigate("ask")
+    off.say("ساعت یازده کجا بودی؟")
+    hit = x.find(cb_is("answer"), ("dm",), 3)
+    if not hit or "یازده" not in hit[0].text:
+        sc.r.find("بالا", "بازجویی", "پرسش بازجو به پیوی متهم نرسید", key="ask-not-delivered")
+        return None
+    x.press(*hit)
+    x.say("در کتابخانه بودم.")
+    back = sc.s.tg.last(off.uid)
+    if back and "کتابخانه" in back.text:
+        sc.r.ok("بازجویی دونفره: پرسش → متهم → جواب → بازجو")
+    else:
+        sc.r.find("بالا", "بازجویی", "جواب متهم به بازجو نرسید", key="answer-not-delivered")
+    bystander = sc.citizen(x)
+    m = bystander.navigate("answer")
+    if m is not None and m.ok:
+        sc.r.find("متوسط", "بازجویی", "کسی غیر از متهم می‌تواند جواب بدهد", key="answer-authz")
 
 
 # ───────────────────────── توانایی‌ها ─────────────────────────
@@ -386,19 +445,35 @@ def p_doctor_repeat(sc: Scene):
     if sc.g.s.phase is not Phase.NIGHT or not sc.g.s.players[a.uid].in_game:
         return False
     first = sc.offered(doc, a)
-    sc.act(doc, b)                                     # اول کس دیگری را می‌زند…
-    again = sc.offered(doc, a)                         # …بعد هدفِ دیشب دوباره پیشنهاد می‌شود؟
-    if not first and again:
-        m = sc.act(doc, a)
-        if m and m.ok and "ثبت" in m.text:
-            sc.r.find("متوسط", "توانایی‌ها", "قید «دو شب پیاپی» پزشک با عوض کردن هدف دور می‌خورد",
-                      "شب دوم دکمه‌ی هدفِ دیشب نبود؛ پزشک اول کس دیگری را زد، بعد پنل دوباره هدفِ "
-                      "دیشب را نشان داد و ثبت شد (شرط «protect:{uid} not in night_actions»).",
-                      key="doctor-repeat")
-    elif first:
-        sc.r.find("متوسط", "توانایی‌ها", "پزشک دو شب پشت‌سرهم یک نفر را نجات می‌دهد", key="doctor-repeat-direct")
+    sc.act(doc, b)
+    again = sc.offered(doc, a)
+    if first or again:
+        sc.r.find("متوسط", "توانایی‌ها", "پزشک دو شب پشت‌سرهم یک نفر را نجات می‌دهد", key="doctor-repeat")
     else:
         sc.r.ok("پزشک: منع دو شب پیاپی")
+
+
+def p_doctor_self_once(sc: Scene):
+    doc = sc.role("پزشک")
+    if not doc:
+        return False
+    if not sc.offered(doc, doc):
+        sc.r.find("متوسط", "توانایی‌ها", "پزشک حتی یک بار هم نمی‌تواند خودش را نجات دهد", key="doc-self")
+        return None
+    sc.act(doc, doc)
+    sc.dawn()
+    sc.no_vote_night()
+    sc.no_vote_night() if sc.g.s.phase is Phase.MORNING else None
+    if sc.g.s.phase is not Phase.NIGHT:
+        return False
+    sc.dawn()                                          # شبِ فاصله (قید دو شب پیاپی)
+    sc.no_vote_night()
+    if sc.g.s.phase is not Phase.NIGHT or not sc.g.s.players[doc.uid].in_game:
+        return False
+    if sc.offered(doc, doc):
+        sc.r.find("متوسط", "توانایی‌ها", "پزشک بیش از یک بار خودش را نجات می‌دهد", key="doc-self-twice")
+    else:
+        sc.r.ok("پزشک: خودنجاتی فقط یک بار")
 
 
 def p_detective_repeat(sc: Scene):
@@ -411,29 +486,68 @@ def p_detective_repeat(sc: Scene):
     if sc.g.s.phase is not Phase.NIGHT or not sc.g.s.players[a.uid].in_game:
         return False
     if sc.offered(det, a):
-        sc.r.find("پایین", "توانایی‌ها", "کول‌داونِ هدف کارآگاه عمل نمی‌کند",
-                  "PLAN.md (بهبود ۱۲): «کول‌داون هدف کارآگاه». _inv_last داخل night_actions نگه داشته "
-                  "می‌شود که سحر پاک می‌شود؛ شب بعد همان نفر دوباره پیشنهاد و پذیرفته می‌شود.",
-                  key="detective-repeat")
+        sc.r.find("پایین", "توانایی‌ها", "کول‌داونِ هدف کارآگاه عمل نمی‌کند", key="detective-repeat")
     else:
         sc.r.ok("کارآگاه: کول‌داون هدف")
+
+
+def p_team_target(sc: Scene):
+    killer, acc = sc.role("قاتل"), sc.role("همدست")
+    if not acc:
+        return False
+    if sc.offered(killer, acc):
+        sc.r.find("متوسط", "قواعد", "قاتل می‌تواند هم‌تیمی‌اش را بکشد", key="team-kill")
+    else:
+        sc.r.ok("قاتل هم‌تیمی را هدف نمی‌گیرد")
 
 
 def p_poison_save(sc: Scene):
     poisoner, doc = sc.role("سم‌ساز"), sc.role("پزشک")
     if not (poisoner and doc):
         return False
-    t = sc.citizen(poisoner, doc, sc.role("قاتل"), sc.role("جانی سریالی"))
+    t = sc.citizen(poisoner, doc, sc.role("قاتل"))
     sc.act(poisoner, t)
     for night in range(3):
         if night == 2:
             sc.act(doc, t)                             # شبِ سررسید: پزشک می‌رسد
         sc.dawn()
         if sc.stormy() or sc.g.s.phase is Phase.END or not sc.g.s.players[t.uid].alive:
-            return False                              # کسی دیگر او را کشت؛ بذر بعدی
+            return False
         if night < 2:
             sc.no_vote_night()
     sc.r.ok("سم: نجات پزشک در شبِ سررسید")
+
+
+def p_heir(sc: Scene):
+    """قاتل حبس ابد می‌گیرد؛ چاقو باید به همدست برسد و او شب بعد بتواند بکشد."""
+    killer, acc = sc.role("قاتل"), sc.role("همدست")
+    if not acc:
+        return False
+    sc.interrogate(killer)
+    if sc.g.s.suspect_uid != killer.uid:
+        return False
+    sc.dawn()
+    if sc.g.s.phase is not Phase.MORNING or not sc.g.officer_can_judge():
+        return False
+    sc.verdict(1)
+    for _ in range(2):
+        if sc.g.s.phase is Phase.END:
+            return False
+        sc.no_vote_night()
+        sc.dawn()
+    if sc.g.s.players[killer.uid].custody is not Custody.LIFE_JAIL or sc.g.s.phase is Phase.END:
+        return False
+    acc.read_dm()
+    if not acc.heir:
+        sc.r.find("بالا", "توانایی‌ها", "جانشینِ قاتل خبردار نشد", key="heir-note")
+        return None
+    sc.no_vote_night()
+    victim = sc.citizen(acc)
+    m = sc.act(acc, victim)
+    if m and m.ok and "ثبت" in m.text:
+        sc.r.ok("جانشینی قاتل: همدست چاقو را گرفت")
+    else:
+        sc.r.find("بالا", "توانایی‌ها", "جانشینِ قاتل نمی‌تواند بکشد", m.text if m else "", key="heir-kill")
 
 
 def p_hunter_life_jail(sc: Scene):
@@ -450,7 +564,7 @@ def p_hunter_life_jail(sc: Scene):
     if sc.g.s.suspect_uid != hunter.uid:
         return False
     sc.dawn()
-    if sc.g.s.phase is Phase.END or not sc.g.s.players[hunter.uid].alive:
+    if sc.g.s.phase is not Phase.MORNING or not sc.g.officer_can_judge():
         return False
     sc.verdict(1)
     for _ in range(2):
@@ -459,24 +573,24 @@ def p_hunter_life_jail(sc: Scene):
         sc.no_vote_night()
         sc.dawn()
     p, v = sc.g.s.players[hunter.uid], sc.g.s.players[victim.uid]
-    if p.custody is not Custody.LIFE_JAIL or not v.alive:
+    if p.custody is not Custody.LIFE_JAIL:
         return False
     if v.in_game:
-        sc.r.find("متوسط", "توانایی‌ها", "شلیک آخر شکارچی با حبس ابد اجرا نمی‌شود",
-                  f"متن نقش: «اگر حبس ابد بخورد یا کشته شود، یک نفر را با خود می‌برد». {hunter.name} "
-                  f"هدفش را {victim.name} گذاشت، حبس ابد گرفت و {victim.name} هنوز در بازی است؛ "
-                  "شلیک فقط در مسیر مرگ شبانه (resolve_night) پیاده شده.", key="hunter-lifejail")
+        sc.r.find("متوسط", "توانایی‌ها", "شلیک آخر شکارچی با حبس ابد اجرا نمی‌شود", key="hunter-lifejail")
     else:
         sc.r.ok("شکارچی: شلیک آخر با حبس ابد")
 
 
 def p_hunter_button(sc: Scene):
-    a = sc.s.agents[1]
-    m = a.navigate("hunter")
-    if m is not None and not m.ok:
-        sc.r.find("پایین", "دکمه‌ها", "دکمه‌ی «🏹 هدف شلیک آخر» در منوی دکمه‌ها به بن‌بست می‌رسد",
-                  f"پاسخ: «{m.text}». h_hunter بدون آرگومان int('') می‌کند؛ باید مثل بقیه فهرست "
-                  "بازیکن‌ها را نشان دهد (و برای غیرشکارچی بگوید «فقط شکارچی…»).", key="hunter-button")
+    hunter = sc.role("شکارچی")
+    other = next(a for a in sc.s.agents if a is not hunter)
+    m = other.navigate("hunter")
+    if m is not None and not m.ok and "ورودی نامعتبر" in m.text:
+        sc.r.find("پایین", "دکمه‌ها", "دکمه‌ی «🏹 هدف شلیک آخر» به بن‌بست می‌رسد", key="hunter-button")
+    if hunter:
+        m = hunter.navigate("hunter")
+        if m and m.ok and hunter.buttons_named(m, "hunter:"):
+            sc.r.ok("دکمه‌ی شکارچی در منو فهرست هدف‌ها را می‌دهد")
 
 
 # ───────────────────────── برد و امتیاز ─────────────────────────
@@ -491,19 +605,16 @@ def p_serial_killer_win(sc: Scene):
             p.alive = False
     sc.act(sk, victim)
     sc.dawn()
-    if sc.stormy():
-        return False
     if not (sc.g.s.winner or "").startswith("جانی"):
-        sc.r.find("بالا", "قواعد برد", "جانی سریالیِ تنها بازمانده برنده اعلام نشد", sc.g.s.winner or "—")
+        sc.r.find("بالا", "قواعد برد", "جانی سریالی در دوئل یک‌به‌یک برنده اعلام نشد", sc.g.s.winner or "—")
         return None
     sc.r.ok("شرط برد: جانی سریالی")
     xp = sc.g.s.players[sk.uid].xp
     if xp < 120:
-        sc.r.find("بالا", "امتیاز", "جانی سریالی برنده می‌شود ولی امتیاز و آمارِ باخت می‌گیرد",
-                  f"برنده «{sc.g.s.winner}» — XP جانی: {xp} (برنده ۱۲۰ می‌گیرد). _payout و "
-                  "db.record_results برد را با winner.startswith(align.value[:3]) می‌سنجند؛ "
-                  "«جانی…» با «خنث» شروع نمی‌شود، پس برد در جدول users/outcomes هم باخت ثبت می‌شود.",
-                  key="xp-win:جانی سریالی")
+        sc.r.find("بالا", "امتیاز", "جانی سریالی برنده می‌شود ولی امتیاز باخت می‌گیرد",
+                  f"XP جانی: {xp}", key="xp-win:جانی سریالی")
+    else:
+        sc.r.ok("امتیاز: برنده‌ی خنثی XP برد می‌گیرد")
 
 
 def p_sk_city_win(sc: Scene):
@@ -511,7 +622,7 @@ def p_sk_city_win(sc: Scene):
     if not sk:
         return False
     killers = [a for a in sc.s.agents if ROLES[a.role].align is Align.KILLER]
-    # چیدمان صحنه: دو قاتل از قبل حبس ابد گرفته‌اند؛ آخرین قاتل با رای و حکم واقعی می‌رود
+    # چیدمان صحنه: همه‌ی قاتل‌ها جز یکی از قبل حبس ابد گرفته‌اند
     for a in killers[1:]:
         sc.g.s.players[a.uid].custody = Custody.LIFE_JAIL
     last = killers[0]
@@ -519,7 +630,7 @@ def p_sk_city_win(sc: Scene):
     if sc.g.s.suspect_uid != last.uid:
         return False
     sc.dawn()
-    if sc.g.s.phase is Phase.END:
+    if sc.g.s.phase is not Phase.MORNING or not sc.g.officer_can_judge():
         return False
     sc.verdict(1)
     for _ in range(2):
@@ -527,13 +638,30 @@ def p_sk_city_win(sc: Scene):
             break
         sc.no_vote_night()
         sc.dawn()
+    if sc.g.s.players[last.uid].custody is not Custody.LIFE_JAIL:
+        return False
+    if (sc.g.s.winner or "").startswith("شهر") and sc.g.s.players[sk.uid].in_game:
+        sc.r.find("متوسط", "قواعد برد", "شهر برد در حالی که جانی سریالی زنده است", key="sk-alive-city-win")
+    elif sc.g.s.players[sk.uid].in_game:
+        sc.r.ok("جانی زنده ⇒ شهر هنوز نبرده")
+
+
+def p_survivor_cowin(sc: Scene):
+    """بقال محله اگر تا پایان در بازی بماند، کنار برنده می‌برد."""
+    grocer = sc.role("بقال محله")
+    if not grocer:
+        return False
+    for a in sc.s.agents:                          # چیدمان صحنه: قاتل‌ها حبس ابد
+        if ROLES[a.role].align is Align.KILLER or a.role == "جانی سریالی":
+            sc.g.s.players[a.uid].custody = Custody.LIFE_JAIL
+    sc.dawn()
     if not (sc.g.s.winner or "").startswith("شهر"):
         return False
-    if sc.g.s.players[sk.uid].in_game:
-        sc.r.find("متوسط", "قواعد برد", "شهر برد در حالی که جانی سریالی زنده است",
-                  "متن نقش جانی: «در پایان باید تنها بازمانده باشد». وقتی آخرین قاتل حبس ابد می‌گیرد، "
-                  "بازی فوراً «برد شهر» اعلام می‌شود و جانیِ زنده (که هنوز هر شب می‌کشد) نادیده گرفته "
-                  "می‌شود.", key="sk-alive-city-win")
+    m = sc.host.tap(cb_is("end"), ("group",), depth=10)
+    if sc.g.s.players[grocer.uid].xp >= 120 and m and "کنار برنده" in m.text:
+        sc.r.ok("بقال/قاچاقچی: برد با زنده ماندن")
+    else:
+        sc.r.find("متوسط", "قواعد برد", "بقالِ زنده کنار برنده حساب نشد", key="survivor-cowin")
 
 
 def p_vote_edit_xp(sc: Scene):
@@ -544,15 +672,56 @@ def p_vote_edit_xp(sc: Scene):
         return False
     sc.discuss_and_vote()
     other = sc.citizen(killer, voter)
-    for _ in range(4):                                 # نظرش را چند بار عوض می‌کند
+    for _ in range(4):
         voter.tap(cb_is(f"vote:{killer.uid}"), ("group",), depth=60)
         voter.tap(cb_is(f"vote:{other.uid}"), ("group",), depth=60)
     voter.tap(cb_is(f"vote:{killer.uid}"), ("group",), depth=60)
+    sc.s.tg.clock.advance((sc.g.remaining() or 0) + 1)
+    sc.close_vote()
     n = sum(1 for _d, v, t in sc.g.s.vote_history if v == voter.uid and t == killer.uid)
     if n > 1:
-        sc.r.find("پایین", "امتیاز", "هر ویرایش رای یک «رای درست» جدا حساب می‌شود",
-                  f"{voter.name} در یک رای‌گیری ۵ بار روی قاتل زد → {n} ردیف در vote_history؛ هر کدام "
-                  "۱۵ XP و یک hit در جدول accuracy. با جابه‌جا کردن رای می‌شود XP ساخت.", key="vote-edit-xp")
+        sc.r.find("پایین", "امتیاز", "هر ویرایش رای یک «رای درست» جدا حساب می‌شود", key="vote-edit-xp")
+    else:
+        sc.r.ok("دقت رای: فقط رای نهایی هر دور")
+
+
+def p_abstain_and_tie(sc: Scene):
+    sc.dawn()
+    if sc.g.s.phase is not Phase.MORNING:
+        return False
+    sc.discuss_and_vote()
+    voters = [a for a in sc.s.agents if sc.g.s.players[a.uid].can_vote]
+    if len(voters) < 5:
+        return False
+    a, b = voters[0], voters[1]
+    voters[2].tap(cb_is(f"vote:{a.uid}"), ("group",), depth=60)
+    voters[3].tap(cb_is(f"vote:{b.uid}"), ("group",), depth=60)
+    r = voters[4].tap(cb_is("vote:0"), ("group",), depth=60)
+    if r and r.ok:
+        sc.r.ok("رای ممتنع ثبت می‌شود")
+    else:
+        sc.r.find("متوسط", "دکمه‌ها", "دکمه‌ی «⏭️ رای ممتنع» خطا می‌دهد", key="abstain")
+    for v in voters[5:] + voters[:2]:
+        v.tap(cb_is("vote:0"), ("group",), depth=60)
+    m = sc.close_vote()
+    if sc.g.s.phase is Phase.VOTE and m and "دور دوم" in m.text:
+        kb = [x["callback_data"] for x in m.buttons() if x["callback_data"].startswith("vote:")]
+        if set(kb) == {f"vote:{a.uid}", f"vote:{b.uid}", "vote:0"}:
+            sc.r.ok("تساوی: دور دوم فقط بین نفرات مساوی")
+        else:
+            sc.r.find("متوسط", "رابط", "کیبورد دور دوم همه را نشان می‌دهد", str(kb), key="tie-kb")
+        c = next(x for x in voters if x not in (a, b))
+        r = c.find(cb_starts("vote:"), ("group",), 60)
+        other = next((u.uid for u in voters if u not in (a, b, c)), None)
+        if other:
+            bad = sc.g
+            try:
+                bad.vote(c.uid, other)
+                sc.r.find("متوسط", "قواعد", "در دور دوم می‌شود به غیرنامزد رای داد", key="tie-outsider")
+            except engine.RuleError:
+                sc.r.ok("تساوی: رای به غیرنامزد رد می‌شود")
+    else:
+        sc.r.find("متوسط", "رابط", "تساوی به دور دوم نرفت", m.text if m else "", key="tie-round")
 
 
 # ───────────────────────── تایمر و پایداری ─────────────────────────
@@ -560,14 +729,16 @@ def p_morning_timer(sc: Scene):
     sc.dawn()
     if sc.g.s.phase is not Phase.MORNING:
         return False
-    for _ in range(240):                               # یک ساعت، هر ۱۵ ثانیه tick
+    for _ in range(40):
         sc.s.tg.clock.advance(15)
         sc.s.tg.timer_job()
+        if sc.g.s.phase is not Phase.MORNING:
+            break
     if sc.g.s.phase is Phase.MORNING:
         sc.r.find("متوسط", "تایمر", "فاز صبح مهلت ندارد؛ میزِ بی‌میزبان تا ابد در صبح می‌ماند",
-                  "PHASE_SECONDS برای «صبح» (و «هیئت منصفه») مقداری ندارد و resolve_night مهلت را None "
-                  "می‌کند؛ اگر کسی «💬 گفتگو» را نزند، تایمر یک ساعت بعد هم بازی را جلو نبرده بود.",
                   key="morning-no-timer")
+    else:
+        sc.r.ok("تایمر صبح: گفتگو خودکار باز شد")
 
 
 def p_restart(sc: Scene):
@@ -583,6 +754,14 @@ def p_restart(sc: Scene):
     sc.s.play()
     if g.s.phase is Phase.END:
         sc.r.ok("ری‌استارت وسط بازی و ادامه تا پایان")
+        GAMES.clear()                                  # ری‌استارتِ دوم، بعد از پایان
+        bot.restore_games()
+        m = sc.host.tap(cb_is("end"), ("group",), depth=20)
+        if m and m.ok and "پایان" in m.text:
+            sc.r.ok("افشای پایانی بعد از ری‌استارت")
+        else:
+            sc.r.find("متوسط", "پایداری", "بعد از ری‌استارت، افشای بازیِ تمام‌شده در دسترس نیست",
+                      key="reveal-after-restart")
 
 
 def p_rematch(sc: Scene):
@@ -601,38 +780,68 @@ def p_rematch(sc: Scene):
     for a in sc.s.agents:
         a.tap(lambda b: "start=ready_" in b.get("url", ""), ("group",), depth=4)
     sc.host.tap(cb_is("startgame"), ("group",), depth=4)
-    if g.s.phase is Phase.NIGHT:
-        sc.r.ok("دور دوباره با همان ترکیب")
+    if g.s.phase is Phase.NIGHT and g.scenario == sc.s.scenario:
+        sc.r.ok("دور دوباره با همان ترکیب و سناریو")
     else:
         sc.r.find("متوسط", "میزبانی", "دور دوباره شروع نشد", sc.s.tg.last(sc.s.group).text[:120])
 
 
+def p_day_cap(sc: Scene):
+    """اگر هیچ‌کس حذف نشود، بازی تا ابد نمی‌ماند (سقف روز)."""
+    old = engine.MAX_DAYS
+    engine.MAX_DAYS = 3
+    try:
+        for _ in range(8):
+            if sc.g.s.phase is Phase.END:
+                break
+            if sc.g.s.phase in (Phase.NIGHT, Phase.INTERROGATION):
+                sc.dawn()                              # هیچ‌کس اکشن نمی‌دهد
+            else:
+                sc.no_vote_night()
+        if (sc.g.s.winner or "").startswith("بدون برنده"):
+            sc.r.ok("سقف روز: بن‌بست بدون برنده")
+        else:
+            sc.r.find("متوسط", "جریان بازی", "سقف روز بازیِ بی‌حذف را تمام نکرد",
+                      f"روز {sc.g.s.day}، برنده {sc.g.s.winner}", key="day-cap")
+    finally:
+        engine.MAX_DAYS = old
+
+
 PROBES = [
-    ("قاتل شب را زود می‌بندد", p_early_dawn, 6),
-    ("غریبه/مرده هیئت منصفه می‌خواهد", p_outsider_jury, 6),
-    ("غریبه در تفسیر مدرک", p_outsider_interp, 5),
-    ("کاربر مسدود", p_ban, 5),
-    ("توقف و ادامه", p_pause, 5),
-    ("دکمه‌ی حکمِ کهنه", p_stale_verdict, 7),
-    ("متهمِ کشته‌شده حکم می‌گیرد", p_dead_suspect, 6),
-    ("رای اضطراری روی متهم", p_sos_suspect, 6),
-    ("آخرین دفاع متهم", p_defense_visible, 5),
-    ("پزشک دو شب پیاپی", p_doctor_repeat, 5),
-    ("کارآگاه دو شب پیاپی", p_detective_repeat, 5),
-    ("سم + پزشکِ سر موعد", p_poison_save, 10),
-    ("شکارچی حبس ابد می‌گیرد", p_hunter_life_jail, 9),
-    ("دکمه‌ی شکارچی در منو", p_hunter_button, 4),
-    ("جانی سریالی تنها بازمانده", p_serial_killer_win, 10),
-    ("جانی زنده، شهر برنده", p_sk_city_win, 10),
-    ("ویرایش رای و XP", p_vote_edit_xp, 5),
-    ("صبح بدون تایمر", p_morning_timer, 5),
-    ("ری‌استارت وسط بازی", p_restart, 7),
-    ("دور دوباره", p_rematch, 5),
+    ("قاتل شب را زود می‌بندد", p_early_dawn, 6, "classic"),
+    ("غریبه/مرده هیئت منصفه می‌خواهد", p_outsider_jury, 6, "classic"),
+    ("غریبه در تفسیر مدرک", p_outsider_interp, 5, "classic"),
+    ("کاربر مسدود", p_ban, 5, "classic"),
+    ("توقف و ادامه", p_pause, 5, "classic"),
+    ("دکمه‌ی حکمِ کهنه", p_stale_verdict, 7, "classic"),
+    ("متهم در بازداشت در امان است", p_suspect_immune, 6, "classic"),
+    ("بازجو خودش متهم است", p_officer_suspect, 6, "classic"),
+    ("بازجو کشته می‌شود", p_dead_officer, 7, "classic"),
+    ("رای اضطراری روی متهم", p_sos_suspect, 6, "classic"),
+    ("آخرین دفاع متهم", p_defense_visible, 5, "classic"),
+    ("بازجویی دونفره", p_two_way_interrogation, 6, "classic"),
+    ("پزشک دو شب پیاپی", p_doctor_repeat, 5, "classic"),
+    ("پزشک خودش را یک بار", p_doctor_self_once, 5, "classic"),
+    ("کارآگاه دو شب پیاپی", p_detective_repeat, 5, "classic"),
+    ("قاتل و هم‌تیمی", p_team_target, 7, "classic"),
+    ("سم + پزشکِ سر موعد", p_poison_save, 10, "classic"),
+    ("جانشینی قاتل", p_heir, 7, "classic"),
+    ("شکارچی حبس ابد می‌گیرد", p_hunter_life_jail, 9, "classic"),
+    ("دکمه‌ی شکارچی در منو", p_hunter_button, 9, "classic"),
+    ("جانی سریالی تنها بازمانده", p_serial_killer_win, 10, "chaos"),
+    ("جانی زنده، شهر برنده؟", p_sk_city_win, 10, "chaos"),
+    ("بقال زنده کنار برنده", p_survivor_cowin, 8, "chaos"),
+    ("ویرایش رای و XP", p_vote_edit_xp, 5, "classic"),
+    ("ممتنع و مرگ ناگهانی", p_abstain_and_tie, 7, "classic"),
+    ("صبح با تایمر", p_morning_timer, 5, "classic"),
+    ("ری‌استارت وسط بازی", p_restart, 7, "court"),
+    ("دور دوباره", p_rematch, 5, "court"),
+    ("سقف روز", p_day_cap, 5, "classic"),
 ]
 
 
 def run_probes(report: Report, rb) -> None:
-    for title, fn, n in PROBES:
-        _try(report, rb, title, fn, n)
+    for title, fn, n, scen in PROBES:
+        _try(report, rb, title, fn, n, scenario=scen)
     _lobby_only(report, rb, "رای اضطراری در لابی", p_sos_lobby)
     _lobby_only(report, rb, "غیرمیزبان بازی را شروع می‌کند", p_non_host_start)

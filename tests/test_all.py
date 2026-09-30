@@ -373,9 +373,13 @@ def test_finished_game_kept_for_reveal_then_replaceable():
     assert GAMES[710].s.finalized                  # نتیجه ثبت شد
     r = handle("end", 710, 1)                      # /end هنوز کار می‌کند
     assert r["ok"] and "پایان" in r["text"]
-    # اسنپ‌شات پاک شده → ری‌استارت بازیِ تمام‌شده را برنمی‌گرداند
+    # نسخه ۴ (رفع F-12): اسنپ‌شاتِ تمام‌شده می‌ماند تا بعد از ری‌استارت هم افشا ممکن باشد،
+    # ولی به‌عنوان بازیِ «فعال» زنده نمی‌شود و نتیجه‌اش دوباره ثبت نمی‌شود.
     GAMES.clear()
-    assert bot.restore_games() == 0 or 710 not in GAMES
+    bot.restore_games()
+    assert GAMES[710].s.phase is Phase.END and GAMES[710].s.finalized
+    assert 710 not in bot.games_of(1)
+    assert handle("end", 710, 1)["ok"]
     # لابی تازه جای بازی تمام‌شده را می‌گیرد (نشت لابی نداریم)
     handle("new", 710, 1, "Host")
     assert GAMES[710].s.phase is Phase.LOBBY
@@ -607,16 +611,18 @@ def test_detective_expose():                    # ایده ۱۲
         g.expose(other.uid, real)
 
 
-def test_contradiction_detector():              # ایده ۱۳
+def test_contradiction_detector():              # ایده ۱۳ — روی جواب‌های واقعیِ متهم (نسخه ۴)
     g = _game(); g.start(11); g.resolve_night()
     tgt = _first_free(g)
     g.send_to_interrogation(tgt)
-    sus = g.s.players[tgt]
-    sus.stress = 30                             # آرام
-    a1 = g.ask(_officer(g), "کجا بودی؟")
-    sus.stress = 90                             # پانیک → جواب عوض می‌شود
-    a2 = g.ask(_officer(g), "کجا بودی؟")
-    assert "تناقض" in a2
+    assert "متهم" in g.ask(_officer(g), "کجا بودی؟")   # پرسش به متهم رسید
+    q, clash = g.answer(tgt, "خانه بودم")
+    assert q == "کجا بودی؟" and not clash
+    with pytest.raises(RuleError):                    # پرسش بی‌جواب دیگری نیست
+        g.answer(tgt, "باز هم خانه")
+    g.ask(_officer(g), "کجا بودی؟")
+    _q, clash = g.answer(tgt, "سر کار بودم")          # جوابش عوض شد
+    assert clash
 
 
 def test_defense_shown():                       # ایده ۲
@@ -751,13 +757,19 @@ def test_mafia_parity_win():                     # ایده ۴
     assert g.s.winner.startswith("قاتل")
 
 
-def test_doctor_no_self_heal_no_repeat():        # ایده ۱۱
+def test_doctor_self_heal_once_no_repeat():      # ایده ۱۱ — نسخه ۴: خودنجاتی فقط یک بار
     g = _game(6); g.start(4)
     doc = next((p for p in g.s.players.values() if p.role == "پزشک"), None)
     if not doc:
         return
+    g.night_action(doc.uid, doc.uid)              # بارِ اول مجاز است
+    g.resolve_night()
+    assert doc.self_saved
+    g.s.phase = Phase.NIGHT
+    g.s._protect_prev = None                      # فقط قید «یک بار» را می‌سنجیم
     with pytest.raises(RuleError):
-        g.night_action(doc.uid, doc.uid)          # خودنجاتی ممنوع
+        g.night_action(doc.uid, doc.uid)          # بار دوم ممنوع
+    g.s.night_actions.clear()
     a = next(p.uid for p in g.s.alive_players() if p.uid != doc.uid)
     g.night_action(doc.uid, a)
     g.night_action(doc.uid, a)                    # ویرایش روی همان هدف در همان شب مجاز

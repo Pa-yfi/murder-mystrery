@@ -28,8 +28,10 @@ def _role(g, name):
 
 
 def _other(g, *exclude):
+    """هدفِ بی‌طرف: قاتل‌ها هم‌تیمی را هدف نمی‌گیرند (نسخه ۴)، پس از تیم قاتل نیست."""
     ex = {p.uid if hasattr(p, "uid") else p for p in exclude}
-    return next(p.uid for p in g.s.alive_players() if p.uid not in ex)
+    return next(p.uid for p in g.s.alive_players()
+                if p.uid not in ex and p.align is not Align.KILLER)
 
 
 # ---------- باگ ۵: کارآگاه در یک شب همه را استعلام می‌کرد ----------
@@ -148,7 +150,7 @@ def test_watcher_counts_visits():
 
 
 def test_spy_learns_interrogation_target():
-    g = Game(chat_id=2, seed=3)
+    g = Game(chat_id=2, seed=3, scenario="court")   # نسخه ۴: خبرچین در دادگاهِ ۹ نفره است
     for i in range(1, 10):
         g.join(i, f"بازیکن{i}")
     g.start(5)

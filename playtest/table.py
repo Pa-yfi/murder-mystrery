@@ -87,19 +87,42 @@ class Telegram:
     # ── فرستادن ─────────────────────────────────────────
     def _deliver(self, res: dict, chat: int, uid: int, cause: str,
                  on: Optional[Message] = None) -> Message:
-        """مثل telegram_app._reply: خصوصی → پیوی؛ edit روی پیامِ همان دکمه."""
-        text = res.get("text", "")
+        """مثل telegram_app._reply: پاسخ اصلی، بعد صندوق خروجی (پیام به دیگران)."""
+        msg = self._deliver_main(res, chat, uid, cause, on)
+        for m in res.get("outbox") or []:
+            self._put({"text": m["text"], "keyboard": m.get("keyboard"), "ok": True},
+                      m["chat"], f"outbox<{cause}")
+        return msg
+
+    def _put(self, res: dict, dest: int, cause: str) -> Message:
+        self._check(res.get("text", ""), dest, cause, private=dest != self.group)
+        msg = Message(dest, res.get("text", ""), res.get("keyboard"), cause, res.get("ok", True))
+        self.inbox(dest).append(msg)
+        return msg
+
+    def _check(self, text: str, dest: int, cause: str, private: bool) -> None:
         if "خطای داخلی" in text:
             self.report.find("بالا", "کد", f"خطای داخلی پس از «{cause}»",
                              text, key=f"internal:{cause.split(':')[0]}")
-        private = bool(res.get("private"))
-        dest = uid if private else chat
         if dest == self.group and not private:
             for m in PRIVATE_MARKERS:
                 if m in text:
                     self.report.find("بالا", "امنیت", "اطلاعات محرمانه در گروه",
                                      f"«{m}» پس از «{cause}» در گروه دیده شد.",
                                      key=f"leak:{m}")
+
+    def _deliver_main(self, res: dict, chat: int, uid: int, cause: str,
+                      on: Optional[Message] = None) -> Message:
+        """خصوصی → پیوی؛ edit روی پیامِ همان دکمه؛ اعلامِ عمومی از پیوی → گروهِ بازی."""
+        text = res.get("text", "")
+        target = res.get("_target")
+        if res.get("announce") and target and target != chat and not res.get("private"):
+            out = self._put(res, target, cause)
+            self._put({"text": "📣 در گروهِ بازی اعلام شد."}, chat, cause)
+            return out
+        private = bool(res.get("private"))
+        dest = uid if private else chat
+        self._check(text, dest, cause, private)
         if res.get("edit") and on is not None and not private and on.chat == dest:
             on.text, on.keyboard, on.cause, on.ok = text, res.get("keyboard"), cause, res.get("ok", True)
             box = self.inbox(dest)            # پیامِ ویرایش‌شده را ته صف بیاور
@@ -115,7 +138,9 @@ class Telegram:
         target = route_chat(cmd, chat, uid, private)
         if not target:
             return {"ok": False, "text": AMBIGUOUS, "keyboard": None, "private": True}
-        return handle(cmd, target, uid, self.names.get(uid, ""), arg)
+        res = handle(cmd, target, uid, self.names.get(uid, ""), arg)
+        res["_target"] = target               # مثل telegram_app._dispatch
+        return res
 
     def command(self, uid: int, text: str, chat: int) -> Message:
         """دستور تایپ‌شده (فقط /start و /new برای باز کردن منو لازم است)."""
@@ -154,6 +179,7 @@ class Telegram:
         if pending and text:
             chat, cmd = pending
             res = handle(cmd, chat, uid, self.names.get(uid, ""), text)
+            res["_target"] = chat
         else:
             res = self._run("commands", uid, uid, "")
         return self._deliver(res, uid, uid, "text")
@@ -161,6 +187,9 @@ class Telegram:
     def timer_job(self) -> Optional[Message]:
         """مثل _timer_job: هر ۱۵ ثانیه tick؛ فقط وقتی فاز واقعاً جلو رفت پیام می‌دهد."""
         res = handle("tick", self.group)
-        if res.get("advanced"):
-            return self._deliver({"text": res["text"], "keyboard": None}, self.group, 0, "timer")
-        return None
+        out = None
+        if res.get("advanced"):               # پیام کامل + کیبورد، مثل _timer_job
+            out = self._put(res, self.group, "timer")
+        for m in res.get("outbox") or []:
+            self._put({"text": m["text"], "keyboard": m.get("keyboard")}, m["chat"], "outbox<timer")
+        return out

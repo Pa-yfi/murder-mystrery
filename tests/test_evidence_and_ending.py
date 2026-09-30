@@ -40,7 +40,7 @@ def test_no_visits_means_no_footprint_trace():
 def test_victim_visit_count_is_reported():
     g = _started()
     killer = _role(g, "قاتل")
-    victim = next(p for p in g.s.alive_players() if p.uid != killer.uid)
+    victim = next(p for p in g.s.alive_players() if p.align is not Align.KILLER)  # قاتل هم‌تیمی را نمی‌زند
     g.night_action(killer.uid, victim.uid)
     g.resolve_night()
     assert any(victim.name in t and "سر زدند" in t for t in g.s.traces)
@@ -66,7 +66,7 @@ def test_a_saved_victim_leaves_no_crime_scene():
     g = _started()
     killer, doc = _role(g, "قاتل"), _role(g, "پزشک")
     victim = next(p for p in g.s.alive_players()
-                  if p.uid not in (killer.uid, doc.uid))
+                  if p.uid != doc.uid and p.align is not Align.KILLER)
     g.night_action(killer.uid, victim.uid)
     g.night_action(doc.uid, victim.uid)
     g.resolve_night()
@@ -80,7 +80,7 @@ def test_co_visitors_learn_each_other_privately():
     g = _started()
     killer, doc = _role(g, "قاتل"), _role(g, "پزشک")
     victim = next(p for p in g.s.alive_players()
-                  if p.uid not in (killer.uid, doc.uid))
+                  if p.uid != doc.uid and p.align is not Align.KILLER)
     g.night_action(killer.uid, victim.uid)
     g.night_action(doc.uid, victim.uid)
     g.resolve_night()
@@ -115,7 +115,7 @@ def test_frame_shows_up_as_a_plantable_fingerprint():
 def test_traces_reach_the_morning_message():
     g = _started()
     killer = _role(g, "قاتل")
-    victim = next(p for p in g.s.alive_players() if p.uid != killer.uid)
+    victim = next(p for p in g.s.alive_players() if p.align is not Align.KILLER)  # قاتل هم‌تیمی را نمی‌زند
     handle("act", CHAT, killer.uid, arg=str(victim.uid))
     r = handle("dawn", CHAT)
     assert "ردهای دیشب" in r["text"]
@@ -124,7 +124,7 @@ def test_traces_reach_the_morning_message():
 def test_traces_reset_each_night():
     g = _started()
     killer = _role(g, "قاتل")
-    victim = next(p for p in g.s.alive_players() if p.uid != killer.uid)
+    victim = next(p for p in g.s.alive_players() if p.align is not Align.KILLER)  # قاتل هم‌تیمی را نمی‌زند
     g.night_action(killer.uid, victim.uid)
     g.resolve_night()
     assert g.s.traces

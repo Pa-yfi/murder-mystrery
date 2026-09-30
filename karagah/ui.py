@@ -4,8 +4,9 @@
 from __future__ import annotations
 from typing import Dict, List
 from .models import Custody, GameState
-from .roles import ROLES
-from .config import BOT_USERNAME, MIN_PLAYERS, MAX_PLAYERS
+from .roles import ROLES, scenario_card
+from .config import (BOT_USERNAME, MIN_PLAYERS, MAX_PLAYERS, PHASE_SECONDS,
+                     JURY_ACQUIT_PERCENT, MAX_DAYS)
 
 def _fa(n) -> str:
     return str(n).translate(str.maketrans("0123456789", "۰۱۲۳۴۵۶۷۸۹"))
@@ -96,7 +97,8 @@ def owner_kb(chat_id: int) -> Dict:
     return {"inline_keyboard": [
         [{"text": "🙋 منم بازی می‌کنم!", "callback_data": "join"}],
         [{"text": "✅ آماده‌ام (در پیوی)", "url": l["ready"]}],
-        [{"text": "🎬 شروع بازی", "callback_data": "startgame"}],
+        [{"text": "🎬 شروع بازی", "callback_data": "startgame"},
+         {"text": "🎭 سناریو", "callback_data": "scenario"}],
         [{"text": "📨 دعوت دوست", "url": l["share"]},
          {"text": "👥 افزودن به گروه", "url": l["group"]}],
         [{"text": "📋 وضعیت", "callback_data": "status"},
@@ -112,7 +114,8 @@ def lobby_kb(chat_id: int) -> Dict:
         [{"text": "✅ آماده‌ام (در پیوی)", "url": l["ready"]}],
         [{"text": "🎬 شروع بازی", "callback_data": "startgame"},
          {"text": "🚪 خروج از لابی", "callback_data": "leave"}],
-        [{"text": "📨 دعوت دوست", "url": l["share"]}],
+        [{"text": "🎭 سناریو", "callback_data": "scenario"},
+         {"text": "📨 دعوت دوست", "url": l["share"]}],
         [{"text": BACK[0], "callback_data": BACK[1]}, {"text": HOME[0], "callback_data": HOME[1]}],
     ]}
 
@@ -122,15 +125,17 @@ def lobby_screen(s: GameState) -> str:
                       for i, p in enumerate(s.players.values())) or "  — هنوز کسی نیست —"
     return (f"🏛️ *لابی کارآگاه*\n{DIV}\n{names}\n{DIV}\n"
             f"👥 {_fa(len(s.players))}/{_fa(MAX_PLAYERS)} (حداقل {_fa(MIN_PLAYERS)} نفر)\n"
+            + scenario_card(getattr(s, "scenario", "classic"), len(s.players)) + "\n"
             "✅ = پیویِ ربات را باز کرده (نقش محرمانه آنجا می‌رود)\n"
-            "🎬 «🎬 شروع بازی» را بزن.")
+            "🎬 میزبان «🎬 شروع بازی» را بزند.")
 
 
 def role_card(role: str, knows: List[str]) -> str:
     r = ROLES[role]
     extra = "\n".join(f"  • {k}" for k in knows) or "  • اطلاعات ویژه‌ای نداری."
+    goal = f"\n🏆 شرط برد: {r.goal}" if r.goal else ""
     return (f"{r.emoji} *نقش تو: {r.name}*\n{DIV}\n🎯 تیم: {r.align.value}\n"
-            f"📜 {r.desc}\n{DIV}\n🔐 *اطلاعات محرمانه:*\n{extra}\n\n"
+            f"📜 {r.desc}{goal}\n{DIV}\n🔐 *اطلاعات محرمانه:*\n{extra}\n\n"
             f"⚠️ این پیام را به هیچ‌کس نشان نده.")
 
 
@@ -159,19 +164,39 @@ def evidence_card(ev: Dict) -> str:
 
 
 def vote_kb(s: GameState) -> Dict:
-    rows = [[(f"👉 {p.name}", f"vote:{p.uid}")] for p in s.alive_players() if p.can_speak]
+    """در دور دوم (مرگ ناگهانی) فقط نامزدهای مساوی دکمه دارند."""
+    leaders = set(getattr(s, "tie_leaders", []) or []) if s.tie_break else set()
+    rows = [[(f"👉 {p.name}", f"vote:{p.uid}")] for p in s.alive_players()
+            if p.can_speak and (not leaders or p.uid in leaders)]
     rows.append([("⏭️ رای ممتنع", "vote:0")])
     rows.append([("📊 بستن رای‌گیری", "closevote")])
     return kb(rows)
 
 
 def officer_kb(uid: int) -> Dict:
-    # «پرسش» بدون آرگومان می‌رود تا ربات متنِ سؤال را بپرسد؛
-    # قبلاً آیدیِ متهم به‌جای متنِ سؤال فرستاده می‌شد.
+    # «پرسش» بدون آرگومان می‌رود تا ربات متنِ سؤال را بپرسد.
+    # ver:<uid>:<x> — آیدی متهم در دکمه می‌ماند تا دکمه‌ی پیامِ دیروز روی متهمِ امروز اجرا نشود.
     return kb([[("🔦 سرنخ‌ها", "hints"), ("💬 پرسش", "ask")],
                [("🔒 حبس موقت", f"ver:{uid}:1")],
                [("🔓 تایید بی‌گناهی و آزادی", f"ver:{uid}:0")],
                [("🌙 پایان شب", "dawn"), ("🎛️ همه‌ی دکمه‌ها", "commands")]])
+
+
+def morning_kb(s: GameState, officer_can_judge: bool) -> Dict:
+    """دکمه‌های پیام صبح، متناسب با وضعیت: هیئت منصفه / حکم / گفتگو / پایان."""
+    from .models import Phase
+    if s.phase is Phase.END:
+        return kb([[("🏁 پایان و افشای نقش‌ها", "end")]])
+    if s.phase is Phase.JURY:
+        return jury_kb()
+    sus = s.suspect_uid
+    if sus is not None and s.players[sus].custody is Custody.INTERROGATION:
+        rows = []
+        if officer_can_judge:
+            rows += [[("🔒 حبس موقت", f"ver:{sus}:1"), ("🔓 آزادی", f"ver:{sus}:0")]]
+        rows += [[("⚖️ هیئت منصفه", "jury")], [("📋 داشبورد", "dashboard")]]
+        return kb(rows)
+    return kb([[("💬 گفتگو", "discuss")], [("📋 داشبورد", "dashboard")]])
 
 
 def jury_kb() -> Dict:
@@ -180,12 +205,29 @@ def jury_kb() -> Dict:
 
 
 def help_text() -> str:
-    return ("📖 *قوانین حذف سه‌مرحله‌ای*\n" + DIV +
-            "\n۱) 🔦 بازجویی — با رای گروه. فاصله: ۱ شب. بازجو سؤال می‌پرسد و سرنخ مبهم می‌گیرد."
-            "\n۲) 🔒 حبس موقت — با تایید بازجو. فاصله: ۲ شب. آزادی فقط وقتی متهم جدیدی وارد بازجویی شود"
-            " و بازجو بی‌گناهی قبلی را تایید کند."
-            "\n۳) ⛓️ حبس ابد — حذف کامل، بدون افشای نقش. تا پایان بازی معلوم نمی‌شود قاتل بود یا بی‌گناه."
-            "\n\n⚖️ بعد از یک شب بازجویی، بازیکنان می‌توانند هیئت منصفه تشکیل دهند (وکیل به‌تنهایی می‌تواند).")
+    sec = {k: _fa(v) for k, v in PHASE_SECONDS.items()}
+    return ("📖 *قوانین کارآگاه (خلاصه‌ی RULES.md)*\n" + DIV +
+            f"\n🌙 *شب* ({sec['شب']} ثانیه): نقش‌های شبانه در پیوی اکشن می‌دهند. ترتیب: "
+            "پنهان‌کاری → محافظت → پاپوش/سم → قتل → سمِ سررسیده → اطلاعات. شب وقتی تمام می‌شود که "
+            "همه اکشن داده باشند یا مهلت تمام شود؛ کسی نمی‌تواند شب را زودتر ببندد."
+            f"\n☀️ *صبح* ({sec['صبح']} ثانیه): کشته‌ها، مدرک روز و ردهای دیشب اعلام می‌شود. اگر متهمی "
+            "هست، اول تکلیف او روشن می‌شود."
+            f"\n💬 *گفتگو* ({sec['گفتگو']} ثانیه) → 🗳️ *رای* ({sec['رای‌گیری']} ثانیه): بیشترین رای → بازجویی. "
+            "ممتنع مجاز است. تساوی → یک دور «مرگ ناگهانی» فقط بین نفرات مساوی؛ تساوی دوباره → بدون بازداشت."
+            "\n\n*حذف سه‌مرحله‌ای*"
+            "\n۱) 🔦 بازجویی — ۱ شب. بازجو می‌پرسد، متهم خودش جواب می‌دهد. متهم در بازداشت از قتل در امان است."
+            "\n۲) 🔒 حبس موقت — با حکم بازجو، ۲ شب. آزادی فقط با تایید بازجو وقتی متهم جدیدی وارد بازجویی شده."
+            "\n۳) ⛓️ حبس ابد — حذف کامل، بدون افشای نقش."
+            f"\n⚖️ *هیئت منصفه:* صبحِ بعد از بازجویی، ۲ نفر (یا وکیل تنها) می‌خواهند؛ {_fa(JURY_ACQUIT_PERCENT)}٪ = تبرئه. "
+            "اگر بازجو خودش متهم، زندانی یا حذف شده باشد، هیئت منصفه خودکار تشکیل می‌شود و تبرئه‌نکردن = حبس موقت."
+            "\n🚨 *رای اضطراری:* یک بار در بازی، فقط در روز؛ ۸۰٪ رای = حبس موقتِ مستقیم."
+            "\n\n*برد*"
+            "\n🕵️ شهر: هیچ قاتل و جانی سریالی‌ای در بازی نماند."
+            "\n🔪 قاتل‌ها: جانی در بازی نباشد و قاتل‌ها ≥ بقیه."
+            "\n🩸 جانی سریالی: تنها بماند یا با یک نفر دیگر."
+            "\n🎭 سپر بلا: زنده حبس ابد بگیرد. 🏪🚬 بقال و قاچاقچی: تا آخر زنده بمانند."
+            "\n🔪 اگر قاتل حذف شود چاقو به همدست → سم‌ساز → خبرچین می‌رسد."
+            f"\n⌛ بعد از {_fa(MAX_DAYS)} روز بازی بن‌بست (بدون برنده) تمام می‌شود.")
 
 
 # ── اشتراک‌گذاری ──
@@ -306,9 +348,9 @@ ABILITY_TEXT = {
 }
 
 
-def action_panel(s: GameState, p, chosen=None) -> str:
-    """متن پنل اکشن شبانه‌ی یک بازیکن."""
-    ab = ROLES[p.role].ability
+def action_panel(s: GameState, p, chosen=None, ab=None, targets=None) -> str:
+    """متن پنل اکشن شبانه‌ی یک بازیکن. ab: توانایی مؤثر (جانشین قاتل «kill» دارد)."""
+    ab = ROLES[p.role].ability if ab is None else ab
     if ab == "hunter":
         title, ask = "🏹 شلیک آخر", "اگر کشته شوی یا حبس ابد بگیری، چه کسی را با خودت می‌بری؟"
     elif not ab:
@@ -317,16 +359,19 @@ def action_panel(s: GameState, p, chosen=None) -> str:
     else:
         title, ask = ABILITY_TEXT.get(ab, (f"🌙 {ab}", "هدفت را انتخاب کن:"))
     done = f"\n\n✅ انتخاب فعلی: *{s.players[chosen].name}* (می‌توانی عوض کنی)" if chosen else ""
+    if targets is not None and not targets:
+        done += ("\n\n😶 امشب هدفِ مجازی نداری: بقیه یا در بازداشت‌اند (در امان)، یا هم‌تیمی‌ات‌اند، "
+                 "یا قید «دو شب پیاپی» جلویت را گرفته. منتظرت نمی‌مانیم.")
     return (f"{title} — شب {s.day}\n{DIV}\n{ask}{done}")
 
 
 def action_kb(s: GameState, p, targets: List[int], chosen=None) -> Dict:
     """دکمه‌ی هر هدف با نام؛ بدون تایپ آیدی."""
-    cmd = "hunter" if ROLES[p.role].ability == "hunter" else "act"
+    cmd = "hunter" if p.role == "شکارچی" else "act"
     rows = [[(("✅ " if t == chosen else "👉 ") + s.players[t].name, f"{cmd}:{t}")]
             for t in targets]
     if not rows:
-        rows = [[("— هدف مجازی نیست —", "notes")]]
+        rows = [[("— امشب هدفِ مجازی نداری —", "notes")]]
     return kb(rows + [[("📋 داشبورد", "dashboard")], [BACK, HOME]])
 
 
@@ -370,14 +415,17 @@ def dashboard_kb(s: GameState) -> Dict:
         rows = [[("🌙 اکشن شبانه‌ی من", "act")], [("🌙 پایان شب", "dawn")]]
     elif ph is Phase.MORNING:
         rows = [[("💬 گفتگو", "discuss")]]
-        if s.suspect_uid:
-            rows.insert(0, [("⚖️ هیئت منصفه", "jury")])
+        if s.suspect_uid is not None:
+            sus = s.suspect_uid
+            rows = [[("⚖️ هیئت منصفه", "jury")],
+                    [("🔒 حبس موقت", f"ver:{sus}:1"), ("🔓 آزادی", f"ver:{sus}:0")]]
     elif ph is Phase.DISCUSSION:
         rows = [[("🗳️ رای‌گیری", "vote")]]
     elif ph is Phase.VOTE:
         rows = [[("📊 بستن رای‌گیری", "closevote")]]
     elif ph is Phase.JURY:
-        rows = [[("📊 نتیجه‌ی هیئت", "closejury")]]
+        rows = [[("🕊️ تبرئه", "jury:1"), ("⚖️ ادامه‌ی بازجویی", "jury:0")],
+                [("📊 نتیجه‌ی هیئت", "closejury")]]
     elif ph is Phase.END:
         rows = [[("🏁 پایان و افشای نقش‌ها", "end")]]
     return kb(rows + [[("🔄 بروزرسانی", "dashboard"), ("📝 دفترچه", "notes")], [BACK, HOME]])

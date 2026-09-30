@@ -36,7 +36,11 @@ PHASE_SECONDS = {
     "گفتگو": int(os.getenv("DISCUSS_SECONDS", 180)),
     "رای‌گیری": int(os.getenv("VOTE_SECONDS", 90)),
     "اتاق بازجویی": int(os.getenv("NIGHT_SECONDS", 60)),   # شبِ بازجویی
+    # نسخه ۴: صبح و هیئت منصفه هم مهلت دارند؛ میزِ بی‌میزبان دیگر گیر نمی‌کند
+    "صبح": int(os.getenv("MORNING_SECONDS", 90)),
+    "هیئت منصفه": int(os.getenv("JURY_SECONDS", 60)),
 }
+MAX_DAYS = int(os.getenv("MAX_DAYS", 20))                  # سقف روز؛ بعدش «بن‌بست» (بدون برنده)
 DEFENSE_SECONDS = int(os.getenv("DEFENSE_SECONDS", 30))    # ایده ۲
 VOICE_DIR = os.getenv("VOICE_DIR", "assets/voice")         # ایده ۲۹
 LANG = os.getenv("LANG_UI", "fa")                          # ایده ۳۰

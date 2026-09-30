@@ -167,10 +167,14 @@ def cmd_selftest(_args) -> int:
     step("هر فرمان دکمه دارد و هر دکمه زنده است", _buttons)
 
     def _roles():
-        from karagah.roles import ROLES, COMPOSITIONS, validate_composition
-        for n in COMPOSITIONS:
-            assert validate_composition(n), n
-        return f"{len(ROLES)} نقش، ترکیب‌های {min(COMPOSITIONS)}..{max(COMPOSITIONS)}"
+        from karagah.roles import ROLES, SCENARIOS, validate_composition
+        dealt = set()
+        for key, (_nm, _d, comps) in SCENARIOS.items():
+            for n, roles in comps.items():
+                assert validate_composition(n, key), (key, n)
+                dealt |= set(roles)
+        assert dealt == set(ROLES), f"نقشِ پخش‌نشده: {set(ROLES) - dealt}"
+        return f"{len(ROLES)} نقش، {len(SCENARIOS)} سناریو × ترکیب‌های ۴..۱۰"
     step("تعادل همه‌ی ترکیب‌ها", _roles)
 
     def _cases():
@@ -323,15 +327,16 @@ def cmd_buttons(_args) -> int:
 
 def cmd_roles(_args) -> int:
     head("🎭 نقش‌ها")
-    from karagah.roles import ROLES, COMPOSITIONS
+    from karagah.roles import ROLES, SCENARIOS
     from karagah.menus import ABILITY_FA
     for r in ROLES.values():
         print(f"{r.emoji} {r.name:<12} {r.align.value:<9} "
               f"{ABILITY_FA.get(r.ability, r.ability)}")
-    print(f"\nترکیب‌ها:")
-    for n, comp in sorted(COMPOSITIONS.items()):
-        killers = sum(1 for x in comp if ROLES[x].align.value == "قاتل‌ها")
-        print(f"   {n} نفره: {killers} قاتل — {'، '.join(comp)}")
+    for _key, (name, desc, comps) in SCENARIOS.items():
+        print(f"\n🎭 سناریو {name} — {desc}")
+        for n, comp in sorted(comps.items()):
+            killers = sum(1 for x in comp if ROLES[x].align.value == "قاتل‌ها")
+            print(f"   {n} نفره: {killers} قاتل — {'، '.join(comp)}")
     return 0
 
 
@@ -386,13 +391,7 @@ def _pytest(paths, extra=()) -> int:
 
 def cmd_test(_args) -> int:
     head("✅ سوئیت اصلی (باید سبز باشد)")
-    return _pytest(["tests"], ["--ignore=tests/quality"])
-
-
-def cmd_quality(_args) -> int:
-    head("📋 دفترچه‌ی نقص (عمداً قرمز — هر شکست یک نقصِ شناخته‌شده است)")
-    _pytest(["tests/quality"])
-    return 0                      # قرمزیِ این سوئیت شکستِ اجرا نیست
+    return _pytest(["tests"])
 
 
 def cmd_playtest(args) -> int:
@@ -425,10 +424,9 @@ COMMANDS = {
     "check":    (cmd_check,    "بررسی محیط، وابستگی‌ها، .env و پایگاه‌داده"),
     "selftest": (cmd_selftest, "خودآزمایی: ماژول‌ها، دکمه‌ها، فاز، یک بازی کامل"),
     "test":     (cmd_test,     "سوئیت اصلی تست"),
-    "quality":  (cmd_quality,  "دفترچه‌ی نقص (عمداً قرمز)"),
     "demo":     (cmd_demo,     "یک بازی کامل را چاپ می‌کند"),
     "buttons":  (cmd_buttons,  "درخت کامل دکمه‌ها"),
-    "roles":    (cmd_roles,    "۱۸ نقش و ترکیب‌ها"),
+    "roles":    (cmd_roles,    "۱۸ نقش و ترکیب‌های هر سناریو"),
     "cases":    (cmd_cases,    "۴۰ پرونده"),
     "db":       (cmd_db,       "جدول‌ها و تعداد ردیف‌ها"),
     "stats":    (cmd_stats,    "آمار کلی و تعادل نقش‌ها"),

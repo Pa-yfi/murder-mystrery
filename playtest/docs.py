@@ -70,7 +70,7 @@ def cross_check(rb: Rulebook) -> List[dict]:
     from karagah import bot
     from karagah.cases import CASES
     from karagah.models import Align
-    from karagah.roles import COMPOSITIONS, ROLES
+    from karagah.roles import COMPOSITIONS, ROLES, SCENARIOS
 
     out: List[dict] = []
 
@@ -99,7 +99,7 @@ def cross_check(rb: Rulebook) -> List[dict]:
     for c in rb.commands:
         if c not in bot._ROUTES and c not in BOTFATHER:
             find("پایین", f"دستور /{c} در مستندات هست ولی ربات آن را نمی‌شناسد", "")
-    used = {r for comp in COMPOSITIONS.values() for r in comp}
+    used = {r for _n, _d, comps in SCENARIOS.values() for comp in comps.values() for r in comp}
     never = [r for r in ROLES if r not in used]
     if never:
         find("متوسط", "نقش‌هایی که در کاتالوگ و مستندات هستند ولی هرگز پخش نمی‌شوند",

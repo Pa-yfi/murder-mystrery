@@ -8,8 +8,9 @@ from __future__ import annotations
 from collections import Counter
 from typing import Dict, List, Optional, Set
 
+from karagah.config import MAX_DAYS
 from karagah.models import Align, Custody, Phase
-from karagah.roles import COMPOSITIONS, ROLES
+from karagah.roles import ROLES, SURVIVORS, composition
 
 VISIT_FREE = ("investigate", "expose", "watch")   # «از دور نگاه کردن» ملاقات نیست
 
@@ -37,8 +38,8 @@ class Referee:
     def check_start(self) -> None:
         n = len(self.s.players)
         got = Counter(p.role for p in self.s.players.values())
-        if got != Counter(COMPOSITIONS[n]):
-            self.r.find("بالا", "نقش‌ها", f"پخش نقش در بازی {n} نفره با COMPOSITIONS نمی‌خواند",
+        if got != Counter(composition(n, self.g.scenario)):
+            self.r.find("بالا", "نقش‌ها", f"پخش نقش در بازی {n} نفره با سناریو نمی‌خواند",
                         f"{dict(got)}")
         else:
             self.r.ok("پخش نقش مطابق ترکیب")
@@ -64,7 +65,7 @@ class Referee:
         self.intents = {}
         self.night_day = self.s.day
         self.suspect_at_night = self.s.suspect_uid
-        self.before = {u: (p.alive, p.custody, p.custody_nights, p.in_game)
+        self.before = {u: (p.alive, p.custody, p.custody_nights, p.in_game, p.cleared)
                        for u, p in self.s.players.items()}
 
     def intent(self, uid: int, ability: str, target: int) -> None:
@@ -93,31 +94,32 @@ class Referee:
         for t in acts.get("frame", {}).values():
             self.frame_until[t] = day + 1
         alive_before = {u for u, b in self.before.items() if b[0] and b[3]}
+        free_before = {u for u in alive_before if self.before[u][1] is Custody.FREE}
 
-        expect: List[int] = []
+        # قاعده: بازداشتی (بازجویی یا حبس موقت) از حمله‌ی مستقیم در امان است
+        attacked: List[int] = []
         for t in acts.get("kill", {}).values():
-            if t not in protected and t not in expect:
-                expect.append(t)
+            if t not in protected and t not in attacked and t in free_before:
+                attacked.append(t)
         if storm:
-            expect = []
+            attacked = []
         for t, due in list(self.poison_due.items()):
             if due > day:
                 continue
             del self.poison_due[t]
             if t in protected:
                 self.r.ok("سم: نجات پزشک در شبِ سررسید")
-            elif t in alive_before and t not in expect:
-                expect.append(t)
-        if s.fate_pair:
-            a, b = s.fate_pair
-            if a in expect and b not in expect and b in alive_before:
-                expect.append(b)
-            elif b in expect and a not in expect and a in alive_before:
-                expect.append(a)
-        for u in list(expect):
-            p = s.players[u]
-            if p.role == "شکارچی" and p.hunter_target in alive_before and p.hunter_target not in expect:
-                expect.append(p.hunter_target)
+            elif t in alive_before and t not in attacked:
+                attacked.append(t)
+        expect = self._chain(attacked, alive_before)
+        # حبس موقتِ دو‌شبه همین سحر ابد می‌شود؛ شکارچیِ حبس‌ابدی شلیک آخرش را دارد
+        for u, b in self.before.items():
+            if b[0] and b[3] and b[1] is Custody.TEMP_JAIL and not b[4] and u not in expect \
+                    and b[2] + 1 >= self.g.temp_jail_nights:
+                hunter = s.players[u]
+                if hunter.role == "شکارچی" and hunter.hunter_target in alive_before:
+                    expect += [x for x in self._chain([hunter.hunter_target], alive_before)
+                               if x not in expect]
 
         died = {u for u in alive_before if not s.players[u].alive}
         if died == set(expect):
@@ -201,6 +203,23 @@ class Referee:
         self.check_invariants("سحر")
         self.check_win("سحر")
 
+    def _chain(self, start: List[int], alive_before) -> List[int]:
+        """مرگ + زنجیره: زوج سرنوشت و شلیک آخر شکارچی (از متن نقش‌ها)."""
+        out: List[int] = []
+        queue = list(start)
+        pair = self.s.fate_pair
+        while queue:
+            u = queue.pop(0)
+            if u in out or u not in alive_before:
+                continue
+            out.append(u)
+            if pair and u in pair:
+                queue.append(pair[1] if u == pair[0] else pair[0])
+            p = self.s.players[u]
+            if p.role == "شکارچی" and p.hunter_target:
+                queue.append(p.hunter_target)
+        return out
+
     def _hunter_on_life_jail(self, u: int) -> None:
         p = self.s.players[u]
         if p.role != "شکارچی" or not p.hunter_target:
@@ -247,19 +266,24 @@ class Referee:
                         "می‌کند و قبلی تا آخر بازی نه رای دارد نه اکشن.", key="stuck-interrogation")
 
     def expected_winner(self) -> Optional[str]:
-        """شرط برد از روی متن نقش‌ها و PLAN.md."""
+        """شرط برد از روی متن نقش‌ها و RULES.md (بخش «برد»)."""
         s = self.s
         alive = s.alive_players()
-        if any(p.role == "سپر بلا" and p.custody is Custody.LIFE_JAIL for p in s.players.values()):
+        if any(p.role == "سپر بلا" and p.custody is Custody.LIFE_JAIL and p.alive
+               for p in s.players.values()):
             return "سپر بلا"
-        if len(alive) == 1 and alive[0].role == "جانی سریالی":
-            return "جانی سریالی"
+        if not alive:
+            return "بدون برنده"
         k = [p for p in alive if p.align is Align.KILLER]
-        rest = [p for p in alive if p.align is not Align.KILLER]
-        if not k:
+        sk = [p for p in alive if p.role == "جانی سریالی"]
+        if not k and not sk:
             return "شهر"
-        if len(k) >= len(rest):
+        if sk and len(alive) <= 2 and (not k or len(alive) == 2):
+            return "جانی سریالی"
+        if k and not sk and len(k) >= len(alive) - len(k):
             return "قاتل‌ها"
+        if s.day > MAX_DAYS:
+            return "بدون برنده"
         return None
 
     def check_win(self, when: str) -> None:
@@ -272,9 +296,7 @@ class Referee:
             self.r.ok(f"شرط برد: {want}")
             if want == "شهر" and any(p.role == "جانی سریالی" for p in s.alive_players()):
                 self.r.find("متوسط", "قواعد برد", "شهر برد در حالی که جانی سریالی زنده است",
-                            "متن نقش: جانی سریالی «در پایان باید تنها بازمانده باشد». وقتی قاتل‌ها تمام "
-                            "می‌شوند ولی جانی هنوز می‌کشد، بازی «برد شهر» اعلام می‌شود و تهدید باقی "
-                            "مانده نادیده گرفته می‌شود.", key="sk-alive-city-win")
+                            "متن نقش: جانی سریالی «در پایان باید تنها بازمانده باشد».", key="sk-alive-city-win")
             return
         self.r.find("بالا", "قواعد برد", "برنده‌ی اعلام‌شده با شرط برد نمی‌خواند",
                     f"{when}: انتظار {want} — ربات {got} (فاز {s.phase.value})",
@@ -300,6 +322,8 @@ class Referee:
 
     def _won(self, p) -> bool:
         w = self.s.winner or ""
+        if p.role in SURVIVORS and p.in_game and w:
+            return True                         # بقال/قاچاقچی: زنده ماندن تا پایان
         if w.startswith("سپر"):
             return p.role == "سپر بلا"
         if w.startswith("جانی"):

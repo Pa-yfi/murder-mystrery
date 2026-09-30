@@ -41,9 +41,8 @@ def parse_callback(data: str):
     از همین تابع رد می‌شوند تا دکمه‌ها دقیقاً مثل تلگرام واقعی تفسیر شوند."""
     if ":" in data:                       # اکشن پارامتری: vote:5 ، ver:5:1 ، ask:5
         head, rest = data.split(":", 1)
-        cmd = CB_MAP.get(head, head)
-        arg = rest.split(":")[-1] if head == "ver" else rest
-        return cmd, arg
+        # ver:<متهم>:<حکم> کامل به h_verdict می‌رسد تا دکمه‌ی کهنه روی متهمِ تازه اجرا نشود
+        return CB_MAP.get(head, head), rest
     return data, ""                       # دکمه‌ی ساده = نام اندپوینت (بدون نگاشت)
 
 
@@ -66,6 +65,9 @@ async def _send_photo_or_voice(update: Update, res: dict):
     """ایده ۲۷/۲۹: اگر پاسخ photo دارد یا انیمیشن فاز فایل صوتی دارد، بفرست."""
     bot = update.get_bot()
     chat = update.effective_user.id if res.get("private") else update.effective_chat.id
+    # صدای فازِ یک اعلام عمومی همراه خودِ اعلام به گروه می‌رود
+    voice_chat = res.get("_target") if res.get("announce") and res.get("_target") \
+        else update.effective_chat.id
     if res.get("photo") and osp.exists(res["photo"]):
         try:
             with open(res["photo"], "rb") as f:
@@ -86,18 +88,51 @@ async def _send_photo_or_voice(update: Update, res: dict):
                 if osp.exists(vp):
                     try:
                         with open(vp, "rb") as f:
-                            await bot.send_voice(update.effective_chat.id, f)
+                            await bot.send_voice(voice_chat, f)
                     except Exception as e:
                         log.warning("voice failed: %s", e)
                 break
 
 
+async def _send(bot, dest: int, text: str, keyboard=None) -> bool:
+    """Markdown، و اگر خراب شد متن ساده. True یعنی رسید."""
+    kb = _kb(keyboard)
+    for pm in ("Markdown", None):
+        try:
+            if pm:
+                await bot.send_message(dest, text, parse_mode=pm, reply_markup=kb)
+            else:
+                await bot.send_message(dest, text, reply_markup=kb)
+            return True
+        except Exception as e:
+            log.warning("send to %s failed (%s): %s", dest, pm or "plain", e)
+    return False
+
+
+async def _flush_outbox(bot, res: dict) -> None:
+    """پیام‌هایی که هندلر برای دیگران گذاشته (پرسش بازجو به متهم، نتیجه‌ی شب، کارت نقش)."""
+    for m in res.get("outbox") or []:
+        await _send(bot, m["chat"], m["text"], m.get("keyboard"))
+
+
 async def _reply(update: Update, res: dict):
+    await _deliver(update, res)
+    await _flush_outbox(update.get_bot(), res)
+
+
+async def _deliver(update: Update, res: dict):
     """هرگز بی‌صدا نماند: اگر Markdown یا پیوی خطا داد، ساده و در همان چت بفرست.
-    اگر res["edit"] و پیام callback داریم → همان پیام ویرایش می‌شود (چت شلوغ نمی‌شود)."""
+    اگر res["edit"] و پیام callback داریم → همان پیام ویرایش می‌شود (چت شلوغ نمی‌شود).
+    اعلامِ عمومیِ بازی (announce) که از پیوی زده شده، به گروهِ بازی می‌رود نه همان پیوی."""
     kb = _kb(res.get("keyboard"))
     bot = update.get_bot()
     q = update.callback_query
+    target = res.get("_target")
+    here = update.effective_chat.id
+    if res.get("announce") and target and target != here and not res.get("private"):
+        if await _send(bot, target, res["text"], res.get("keyboard")):
+            await _send(bot, here, "📣 در گروهِ بازی اعلام شد.")
+            return
     if res.get("edit") and q and q.message and not res.get("private"):
         for pm in ("Markdown", None):
             try:
@@ -143,7 +178,9 @@ def _dispatch(update: Update, cmd: str, arg: str) -> dict:
     if not target:
         return {"ok": False, "text": AMBIGUOUS, "keyboard": None,
                 "private": True, "edit": False}
-    return handle(cmd, target, uid, update.effective_user.first_name or "", arg)
+    res = handle(cmd, target, uid, update.effective_user.first_name or "", arg)
+    res["_target"] = target            # اعلامِ عمومی به همین چتِ بازی می‌رود
+    return res
 
 
 def make_cmd(name: str):
@@ -179,6 +216,7 @@ async def on_text(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
     if pending and text:
         chat, cmd = pending
         res = handle(cmd, chat, uid, update.effective_user.first_name or "", text)
+        res["_target"] = chat
     else:
         res = _dispatch(update, "commands", "")
     await _reply(update, res)
@@ -209,7 +247,9 @@ async def _timer_job(ctx: ContextTypes.DEFAULT_TYPE):
         try:
             res = handle("tick", chat)
             if res.get("advanced"):
-                await ctx.bot.send_message(chat, res["text"])
+                # همان پیام کاملِ دکمه‌ها: کشته‌ها و مدرک صبح، کیبورد رای، هیئت منصفه…
+                await _send(ctx.bot, chat, res["text"], res.get("keyboard"))
+            await _flush_outbox(ctx.bot, res)
         except Exception as e:
             log.warning("timer tick %s: %s", chat, e)
 

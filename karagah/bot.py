@@ -3,15 +3,16 @@
 اتصال به python-telegram-bot فقط با map کردن این هندلرها انجام می‌شود.
 """
 from __future__ import annotations
+import contextvars
 import logging
-from typing import Dict, Optional
+from typing import Dict, List, Optional
 
-from . import ui, db, cards, menus
+from . import ui, db, cards, menus, config
 from .strings import t
 from .config import ADMIN_IDS
 from .engine import Game, RuleError
 from .models import Custody, Phase
-from .roles import ROLES
+from .roles import ROLES, SCENARIOS, scenario_name
 
 import time as _time
 import threading
@@ -50,9 +51,21 @@ def is_dup_callback(chat: int, uid: int, cb: str) -> bool:
     return (now - last) < DEDUP_WINDOW
 
 
+def _upgrade(g: Game) -> Game:
+    """اسنپ‌شاتِ نسخه‌های قبل فیلدهای تازه را ندارد؛ پیش‌فرض‌ها را پر کن."""
+    from .models import GameState
+    fresh = GameState(chat_id=g.s.chat_id)
+    for k, v in vars(fresh).items():
+        if not hasattr(g.s, k):
+            setattr(g.s, k, v)
+    if not hasattr(g, "last_event"):
+        g.last_event = None
+    return g
+
+
 def restore_games() -> int:
-    """بعد از ری‌استارت، بازی‌های ناتمام را از SQLite برمی‌گرداند."""
-    loaded = db.load_snapshots()
+    """بعد از ری‌استارت، بازی‌ها را از SQLite برمی‌گرداند (تمام‌شده‌ها هم، تا افشا بماند)."""
+    loaded = {c: _upgrade(g) for c, g in db.load_snapshots().items()}
     GAMES.update(loaded)
     if loaded:
         log.info("♻️ %d بازی از اسنپ‌شات بازیابی شد: %s", len(loaded), list(loaded))
@@ -64,10 +77,34 @@ def _name(name: str, uid: int) -> str:
     return n if n else f"کارآگاه {uid}"
 
 
-def _ok(text, keyboard=None, anim=None, private=False, edit=False):
-    """edit=True یعنی آداپتور به‌جای پیام جدید، همان پیام را ویرایش کند."""
+def _ok(text, keyboard=None, anim=None, private=False, edit=False, announce=False):
+    """edit=True یعنی آداپتور به‌جای پیام جدید، همان پیام را ویرایش کند.
+    announce=True یعنی این پیام «اعلامِ عمومیِ بازی» است: اگر دکمه در پیوی زده شده،
+    آداپتور آن را به گروهِ بازی می‌فرستد (نه به همان پیوی) و به کاربر فقط تاییدیه می‌دهد."""
     return {"ok": True, "text": text, "keyboard": keyboard, "anim": anim,
-            "private": private, "edit": edit}
+            "private": private, "edit": edit, "announce": announce}
+
+
+# ── صندوق خروجی: پیام به کسانی غیر از فرستنده (پرسش بازجو به متهم، نتیجه‌ی شب، کارت نقش) ──
+_OUT: contextvars.ContextVar = contextvars.ContextVar("karagah_outbox", default=None)
+
+
+def _post(dest: int, text: str, keyboard=None) -> None:
+    """پیامی برای چت/کاربرِ دیگر؛ آداپتور بعد از پاسخِ اصلی می‌فرستد."""
+    box = _OUT.get()
+    if box is not None and dest:
+        box.append({"chat": dest, "text": text, "keyboard": keyboard})
+
+
+def _push_notes(g: Game) -> None:
+    """یافته‌های تازه‌ی هر بازیکن (استعلام، نگهبانی، شایعه، جانشینی…) خودکار به پیویِ خودش."""
+    for p in g.s.players.values():
+        done = getattr(p, "notes_pushed", 0)
+        if len(p.notes) > done:
+            fresh = "\n".join(f"  • {n}" for n in p.notes[done:])
+            _post(p.uid, f"🔔 *خبر تازه برای تو (محرمانه):*\n{fresh}",
+                  ui.kb([[("📓 دفترچه‌ی من", "notes")]]))
+            p.notes_pushed = len(p.notes)
 
 
 def _err(msg):
@@ -115,6 +152,11 @@ def games_of(uid: int) -> list:
             if uid in g.s.players and g.s.phase is not Phase.END]
 
 
+# بعد از پایان بازی هم این‌ها باید از پیوی به همان بازی برسند (دفترچه، نقش، افشا…)
+AFTER_END_CMDS = {"notes", "myrole", "end", "abilities", "profile", "rolecard",
+                  "status", "dashboard", "spectate", "rematch"}
+
+
 def route_chat(cmd: str, chat: int, uid: int, private: bool) -> int:
     """در پیوی، chat_id خودِ کاربر است و بازی گروه را پیدا نمی‌کند.
     بازیِ فعالِ کاربر را برمی‌گرداند؛ ۰ یعنی مبهم/پیدا نشد."""
@@ -128,7 +170,13 @@ def route_chat(cmd: str, chat: int, uid: int, private: bool) -> int:
     found = games_of(uid)
     if len(found) == 1:
         return found[0]
-    return 0 if found else chat           # هیچ بازی‌ای نداری → خطای عادی
+    if found:
+        return 0                          # مبهم
+    if cmd in AFTER_END_CMDS:             # بازی‌ات تازه تمام شده → همان را نشان بده
+        ended = [c for c, g in GAMES.items() if uid in g.s.players]
+        if ended:
+            return ended[-1]
+    return chat                           # هیچ بازی‌ای نداری → خطای عادی
 
 
 def h_table(chat, uid, name, arg):
@@ -165,6 +213,8 @@ def handle(cmd: str, chat: int, uid: int = 0, name: str = "", arg: str = "") -> 
     db.touch_user(uid, _sanitize(name))
     if cmd not in _ROUTES:                      # ایده ۳: دستور/کالبک نامعتبر
         return _ok(t("unknown"), ui.main_menu())
+    if uid and cmd not in ("start", "menu", "back", "help") and db.is_banned(uid):
+        return {"ok": False, "text": "🚫 حساب تو مسدود شده است.", "keyboard": None, "edit": False}
     # ایده ۹: نرخ‌محدودساز
     if RATE_LIMIT_ENABLED and uid and cmd not in _NO_RATE:
         key = (uid, cmd)
@@ -174,22 +224,24 @@ def handle(cmd: str, chat: int, uid: int = 0, name: str = "", arg: str = "") -> 
                     "keyboard": None, "edit": True}
         _LAST_CALL[key] = now
     with _lock(chat):                           # ایده ۱: قفل هر چت
+        token = _OUT.set([])
         try:
             res = _ROUTES[cmd](chat, uid, name, arg)
             db.log_event(chat, uid, cmd, arg[:40])   # ایده ۷: audit log
             if chat in GAMES:
                 g = GAMES[chat]
+                _push_notes(g)
                 db.save_game(g)
-                if g.s.phase is Phase.END:
-                    # نتیجه فقط یک بار ثبت می‌شود، ولی خودِ بازی در حافظه می‌ماند
-                    # تا /end بتواند نقش‌ها، MVP و بازسازی پرونده را نشان بدهد.
-                    if not g.s.finalized:
-                        g.s.finalized = True
-                        db.record_results(g)
-                        LAST_ROSTER[chat] = [(p.uid, p.name) for p in g.s.players.values()]
-                        db.drop_snapshot(chat)
-                else:
-                    db.save_snapshot(chat, g)
+                if g.s.phase is Phase.END and not g.s.finalized:
+                    # نتیجه فقط یک بار ثبت می‌شود؛ پرچم بعد از نوشتنِ موفق زده می‌شود
+                    # تا شکستِ نوشتن، تلاشِ دوباره را خفه نکند.
+                    db.record_results(g)
+                    g.s.finalized = True
+                    LAST_ROSTER[chat] = [(p.uid, p.name) for p in g.s.players.values()]
+                # بازیِ تمام‌شده هم ذخیره می‌ماند تا بعد از ری‌استارت افشای پایانی در دسترس باشد
+                db.save_snapshot(chat, g)
+            res = dict(res)
+            res["outbox"] = list(_OUT.get() or [])
             return res
         except RuleError as e:
             return _err(str(e))
@@ -198,6 +250,8 @@ def handle(cmd: str, chat: int, uid: int = 0, name: str = "", arg: str = "") -> 
         except Exception:
             log.exception("handler %s failed", cmd)
             return _err(f"خطای داخلی هنگام اجرای «{cmd}». دوباره /start بزن.")
+        finally:
+            _OUT.reset(token)
 
 
 # ================= منو و شروع =================
@@ -267,16 +321,63 @@ def h_leave(chat, uid, name, arg):
     return _ok(ui.lobby_screen(g.s), ui.lobby_kb(chat), edit=True)
 
 
+def _host_only(g: Game, uid: int, what: str) -> None:
+    if uid and uid != g.owner:
+        raise RuleError(f"فقط میزبان می‌تواند {what}.")
+
+
+def _gate(g: Game, uid: int, step: str) -> None:
+    """چه کسی و کِی می‌تواند فاز را جلو ببرد (RULES.md «جریان بازی»).
+    uid=0 یعنی خودِ سیستم (تایمر/آزمون) و همیشه مجاز است."""
+    if not uid:
+        return
+    if g.s.paused:
+        raise RuleError("بازی متوقف است؛ میزبان اول «▶️ ادامه» را بزند.")
+    p = g.s.players.get(uid)
+    host = uid == g.owner
+    if not host and not (p and p.in_game):
+        raise RuleError("فقط میزبان یا بازیکنانِ داخل بازی می‌توانند بازی را جلو ببرند.")
+    left = g.remaining() or 0
+    if step in ("dawn", "closevote", "closejury") and g.pending_actors() and left > 0:
+        waiting = {"dawn": "همه‌ی نقش‌های شبانه اکشن نداده‌اند",
+                   "closevote": "همه رای نداده‌اند (ممتنع هم رای است)",
+                   "closejury": "همه‌ی اعضای هیئت منصفه رای نداده‌اند"}[step]
+        raise RuleError(f"⏳ هنوز {waiting}؛ {left} ثانیه تا پایان مهلت. "
+                        "بعد از آن (یا وقتی همه تمام کردند) دوباره بزن.")
+    if step == "vote" and not host and left > 0:
+        raise RuleError(f"⏳ گفتگو هنوز {left} ثانیه وقت دارد؛ فقط میزبان می‌تواند زودتر رای‌گیری را باز کند.")
+
+
 def h_startgame(chat, uid, name, arg):
     g = _g(chat)
+    _host_only(g, uid, "بازی را شروع کند")
     asked = "force" in (arg or "").lower()
     case = (arg or "").replace("force", "").strip()
     g.start(int(case) if case else None, force=asked or not REQUIRE_READY)
     db.log_event(chat, uid, "start", g.s.case.title if g.s.case else "")
+    for p in g.s.players.values():               # کارت نقش خودکار به پیوی هر نفر
+        _post(p.uid, ui.role_card(p.role, p.knows), ui.kb([[("🌙 اکشن شبانه", "act")],
+                                                          [("🎯 توانایی‌های من", "abilities")]]))
     return _ok(ui.case_intro(g.s) + "\n\n" + ui.status_board(g.s) +
-               "\n\n🔐 هر کس /myrole را بزند نقش محرمانه‌اش به پیوی می‌رود.",
+               f"\n\n🎭 سناریو: {scenario_name(g.scenario)}"
+               "\n🔐 نقش هر کس به پیوی‌اش رفت؛ اگر نرسید «🔐 نقش من» را بزن.",
                ui.kb([[("🔐 نقش من", "myrole")], [("🌙 پایان شب", "dawn")], [ui.BACK, ui.HOME]]),
-               anim=ui.ANIM["night"])
+               anim=ui.ANIM["night"], announce=True)
+
+
+def h_scenario(chat, uid, name, arg):
+    """انتخاب سناریو (مجموعه‌ی نقش‌ها) در لابی — فقط میزبان."""
+    g = _g(chat)
+    if not arg:
+        rows = [[(("✅ " if k == g.scenario else "🎭 ") + nm, f"scenario:{k}")]
+                for k, (nm, _d, _c) in SCENARIOS.items()]
+        body = "\n".join(f"{'✅' if k == g.scenario else '▫️'} *{nm}* — {d}"
+                         for k, (nm, d, _c) in SCENARIOS.items())
+        return _ok(f"🎭 *سناریوی میز*\n{ui.DIV}\n{body}\n\nمیزبان یکی را انتخاب کند.",
+                   ui.kb(rows + [[ui.BACK, ui.HOME]]))
+    _host_only(g, uid, "سناریو را عوض کند")
+    msg = g.set_scenario(arg)
+    return _ok(msg + "\n\n" + ui.lobby_screen(g.s), ui.lobby_kb(chat), edit=True)
 
 
 def h_myrole(chat, uid, name, arg):
@@ -299,13 +400,15 @@ def h_act(chat, uid, name, arg):
                    ui.action_kb(g.s, p, g.legal_targets(uid), chosen=int(arg)),
                    private=True)
     chosen = g.chosen_target(uid)
-    if ROLES[p.role].ability == "hunter":
+    ab = g.ability_of(p)
+    if ab == "hunter":
         targets = [t for t in g.s.players
-                   if t != uid and g.s.players[t].in_game]
+                   if t != uid and g.s.players[t].in_game] if p.in_game else []
         chosen = p.hunter_target
     else:
         targets = g.legal_targets(uid)
-    return _ok(ui.action_panel(g.s, p, chosen),
+    return _ok(ui.action_panel(g.s, p, chosen, ab, targets if g.s.phase in
+                               (Phase.NIGHT, Phase.INTERROGATION) and p.free else None),
                ui.action_kb(g.s, p, targets, chosen), private=True)
 
 
@@ -314,52 +417,98 @@ def h_night(chat, uid, name, arg):
     return h_act(chat, uid, name, arg)
 
 
-def h_dawn(chat, uid, name, arg):
-    g = _g(chat)
-    r = g.resolve_night()
+def _morning(g: Game, r: Dict, since: int = 0) -> Dict:
+    """پیام صبح — یکی برای دکمه‌ی «پایان شب» و یکی برای تایمر؛ همیشه کامل.
+    since: طول log پیش از حل شب؛ فقط رویدادهای همین شب اعلام می‌شوند."""
     dead = "، ".join(g.s.players[u].name for u in r["killed"]) or "هیچ‌کس"
     ev_line = f"\n🌩️ رویداد شب: {g.s.night_event}" if g.s.night_event else ""
     # بهبود ۵: ردهایی که از اکشن واقعیِ دیشب ساخته شده‌اند
     traces = ("\n\n🔬 *ردهای دیشب:*\n" + "\n".join(f"  • {t}" for t in g.s.traces)) \
         if g.s.traces else ""
+    # رویدادهای عمومیِ همین شب؛ «💉 پادزهر» عمداً نه — نجات پزشک را فاش نمی‌کنیم
+    wills = [l for l in g.s.log[since:] if l.startswith(("📜 وصیت", "🏹", "☠️", "⚰️", "⛓️", "⛈️"))]
+    extra = ("\n\n📣 " + "\n📣 ".join(wills)) if wills else ""
+    if g.s.phase is Phase.JURY:
+        extra += (f"\n\n⚖️ *بازجو نمی‌تواند حکم بدهد؛ هیئت منصفه درباره‌ی "
+                  f"{g.s.players[g.s.suspect_uid].name} تصمیم می‌گیرد.* تبرئه یا ادامه؟")
     txt = (f"☀️ *صبح روز {g.s.day}*{ev_line}\n{ui.DIV}\n⚰️ کشته‌شده: {dead}\n\n"
-           + ui.evidence_card(r["evidence"]) + traces + "\n\n" + ui.status_board(g.s))
-    return _ok(txt, ui.kb([[("💬 گفتگو", "discuss")], [ui.BACK, ui.HOME]]), anim=ui.ANIM["morning"])
+           + ui.evidence_card(r["evidence"]) + traces + extra + "\n\n" + ui.status_board(g.s)
+           + f"\n➡️ {g.next_step()}")
+    return _ok(txt, ui.morning_kb(g.s, g.officer_can_judge()), anim=ui.ANIM["morning"], announce=True)
+
+
+def h_dawn(chat, uid, name, arg):
+    g = _g(chat)
+    _gate(g, uid, "dawn")
+    since = len(g.s.log)
+    return _morning(g, g.resolve_night(), since)
+
+
+def _discussion_open(g: Game) -> Dict:
+    return _ok("💬 *فاز گفتگو باز است.* بحث کنید، اتهام بزنید، دفاع کنید.\n"
+               f"➡️ {g.next_step()}",
+               ui.kb([[("🗳️ شروع رای‌گیری", "vote")], [ui.BACK, ui.HOME]]), announce=True)
 
 
 def h_discuss(chat, uid, name, arg):
     g = _g(chat)
+    _gate(g, uid, "discuss")
     g.open_discussion()
-    return _ok("💬 *فاز گفتگو باز است.* بحث کنید، اتهام بزنید، دفاع کنید.",
-               ui.kb([[("🗳️ شروع رای‌گیری", "vote")], [ui.BACK, ui.HOME]]))
+    return _discussion_open(g)
+
+
+def _vote_open(g: Game) -> Dict:
+    return _ok("🗳️ *رای‌گیری آغاز شد* — چه کسی به بازجویی برود؟\n"
+               "(رای دوباره = عوض کردن رای؛ «⏭️ ممتنع» هم رای حساب می‌شود.)",
+               ui.vote_kb(g.s), anim=ui.ANIM["vote"], announce=True)
 
 
 def h_vote(chat, uid, name, arg):
     g = _g(chat)
+    _gate(g, uid, "vote")
     g.open_vote()
-    return _ok("🗳️ *رای‌گیری آغاز شد* — چه کسی به بازجویی برود؟", ui.vote_kb(g.s), anim=ui.ANIM["vote"])
+    return _vote_open(g)
 
 
 def h_castvote(chat, uid, name, arg):
     g = _g(chat)
-    g.vote(uid, int(arg))
-    who = "" if g.s.vote_anon else f" — {_name(name, uid)} به {g.s.players[int(arg)].name}"
+    target = int(arg)
+    g.vote(uid, target)
+    if target == 0:
+        return _ok(f"⏭️ رای ممتنع ثبت شد ({len(g.s.votes)} رای).",
+                   ui.kb([[("📊 بستن رای‌گیری", "closevote")]]))
+    who = "" if g.s.vote_anon else f" — {_name(name, uid)} به {g.s.players[target].name}"
     return _ok(f"✅ رای ثبت شد ({len(g.s.votes)} رای){who}.",
                ui.kb([[("📊 بستن رای‌گیری", "closevote")]]))
 
 
+def _vote_closed(g: Game, who: Optional[int]) -> Dict:
+    if who is None and g.s.phase is Phase.VOTE:        # تساوی → دور دوم (مرگ ناگهانی)
+        names = "، ".join(g.s.players[u].name for u in g.s.tie_leaders)
+        return _ok(f"⚔️ *تساوی!* دور دوم (مرگ ناگهانی) فقط بین: {names}\n"
+                   "دوباره رای بدهید؛ تساوی دوباره یعنی امروز کسی بازداشت نمی‌شود.",
+                   ui.vote_kb(g.s), anim=ui.ANIM["vote"], announce=True)
+    if who is None:
+        if g.s.phase is Phase.END:
+            return _ok(f"🏁 {g.s.win_reason}", ui.kb([[("🏁 پایان و افشای نقش‌ها", "end")]]),
+                       announce=True)
+        return _ok("🤷 کسی بازداشت نشد. شب فرا می‌رسد.",
+                   ui.kb([[("🌙 پایان شب", "dawn")], [("📋 داشبورد", "dashboard")]]),
+                   anim=ui.ANIM["night"], announce=True)
+    p = g.s.players[who]
+    return _ok(f"🔦 *{p.name}* به اتاق بازجویی منتقل شد.\n"
+               f"بازجو امشب سؤال می‌پرسد (پرسش به خودِ متهم می‌رسد)؛ حکم فردا صبح صادر می‌شود.\n"
+               f"متهم در بازداشت از حمله‌ی شبانه در امان است. بقیه اکشن شبانه‌شان را دارند.",
+               ui.officer_kb(who), anim=ui.ANIM["interrogation"], announce=True)
+
+
 def h_closevote(chat, uid, name, arg):
     g = _g(chat)
+    _gate(g, uid, "closevote")
     who = g.close_vote()
-    if who is None:
-        return _ok("🤷 تساوی/بدون رای — کسی بازداشت نشد. شب فرا می‌رسد.",
-                   ui.kb([[("🌙 پایان شب", "dawn")]]), anim=ui.ANIM["night"])
-    p = g.s.players[who]
-    db.log_event(chat, who, "interrogation", "رای گروه")
-    return _ok(f"🔦 *{p.name}* به اتاق بازجویی منتقل شد.\n"
-               f"بازجو امشب سؤال می‌پرسد؛ حکم فردا صبح صادر می‌شود.\n"
-               f"بقیه اکشن شبانه‌شان را دارند — بعد «🌙 پایان شب».",
-               ui.officer_kb(who), anim=ui.ANIM["interrogation"])
+    if who is not None:
+        db.log_event(chat, who, "interrogation", "رای گروه")
+    return _vote_closed(g, who)
 
 
 # ================= بازجویی =================
@@ -369,30 +518,66 @@ def h_hints(chat, uid, name, arg):
     return _ok("🔦 *سرنخ‌های بازجویی (مبهم و غیرقطعی):*\n" + "\n".join(f"  • {h}" for h in hs), private=True)
 
 
+def _officer_tools(g: Game) -> Dict:
+    sus = g.s.suspect_uid
+    return ui.kb([[("💬 پرسش بعدی", "ask"), ("🔦 سرنخ‌ها", "hints")],
+                  [("🔒 حبس موقت", f"verdict:{sus}:1"), ("🔓 آزادی", f"verdict:{sus}:0")]])
+
+
 def h_ask(chat, uid, name, arg):
+    """بازجویی دونفره: پرسش به پیوی متهم می‌رود و جوابش به پیوی بازجو برمی‌گردد."""
     g = _g(chat)
     if not arg:
-        # دکمه‌ی قبلی آیدیِ متهم را به‌جای متنِ سؤال می‌فرستاد؛ حالا متن می‌گیریم.
+        g._officer(uid, "می‌تواند استنطاق کند")     # خطای روشن پیش از گرفتن متن
+        if not g.awaiting_verdict():
+            raise RuleError("کسی در بازجویی نیست.")
         return _ask_text(chat, uid, "ask")
+    out = g.ask(uid, arg)
+    sus = g.s.players[g.s.suspect_uid]
+    _post(sus.uid, f"🔦 *بازجو از تو می‌پرسد:*\n«{_sanitize(arg)}»\n\n"
+                   "با دکمه‌ی زیر جواب بده؛ فقط تو و بازجو این گفت‌وگو را می‌بینید.",
+          ui.kb([[("🗣️ جواب بده", "answer")]]))
     d = f"\n🛡️ دفاع متهم: «{g.s.defense_text}»" if g.s.defense_text else ""
-    return _ok(f"🗣️ متهم: «{g.ask(uid, arg)}»{d}",
-               ui.kb([[("💬 پرسش بعدی", "ask")],
-                      [("🔒 حبس موقت", "verdict:1"),
-                       ("🔓 آزادی", "verdict:0")]]), private=True)
+    return _ok(out + d, _officer_tools(g), private=True)
+
+
+def h_answer(chat, uid, name, arg):
+    """جواب متهم به پرسش بازجو."""
+    g, p = _player(chat, uid)
+    if not arg:
+        if uid not in g.s.questions:
+            raise RuleError("پرسشی بی‌جواب برای تو نیست.")
+        return _ask_text(chat, uid, "answer")
+    q, clash = g.answer(uid, arg)
+    warn = "\n⚠️ *تناقض:* جوابش با دفعه‌ی قبل به همین پرسش فرق دارد!" if clash else ""
+    _post(g.s.officer_uid, f"🗣️ *جواب {p.name}* به «{q}»:\n«{_sanitize(arg)}»{warn}", _officer_tools(g))
+    return _ok("✅ جوابت به بازجو رسید.", ui.back_only(), private=True)
+
+
+def _verdict_given(g: Game, msg: str, jailed: bool) -> Dict:
+    anim = ui.ANIM["jail"] if jailed else None
+    if g.s.phase is Phase.END:
+        kb = ui.kb([[("🏁 پایان و افشای نقش‌ها", "end")]])
+    else:
+        kb = ui.kb([[("💬 گفتگو", "discuss")], [("📋 داشبورد", "dashboard")]])
+    return _ok(msg + "\n\n" + ui.status_board(g.s), kb, anim=anim, announce=True)
 
 
 def h_verdict(chat, uid, name, arg):
     g = _g(chat)
+    if ":" in (arg or ""):                  # verdict:<uid>:<x> — دکمه به متهمِ مشخصی بسته است
+        who, arg = arg.split(":", 1)
+        if int(who) != g.s.suspect_uid:
+            raise RuleError("این دکمه مالِ متهمِ قبلی است؛ از پیامِ امروز حکم بده.")
     if arg not in ("0", "1"):
-        if g.s.suspect_uid is None:
+        if not g.awaiting_verdict():
             raise RuleError("کسی در بازجویی نیست.")
         return _ok("⚖️ *حکم تو چیست؟*", menus.verdict_kb(g.s))
+    sus = g.s.suspect_uid
     msg = g.officer_verdict(uid, arg == "1")
-    db.log_event(chat, g.s.suspect_uid or 0, "verdict", "حبس موقت" if arg == "1" else "آزادی")
-    anim = ui.ANIM["jail"] if arg == "1" else None
+    db.log_event(chat, sus or 0, "verdict", "حبس موقت" if arg == "1" else "آزادی")
     # شبِ بازجویی قبلاً گذشته؛ روز از همین‌جا ادامه می‌دهد.
-    return _ok(msg + "\n\n" + ui.status_board(g.s),
-               ui.kb([[("💬 گفتگو", "discuss")], [ui.BACK, ui.HOME]]), anim=anim)
+    return _verdict_given(g, msg, arg == "1")
 
 
 def h_clear(chat, uid, name, arg):
@@ -400,16 +585,24 @@ def h_clear(chat, uid, name, arg):
     if not arg:
         return _ok("🕊️ *کدام زندانی را تبرئه می‌کنی؟*",
                    menus.player_kb(g.s, "clear", only_custody=Custody.TEMP_JAIL))
-    return _ok(g.clear_previous(uid, int(arg)) + "\n\n" + ui.status_board(g.s), ui.back_only())
+    return _ok(g.clear_previous(uid, int(arg)) + "\n\n" + ui.status_board(g.s), ui.back_only(),
+               announce=True)
 
 
 # ================= هیئت منصفه =================
+def _jury_open(g: Game, auto: bool = False) -> Dict:
+    sus = g.s.players[g.s.suspect_uid].name
+    why = "بازجو حکم نداد/نمی‌تواند بدهد؛ " if auto else ""
+    return _ok(f"⚖️ *هیئت منصفه برای {sus} تشکیل شد!* {why}رای بدهید: تبرئه یا ادامه؟\n"
+               f"({config.JURY_ACQUIT_PERCENT}٪ تبرئه = آزادی)", ui.jury_kb(), announce=True)
+
+
 def h_jury(chat, uid, name, arg):
     g = _g(chat)
     formed = g.request_jury(uid)
     if not formed:
-        return _ok("📝 درخواست هیئت منصفه ثبت شد؛ یک نفر دیگر هم لازم است.")
-    return _ok("⚖️ *هیئت منصفه تشکیل شد!* رای بدهید.", ui.jury_kb())
+        return _ok("📝 درخواست هیئت منصفه ثبت شد؛ یک نفر دیگر هم لازم است.", ui.back_only())
+    return _jury_open(g)
 
 
 def h_juryvote(chat, uid, name, arg):
@@ -419,9 +612,14 @@ def h_juryvote(chat, uid, name, arg):
                ui.kb([[("📊 نتیجه‌ی هیئت", "closejury")]]))
 
 
+def _jury_closed(g: Game, msg: str) -> Dict:
+    return _verdict_given(g, msg, "حبس موقت" in msg)
+
+
 def h_closejury(chat, uid, name, arg):
     g = _g(chat)
-    return _ok(g.close_jury() + "\n\n" + ui.status_board(g.s), ui.back_only())
+    _gate(g, uid, "closejury")
+    return _jury_closed(g, g.close_jury())
 
 
 # ================= وضعیت / پایان / پروفایل =================
@@ -435,7 +633,7 @@ def h_end(chat, uid, name, arg):
         return _err("بازی هنوز تمام نشده؛ تا آخر بازی معلوم نمی‌شود قاتل کیست.")
     return _ok(g.ending_report(),
                ui.kb([[("🔁 همین ترکیب، دور جدید", "rematch")], [("🎮 بازی جدید", "new")], [ui.HOME]]),
-               anim=ui.ANIM["court"])
+               anim=ui.ANIM["court"], announce=True)
 
 
 def h_profile(chat, uid, name, arg):
@@ -514,7 +712,10 @@ def h_admin_ban(chat, uid, name, arg):
 
 # ================= ایده ۱: تایمر =================
 def h_tick(chat, uid, name, arg):
+    """تایمر همان پیامِ کاملی را می‌سازد که دکمه‌ی همان مرحله می‌ساخت
+    (پیام صبح با کشته‌ها و مدرک، کیبورد رای، هیئت منصفه…)."""
     g = _g(chat)
+    since = len(g.s.log)
     msg = g.tick()
     if msg is None:
         rem = g.remaining()
@@ -522,8 +723,25 @@ def h_tick(chat, uid, name, arg):
                   edit=True)
         res["advanced"] = False
         return res
+    ev = g.last_event or {}
+    kind = ev.get("kind")
+    if kind == "dawn":
+        res = _morning(g, ev["result"], since)
+    elif kind == "vote_open":
+        res = _vote_open(g)
+    elif kind == "vote_closed":
+        res = _vote_closed(g, ev.get("who"))
+    elif kind == "jury_open":
+        res = _jury_open(g, auto=True)
+    elif kind == "discussion":
+        res = _discussion_open(g)
+    elif kind in ("verdict", "jury_closed"):
+        res = _verdict_given(g, ev.get("msg", msg), "حبس موقت" in ev.get("msg", ""))
+    else:
+        res = _ok(msg + "\n\n" + ui.status_board(g.s), ui.back_only(), announce=True)
+    res = dict(res)
+    res["text"] = f"{msg}\n\n{res['text']}"
     # advanced=True یعنی فاز واقعاً جلو رفت — آداپتور فقط این را پخش می‌کند.
-    res = _ok(msg + "\n\n" + ui.status_board(g.s), ui.back_only())
     res["advanced"] = True
     return res
 
@@ -538,8 +756,10 @@ def h_dashboard(chat, uid, name, arg):            # ایده ۲۶ + بهبود �
 def h_defense(chat, uid, name, arg):
     g = _g(chat)
     if not arg:
+        if uid != g.s.suspect_uid:
+            raise RuleError("فقط متهمِ داخل بازجویی می‌تواند دفاع کند.")
         return _ask_text(chat, uid, "defense")
-    return _ok(g.defense(uid, arg))
+    return _ok(g.defense(uid, _sanitize(arg) or arg[:120]), announce=True)   # «آخرین دفاع» برای کل شهر
 
 
 def _ask_text(chat, uid, cmd):
@@ -550,6 +770,8 @@ def _ask_text(chat, uid, cmd):
 
 def h_will(chat, uid, name, arg):
     g, p = _player(chat, uid)
+    if not p.alive:
+        raise RuleError("وصیت را باید پیش از مرگ نوشت.")
     if not arg:
         return _ask_text(chat, uid, "will")
     g.set_will(uid, arg)
@@ -578,14 +800,23 @@ def h_notes(chat, uid, name, arg):
 def h_sos(chat, uid, name, arg):
     g = _g(chat)
     if not arg:
+        free = [p.uid for p in g.s.players.values() if not p.free]
         return _ok("🚨 *رای اضطراری شهر* — علیه چه کسی؟\n"
-                   "با ۸۰٪ رای، مستقیم به حبس موقت می‌رود. فقط یک بار در بازی.",
-                   menus.player_kb(g.s, "sos", exclude=(uid,)))
-    return _ok(g.sos(uid, int(arg)))
+                   "فقط در روز؛ با ۸۰٪ رای، مستقیم به حبس موقت می‌رود. فقط یک بار در بازی.",
+                   menus.player_kb(g.s, "sos", exclude=(uid, *free)))
+    msg = g.sos(uid, int(arg))
+    return _ok(msg, ui.back_only(), announce=g.s.sos_used and "تصویب" in msg)
+
+
+def _in_game(chat, uid):
+    g, p = _player(chat, uid)
+    if not p.in_game:
+        raise RuleError("تو دیگر در بازی نیستی.")
+    return g
 
 
 def h_lab(chat, uid, name, arg):
-    g = _g(chat)
+    g = _in_game(chat, uid)
     if not arg:
         _need_case(g)
         return _ok("🧪 *کدام مدرک به آزمایشگاه برود؟*\nنتیجه دو شب دیگر می‌رسد.",
@@ -594,7 +825,7 @@ def h_lab(chat, uid, name, arg):
 
 
 def h_interp(chat, uid, name, arg):               # interp ← مدرک ← تفسیر
-    g = _g(chat)
+    g = _in_game(chat, uid)
     _need_case(g)
     arg = (arg or "").upper()
     if not arg:
@@ -610,7 +841,7 @@ def h_interp(chat, uid, name, arg):               # interp ← مدرک ← تف
 
 
 def h_expose(chat, uid, name, arg):
-    g = _g(chat)
+    g = _in_game(chat, uid)
     if not arg:
         _need_case(g)
         return _ok("🔍 *اصالت کدام مدرک را بسنجم؟*\nاین کار اکشن شبانه‌ات را خرج می‌کند.",
@@ -688,7 +919,9 @@ def h_rematch(chat, uid, name, arg):              # ایده ۲۴
     if not roster:
         raise RuleError("بازی قبلی‌ای برای تکرار نیست.")
     _guard_replace(chat, uid)
-    GAMES[chat] = Game(chat, seed=chat + len(roster), owner=roster[0][0])
+    old = GAMES.get(chat)
+    scen = old.scenario if old else "classic"
+    GAMES[chat] = Game(chat, seed=chat + len(roster), owner=roster[0][0], scenario=scen)
     for u, n in roster:
         GAMES[chat].join(u, n)
     return _ok("🔁 *دور جدید با همان ترکیب!*\n\n" + ui.lobby_screen(GAMES[chat].s),
@@ -777,8 +1010,14 @@ def h_balance(chat, uid, name, arg):              # بهبود ۸
 
 
 def h_hunter(chat, uid, name, arg):
-    g = _g(chat)
-    return _ok(g.set_hunter(uid, int(arg)), private=True)
+    g, p = _player(chat, uid)
+    if p.role != "شکارچی":
+        raise RuleError("فقط شکارچی می‌تواند هدف شلیک آخر بگذارد.")
+    if not arg:                                   # دکمه‌ی منو → همان پنل انتخاب هدف
+        return h_act(chat, uid, name, "")
+    return _ok(g.set_hunter(uid, int(arg)),
+               ui.action_kb(g.s, p, [u for u in g.s.players if u != uid and g.s.players[u].in_game],
+                            chosen=int(arg)), private=True)
 
 
 def _need_case(g):
@@ -839,10 +1078,12 @@ _ROUTES = {
     "commands": h_commands, "group": h_group, "roleinfo": h_roleinfo,
     "abilities": h_abilities, "cancel": h_cancel,
     "resume": h_resume, "host": h_host, "balance": h_balance,
+    # نسخه ۴
+    "scenario": h_scenario, "answer": h_answer,
 }
 
 # دستورهایی که به BotFather معرفی می‌شوند (زیرمجموعه‌ی امن برای منوی دستورها)
-COMMANDS = ["start", "menu", "new", "join", "startgame", "myrole", "act",
+COMMANDS = ["start", "menu", "new", "join", "startgame", "scenario", "myrole", "act",
             "dashboard", "status", "table", "notes", "help", "roles",
             "ready", "remind", "pause", "resume", "host",
             "share", "admin"]

@@ -14,7 +14,7 @@ from typing import Dict, List, Optional
 from karagah import bot, db
 from karagah.bot import GAMES
 from karagah.models import Align, Custody, Phase
-from karagah.roles import ROLES
+from karagah.roles import ROLES, SCENARIOS, scenario_name
 
 from .agent import Agent, cb_is, cb_starts
 from .docs import Rulebook
@@ -35,10 +35,13 @@ def _reset_globals() -> None:
 
 
 class Session:
-    def __init__(self, n: int, seed: int, report: Report, rb: Rulebook, mode: str = "group"):
+    def __init__(self, n: int, seed: int, report: Report, rb: Rulebook, mode: str = "group",
+                 scenario: str = "classic"):
         _reset_globals()
         self.n, self.seed, self.mode, self.r, self.rb = n, seed, mode, report, rb
-        self.group = -(1_000_000 + n * 1000 + seed * 10 + len(mode))
+        self.scenario = scenario
+        self.group = -(1_000_000 + n * 1000 + seed * 10 + len(mode)
+                       + 100_000 * list(SCENARIOS).index(scenario))
         self.tg = Telegram(self.group, report)
         self.rng = random.Random(seed * 1009 + n * 7 + len(mode))
         self.agents = [Agent(5000 + i, NAMES[i], self.tg, random.Random(seed * 31 + i))
@@ -48,7 +51,7 @@ class Session:
         self.ref: Optional[Referee] = None
         self.stuck = ""
         self.lab_due: Dict[str, int] = {}
-        report.context = f"{n} نفره، بذر {seed}، {MODE_FA[mode]}"
+        report.context = f"{scenario_name(scenario)}، {n} نفره، بذر {seed}، {MODE_FA[mode]}"
 
     @property
     def g(self):
@@ -78,7 +81,23 @@ class Session:
             m = a.tap(cb_is("join"), ("group",))
             if not (m and m.ok):
                 self.r.find("بالا", "لابی", "دکمه‌ی «منم بازی می‌کنم» کار نکرد", m.text if m else "دکمه نبود")
-        m = self.host.tap(cb_is("startgame"), ("group",))
+        if self.scenario != "classic":               # میزبان سناریو را با دکمه انتخاب می‌کند
+            other = self.agents[1]
+            if other.tap(cb_is("scenario"), ("group",), depth=4):
+                hit = other.find(cb_is(f"scenario:{self.scenario}"), ("group",), 2)
+                r = other.press(*hit) if hit else None
+                if r and r.ok:
+                    self.r.find("متوسط", "دسترسی", "غیرمیزبان سناریو را عوض کرد", key="scenario-authz")
+                else:
+                    self.r.ok("سناریو: فقط میزبان")
+            self.host.tap(cb_is("scenario"), ("group",), depth=6)
+            hit = self.host.find(cb_is(f"scenario:{self.scenario}"), ("group",), 2)
+            r = self.host.press(*hit) if hit else None
+            if not (r and r.ok and scenario_name(self.scenario) in r.text):
+                self.r.find("بالا", "لابی", "انتخاب سناریو با دکمه کار نکرد", r.text if r else "دکمه نبود")
+            else:
+                self.r.ok("سناریو: انتخاب با دکمه و نمایش نقش‌ها در لابی")
+        m = self.host.tap(cb_is("startgame"), ("group",), depth=8)
         if m and m.ok:
             self.r.find("بالا", "لابی", "بازی بدون «✅ آماده‌ام» شروع شد", key="start-without-ready")
         else:
@@ -93,9 +112,11 @@ class Session:
         if not self.g or self.g.s.phase is not Phase.NIGHT:
             self.r.find("بحرانی", "لابی", "بازی با همه‌ی آماده‌ها شروع نشد", m.text if m else "")
             return False
-        if self.mode == "timer":
-            pass
         for a in self.agents:
+            if any("نقش تو:" in x.text for x in self.tg.inbox(a.uid)):
+                self.r.ok("کارت نقش خودکار به پیوی")
+            else:
+                self.r.find("متوسط", "رابط", "کارت نقش خودکار به پیوی نرسید", a.name, key="auto-role-card")
             m = a.tap(cb_is("myrole"), ("group",), depth=4)
             if m and m.chat == a.uid:
                 a.learn_role(m.text)
@@ -154,11 +175,27 @@ class Session:
                             "شمارنده‌ی «شب‌های بی‌حرکت» (missed) او هم زیاد می‌شود — یعنی به‌خاطر "
                             "بازداشت، «😴 بی‌حرکت» اعلام می‌شود.", key="suspect-pending")
 
+    def host_phase(self, cb: str, depth: int = 10) -> Optional["object"]:
+        """میزبان دکمه‌ی فاز را می‌زند؛ اگر ربات گفت «هنوز منتظر…»، تا پایان مهلت صبر می‌کند."""
+        def press():
+            if self.mode == "dm":
+                return self.host.navigate(cb)
+            return self.host.tap(cb_is(cb), ("group",), depth=depth) or (
+                self.check_dashboard() or self.host.tap(cb_is(cb), ("group",), depth=1))
+        m = press()
+        if m is not None and not m.ok and "⏳" in m.text:
+            left = self.g.remaining() or 0
+            self.tg.clock.advance(left + 1)
+            m = press()
+        return m
+
     # ─────────────────────────── شب ───────────────────────────
     def night(self) -> None:
         g = self.g
+        for a in self.agents:
+            a.read_dm()                                 # خبرهای محرمانه‌ی دیشب (جانشینی قاتل، …)
         killers = [p for p in g.s.alive_players() if p.align is Align.KILLER]
-        if killers and not any(ROLES[p.role].ability in ("kill", "poison")
+        if killers and not any(g.ability_of(p) in ("kill", "poison")
                                for p in g.s.alive_players()):
             self.r.find("متوسط", "تعادل", "تیم قاتل هنوز در بازی است ولی دیگر هیچ‌کس نمی‌تواند بکشد",
                         f"روز {g.s.day}: قاتل‌های باقی‌مانده {[p.role for p in killers]} هیچ‌کدام توانایی قتل "
@@ -166,7 +203,7 @@ class Session:
                         "فقط با رای شهر تمام می‌شود و سقف روز هم ندارد؛ در دو بازی ۹ نفره که شهر رای نداد، "
                         "بازی ۳۸ روز بی‌هیچ مرگی ادامه یافت.", key="no-killer-can-kill")
         self.ref.begin_night()
-        order = sorted(self.agents, key=lambda a: (ROLES[a.role].ability != "kill", self.rng.random()))
+        order = sorted(self.agents, key=lambda a: (self.ab(a) != "kill", self.rng.random()))
         order.sort(key=lambda a: ROLES[a.role].ability == "protect")     # پزشک آخر
         for a in order:
             self.night_turn(a)
@@ -177,12 +214,8 @@ class Session:
         day_before = g.s.day
         if self.mode == "timer":
             self.run_timer()
-        elif self.mode == "dm":
-            self.host.navigate("dawn")
         else:
-            if not self.host.tap(cb_is("dawn"), ("group",), depth=8):
-                self.check_dashboard()
-                self.host.tap(cb_is("dawn"), ("group",), depth=1)
+            self.host_phase("dawn")
         if g.s.phase in (Phase.NIGHT, Phase.INTERROGATION):
             return                                      # حلقه‌ی بعدی گیر را می‌گیرد
         announced = self.group_since(mark)
@@ -200,12 +233,16 @@ class Session:
             if g.s.phase is not ph:
                 return
 
+    def ab(self, a: Agent) -> str:
+        """توانایی‌ای که خودِ agent فکر می‌کند دارد (جانشینی را از پیوی فهمیده)."""
+        return "kill" if a.heir else ROLES[a.role].ability
+
     def night_turn(self, a: Agent) -> None:
         g = self.g
         p = g.s.players[a.uid]
         if not p.in_game:
             return
-        ab = ROLES[a.role].ability
+        ab = self.ab(a)
         if p.custody is Custody.INTERROGATION:
             m = a.navigate("defense")
             if m and "دفاع تو" in m.text:
@@ -242,7 +279,20 @@ class Session:
             return
         btns = a.buttons_named(panel, "act:")
         if not btns:
-            self.r.find("متوسط", "دکمه‌ها", f"{a.role} در شب هیچ هدفِ مجازی نداشت", panel.text[:120])
+            # قاعده: بازداشتی‌ها در امان‌اند، هم‌تیمی ممنوع، پزشک دو شب پیاپی نه — آیا واقعاً کسی نمانده؟
+            others = [q for q in g.s.alive_players() if q.uid != a.uid]
+            open_ = [q for q in others if q.free and not (
+                ab in ("kill", "poison", "frame") and ROLES[a.role].align is Align.KILLER
+                and q.align is Align.KILLER)]
+            if open_ and ab in ("kill", "poison", "frame", "hide") or \
+                    ab not in ("kill", "poison", "frame", "hide", "protect") and others:
+                self.r.find("متوسط", "دکمه‌ها", f"{a.role} در شب هیچ هدفِ مجازی نداشت", panel.text[:160])
+            elif "هدفِ مجازی نداری" not in panel.text:
+                self.r.find("پایین", "رابط", "پنل اکشن بی‌هدف توضیح نمی‌دهد چرا", key="no-target-why")
+            else:
+                self.r.ok("پنل اکشن: «هدفی نمانده» با توضیح")
+            if a.uid in g.pending_actors():
+                self.r.find("متوسط", "جریان بازی", "بازیکنِ بی‌هدف «منتظرِ اکشن» می‌ماند", key="no-target-pending")
             return
         b = self.pick(a, ab, btns)
         m = a.press(panel, b)
@@ -300,16 +350,34 @@ class Session:
                 self.r.find("بالا", "امنیت", "سرنخ‌های بازجو در گروه دیده شد")
             else:
                 self.r.ok("بازجو: سرنخ‌ها در پیوی")
+        sus = self.agent(g.s.suspect_uid)
         q = self.rng.choice(QUESTIONS)
-        for _ in range(2):                              # دو بار همان سؤال → تناقض‌یاب
+        for i in range(2):                              # دو بار همان سؤال → تناقض‌یاب
             m = off.tap(cb_is("ask"), ("dm", "group"), depth=6, nav="ask")
-            if m and "پرسش از متهم" in m.text:
-                ans = off.say(q)
-                if ans.ok and "متهم:" in ans.text:
-                    self.r.ok("بازجو: پرسش و پاسخ متهم")
-                elif not ans.ok:
-                    self.r.find("متوسط", "بازجویی", "پرسشِ بازجو رد شد", ans.text,
-                                key=f"ask-fail:{ans.text[:40]}")
+            if not (m and "پرسش از متهم" in m.text):
+                return
+            ans = off.say(q)
+            if not ans.ok:
+                self.r.find("متوسط", "بازجویی", "پرسشِ بازجو رد شد", ans.text,
+                            key=f"ask-fail:{ans.text[:40]}")
+                return
+            # پرسش باید به پیوی متهم رسیده باشد، با دکمه‌ی «جواب بده»
+            got = sus and sus.find(cb_is("answer"), ("dm",), 3)
+            if not got or q not in got[0].text:
+                self.r.find("بالا", "بازجویی", "پرسش بازجو به متهم نرسید", key="ask-not-delivered")
+                return
+            prompt = sus.press(*got)
+            lie = ROLES[sus.role].align is not Align.CITY and i == 1
+            said = "آن شب تنها بودم." if lie else "خانه بودم، همسایه‌ها دیدند."
+            reply = sus.say(said)
+            back = off.tg.last(off.uid)
+            if reply.ok and back and "جواب" in back.text and said in back.text:
+                self.r.ok("بازجویی دونفره: پرسش → متهم → جواب → بازجو")
+                if lie and "تناقض" in back.text:
+                    self.r.ok("تناقض‌یاب روی جواب واقعی متهم")
+            else:
+                self.r.find("بالا", "بازجویی", "جواب متهم به بازجو نرسید",
+                            f"{reply.text[:80]} / {back.text[:80] if back else '—'}", key="answer-not-delivered")
 
     def check_lab(self, day: int) -> None:
         log = "\n".join(self.g.s.log)
@@ -334,9 +402,7 @@ class Session:
                 self.verdict(g.s.suspect_uid)
         if g.s.phase is not Phase.MORNING:
             return
-        m = self.host.tap(cb_is("discuss"), ("group",), depth=6) if self.mode != "dm" else None
-        if m is None:
-            m = self.host.navigate("discuss")
+        m = self.host_phase("discuss", depth=6)
         if g.s.phase is Phase.MORNING and m is not None and not m.ok:
             self.r.find("متوسط", "جریان بازی", "«💬 گفتگو» صبح باز نشد", m.text)
 
@@ -345,6 +411,8 @@ class Session:
         askers = [a for a in self.agents if g.s.players[a.uid].can_vote and a.uid != sus]
         self.rng.shuffle(askers)
         for a in askers[:2]:
+            if g.s.phase is Phase.JURY:                  # وکیل به‌تنهایی کافی بود
+                break
             self.check_dashboard()                       # دکمه‌ی ⚖️ روی داشبورد صبح
             m = a.tap(cb_is("jury"), ("group",), depth=2) or a.navigate("jury")
             if m and not m.ok:
@@ -376,11 +444,11 @@ class Session:
         x = 1 if confirm else 0
         m = off.tap(cb_is(f"ver:{sus}:{x}"), ("group",), depth=12)
         if m is None:
-            m = off.tap(cb_is(f"verdict:{x}"), ("dm",), depth=4)
+            m = off.tap(cb_is(f"verdict:{sus}:{x}"), ("dm",), depth=4)
         if m is None:
             m = off.navigate("verdict")
             if m and m.ok:
-                m = off.tap(cb_is(f"verdict:{x}"), ("dm",), depth=1)
+                m = off.tap(cb_is(f"verdict:{sus}:{x}"), ("dm",), depth=1)
         if m is None:
             return
         if m.ok:
@@ -405,11 +473,8 @@ class Session:
                 self.r.ok("بازجو: حکم آزادی")
             self.ref.check_invariants("حکم")
             self.ref.check_win("حکم")
-        elif not offp.in_game:
-            self.r.find("بالا", "بازجویی", "بازجو از بازی بیرون است و متهم حکم نمی‌گیرد",
-                        f"{off.name} ({'کشته' if not offp.alive else offp.custody.value}) — متهم "
-                        f"{tp.name} در بازجویی می‌ماند؛ هیچ نقشی جای بازجو را نمی‌گیرد.",
-                        key="no-officer")
+        elif not offp.free or off.uid == sus:
+            self.r.ok("بازجوی ناتوان/متهم حکم نمی‌دهد")
 
     # ─────────────────────────── گفتگو و رای ───────────────────────────
     def discussion(self) -> None:
@@ -432,10 +497,8 @@ class Session:
             return
         if self.mode == "timer":
             self.run_timer()
-        elif self.mode == "dm":
-            self.host.navigate("vote")
         else:
-            self.host.tap(cb_is("vote"), ("group",), depth=4)
+            self.host_phase("vote", depth=4)
 
     def interp(self, a: Agent) -> None:
         m = a.navigate("interp")
@@ -523,9 +586,8 @@ class Session:
         if self.mode == "timer":
             self.run_timer()
         else:
-            m = self.host.tap(cb_is("closevote"), ("group",), depth=10) if self.mode == "group" \
-                else self.host.navigate("closevote")
-            if m and "تساوی" in m.text and g.s.phase is Phase.VOTE:
+            m = self.host_phase("closevote")
+            if m and "شب فرا می‌رسد" in m.text and g.s.phase is Phase.VOTE:
                 self.r.find("متوسط", "رابط", "پیام تساوی می‌گوید «شب فرا می‌رسد» ولی دور دوم رای باز است",
                             "close_vote در اولین تساوی فاز را روی رای‌گیری نگه می‌دارد (مرگ ناگهانی) اما "
                             "h_closevote همان متن «کسی بازداشت نشد. شب فرا می‌رسد.» و دکمه‌ی «🌙 پایان شب» را "
@@ -557,7 +619,7 @@ class Session:
         for a in self.agents:
             if not g.s.players[a.uid].can_vote:
                 continue
-            hit = a.find(cb_starts("jury:"), ("group",), 8)
+            hit = a.find(cb_starts("jury:"), ("group",), 40)
             if not hit:
                 self.r.find("بالا", "هیئت منصفه", "دکمه‌های رای هیئت منصفه در گروه نیست", key=f"no-jury-kb:{self.mode}")
                 break
@@ -567,7 +629,10 @@ class Session:
             if r and r.ok:
                 total += 1
                 yes += int(bool(acquit))
-        self.host.tap(cb_is("closejury"), ("group",), depth=6) or self.host.navigate("closejury")
+        if self.mode == "timer":
+            self.run_timer()
+        else:
+            self.host_phase("closejury", depth=6)
         if g.s.phase is Phase.JURY:
             return
         freed = sus is not None and g.s.players[sus].custody is Custody.FREE
@@ -593,6 +658,7 @@ class Session:
     def summary(self) -> dict:
         g = self.g
         return {"players": self.n, "seed": self.seed, "mode": MODE_FA[self.mode],
+                "scenario": scenario_name(self.scenario),
                 "case": f"#{g.s.case.cid}" if g and g.s.case else "—",
                 "winner": g.s.winner if g else None, "days": g.s.day if g else 0,
                 "presses": self.tg.presses, "finished": bool(g and g.s.phase is Phase.END and not self.stuck),
@@ -600,8 +666,9 @@ class Session:
                 "roles": {a.name: a.role for a in self.agents}}
 
 
-def run_session(n: int, seed: int, report: Report, rb: Rulebook, mode: str = "group") -> dict:
-    s = Session(n, seed, report, rb, mode)
+def run_session(n: int, seed: int, report: Report, rb: Rulebook, mode: str = "group",
+                scenario: str = "classic") -> dict:
+    s = Session(n, seed, report, rb, mode, scenario)
     try:
         if s.lobby():
             s.play()

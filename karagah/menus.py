@@ -31,6 +31,7 @@ GROUPS: List[Tuple[str, str, List[tuple]]] = [
         ("🎮 بازی جدید", "new"), ("⚡ بلیتز", "blitz"),
         ("🙋 ورود به لابی", "join"), ("🚪 خروج از لابی", "leave"),
         ("✅ آماده‌ام", "ready"), ("🎬 شروع بازی", "startgame"),
+        ("🎭 سناریو", "scenario"),
         ("🔐 نقش من", "myrole"), ("🖼️ کارت نقش", "rolecard"),
         ("🎯 توانایی‌های من", "abilities"), ("🌙 اکشن شبانه", "act"),
         ("🌅 پایان شب", "dawn"), ("💬 گفتگو", "discuss"),
@@ -40,6 +41,7 @@ GROUPS: List[Tuple[str, str, List[tuple]]] = [
     ]),
     ("interro", "🔦 بازجویی و دادگاه", [
         ("🔦 سرنخ‌ها", "hints"), ("💬 پرسش از متهم", "ask"),
+        ("🗣️ جواب به بازجو", "answer"),
         ("⚖️ حکم بازجو", "verdict"), ("🕊️ آزادی زندانی قبلی", "clear"),
         ("🛡️ دفاع من", "defense"), ("⚖️ هیئت منصفه", "jury"),
         ("📊 نتیجه‌ی هیئت", "closejury"), ("🚨 رای اضطراری", "sos"),
@@ -137,11 +139,19 @@ def roles_kb() -> Dict:
 
 
 def role_detail(name: str) -> str:
+    from .roles import SCENARIOS
     r = ROLES[name]
+    where = []
+    for _k, (sname, _d, comps) in SCENARIOS.items():
+        ns = [n for n, roles in comps.items() if name in roles]
+        if ns:
+            where.append(f"{sname} ({min(ns)}–{max(ns)} نفر)" if len(ns) > 1 else f"{sname} ({ns[0]} نفر)")
     return (f"{r.emoji} *{r.name}*\n" + "─" * 18 +
             f"\n🎯 تیم: {r.align.value}"
             f"\n🌙 کار شبانه: {ABILITY_FA.get(r.ability, r.ability)}"
-            f"\n📜 {r.desc}")
+            f"\n📜 {r.desc}"
+            + (f"\n🏆 شرط برد: {r.goal}" if r.goal else "")
+            + (f"\n🃏 در سناریو: {'، '.join(where)}" if where else ""))
 
 
 def role_detail_kb() -> Dict:
@@ -155,8 +165,10 @@ def abilities_text(g, p) -> str:
     lines: List[str] = []
     if r is None:
         return "🎭 هنوز نقشی نگرفته‌ای؛ بازی شروع نشده."
+    ab = g.ability_of(p)
     lines.append(f"{r.emoji} *{r.name}* — تیم {r.align.value}")
-    lines.append(f"🌙 کار شبانه: {ABILITY_FA.get(r.ability, r.ability)}")
+    lines.append(f"🌙 کار شبانه: {ABILITY_FA.get(ab, ab)}"
+                 + (" (جانشین قاتل)" if ab != r.ability else ""))
     lines.append("─" * 18)
 
     if p.custody is Custody.LIFE_JAIL or not p.alive:
@@ -171,11 +183,11 @@ def abilities_text(g, p) -> str:
         if p.custody is Custody.INTERROGATION:
             now.append("🔦 امشب در اتاق بازجویی‌ای — اکشن شبانه نداری.")
             now.append("🛡️ می‌توانی «دفاع من» را بفرستی.")
-        elif r.ability and r.ability != "hunter":
+        elif ab and ab != "hunter":
             now.append("🌙 «اکشن شبانه» را بزن و هدفت را انتخاب کن.")
         else:
             now.append("😴 امشب کاری از تو برنمی‌آید؛ صبح بحث کن.")
-        if r.ability == "hunter":
+        if ab == "hunter":
             now.append("🏹 «هدف شلیک آخر» را از قبل مشخص کن.")
         if p.role == "کارآگاه":
             now.append("🔍 به‌جای استعلام می‌توانی اصالت یک مدرک را بسنجی.")
@@ -186,12 +198,13 @@ def abilities_text(g, p) -> str:
     elif s.phase is Phase.MORNING:
         if s.suspect_uid == p.uid:
             now.append("🛡️ متهمی: «دفاع من» را بفرست.")
-        if p.uid == s.officer_uid and s.suspect_uid:
+        if p.uid == s.officer_uid and s.suspect_uid is not None and g.officer_can_judge():
             now.append("⚖️ بازجویی: سرنخ بگیر، بپرس، حکم بده.")
-        if s.suspect_uid:
+        if s.suspect_uid is not None:
             need = "به‌تنهایی" if p.role == "وکیل" else "با یک نفر دیگر"
             now.append(f"⚖️ می‌توانی {need} هیئت منصفه بخواهی.")
-        now.append("💬 «گفتگو» را باز کنید.")
+        if s.suspect_uid is None:
+            now.append("💬 «گفتگو» را باز کنید.")
     elif s.phase is Phase.DISCUSSION:
         now.append("💬 بحث کن، بعد «رای‌گیری».")
     if p.uid == s.officer_uid:
@@ -208,10 +221,10 @@ def abilities_text(g, p) -> str:
 
 def abilities_kb(g, p) -> Dict:
     rows: List[List[tuple]] = []
-    r = ROLES[p.role] if p.role else None
-    if r and r.ability and r.ability != "hunter":
+    ab = g.ability_of(p) if p.role else ""
+    if ab and ab != "hunter":
         rows.append([("🌙 اکشن شبانه", "act")])
-    if r and r.ability == "hunter":
+    if ab == "hunter":
         rows.append([("🏹 هدف شلیک آخر", "hunter")])
     rows.append([("📓 دفترچه", "notes"), ("🔐 نقش من", "myrole")])
     rows.append([("🎛️ همه‌ی دکمه‌ها", "commands"), HOME])
@@ -249,9 +262,11 @@ def player_kb(s: GameState, cmd: str, exclude=(), only_custody=None) -> Dict:
 
 
 def verdict_kb(s: GameState) -> Dict:
-    sus = s.players[s.suspect_uid].name if s.suspect_uid else "—"
-    return kb([[(f"🔒 حبس موقت برای {sus}", "verdict:1")],
-               [(f"🔓 تایید بی‌گناهی {sus}", "verdict:0")],
+    """آیدی متهم در callback می‌ماند (verdict:<uid>:<x>) تا دکمه‌ی کهنه روی متهمِ تازه اجرا نشود."""
+    uid = s.suspect_uid
+    sus = s.players[uid].name if uid is not None else "—"
+    return kb([[(f"🔒 حبس موقت برای {sus}", f"verdict:{uid}:1")],
+               [(f"🔓 تایید بی‌گناهی {sus}", f"verdict:{uid}:0")],
                [("🔦 سرنخ‌ها", "hints"), ("💬 پرسش", "ask")],
                [BACK, HOME]])
 
@@ -268,7 +283,8 @@ PROMPTS = {
     "note": ("📝 *یادداشت تازه*", "متن یادداشتت را همین حالا بفرست."),
     "will": ("📜 *وصیت‌نامه*", "متن وصیتت را بفرست؛ اگر کشته شوی صبح خوانده می‌شود."),
     "ask": ("💬 *پرسش از متهم*", "سؤالت را بفرست تا از متهم پرسیده شود."),
-    "defense": ("🛡️ *دفاع تو*", "متن دفاعت را بفرست."),
+    "defense": ("🛡️ *دفاع تو*", "متن دفاعت را بفرست؛ در گروه اعلام می‌شود."),
+    "answer": ("🗣️ *جواب به بازجو*", "جوابت را بفرست؛ فقط بازجو آن را می‌بیند."),
 }
 
 

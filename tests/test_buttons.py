@@ -198,7 +198,8 @@ def test_verdict_without_argument_offers_the_two_rulings():
     g = _started()
     _to_interrogation(g)
     cbs = _cbs(handle("verdict", CHAT, g.s.officer_uid)["keyboard"])
-    assert "verdict:1" in cbs and "verdict:0" in cbs
+    sus = g.s.suspect_uid                          # نسخه ۴: دکمه به همین متهم بسته است
+    assert f"verdict:{sus}:1" in cbs and f"verdict:{sus}:0" in cbs
 
 
 def test_clear_without_argument_lists_only_jailed_players():
@@ -228,11 +229,24 @@ def test_admin_ban_without_argument_lists_users(monkeypatch):
 # ---------- تنها جایی که تایپ لازم است ----------
 @pytest.mark.parametrize("cmd", ["note", "will", "defense", "ask"])
 def test_text_commands_prompt_instead_of_erroring(cmd):
-    _started()
-    r = handle(cmd, CHAT, 2)
+    g = _started()
+    who = 2
+    if cmd in ("defense", "ask"):                  # فقط متهم دفاع می‌کند و فقط بازجو می‌پرسد
+        _to_interrogation(g)
+        who = g.s.suspect_uid if cmd == "defense" else g.s.officer_uid
+    r = handle(cmd, CHAT, who)
     assert r["ok"] and r["private"]
     assert "cancel" in _cbs(r["keyboard"])
-    assert bot._PENDING.get(2) == (CHAT, cmd)
+    assert bot._PENDING.get(who) == (CHAT, cmd)
+
+
+@pytest.mark.parametrize("cmd", ["defense", "ask"])
+def test_text_commands_refuse_the_wrong_person_clearly(cmd):
+    g = _started()
+    _to_interrogation(g)
+    bystander = next(u for u in g.s.players if u not in (g.s.suspect_uid, g.s.officer_uid))
+    r = handle(cmd, CHAT, bystander)
+    assert r["ok"] is False and "خطای داخلی" not in r["text"]
 
 
 def test_pending_text_is_consumed_once():

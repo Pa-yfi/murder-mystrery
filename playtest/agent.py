@@ -42,6 +42,7 @@ class Agent:
         self.notes_seen: List[str] = []
         self.nav_log: List[str] = []           # مسیرِ دکمه‌هایی که زده
         self.last: Optional[Message] = None    # آخرین پاسخ ربات به این agent
+        self.heir = False                      # چاقوی تیم قاتل به او رسیده (از پیام پیوی)
 
     # ── خواندن مستندات (اجباری) ──
     def read_docs(self, rb: Rulebook) -> None:
@@ -132,10 +133,23 @@ class Agent:
                 m = re.match(r"شب (\d+): (.+?) → (پاک|مشکوک)", line)
                 if m:
                     (self.clean if m.group(3) == "پاک" else self.dirty).add(m.group(2))
+                if "چاقو دست توست" in line:
+                    self.heir = True
                 m = re.search(r"کنار (.+?) با (.+?) روبه‌رو شدی", line)
                 if m:
                     for n in m.group(2).split("، "):
                         self.suspicion[n] = self.suspicion.get(n, 0) + 1
+        return new
+
+    def read_dm(self) -> List[str]:
+        """پیام‌های تازه‌ی پیوی (خبرهای محرمانه‌ای که ربات خودش فرستاده) را بخوان."""
+        new = []
+        for m in self.tg.inbox(self.uid):
+            if m.mid in getattr(self, "_seen", set()):
+                continue
+            self._seen = getattr(self, "_seen", set()) | {m.mid}
+            if "خبر تازه برای تو" in m.text:
+                new += self.learn_notes(m.text)
         return new
 
     def buttons_named(self, msg: Optional[Message], prefix: str) -> List[dict]:
