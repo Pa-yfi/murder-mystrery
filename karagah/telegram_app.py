@@ -36,6 +36,17 @@ TOKEN = CONFIG_BOT_TOKEN
 CB_MAP = {"vote": "castvote", "ver": "verdict", "jury": "juryvote", "ask": "ask"}
 
 
+def parse_callback(data: str):
+    """callback_data → (اندپوینت، آرگومان). بازیکن‌های شبیه‌سازی (playtest) هم
+    از همین تابع رد می‌شوند تا دکمه‌ها دقیقاً مثل تلگرام واقعی تفسیر شوند."""
+    if ":" in data:                       # اکشن پارامتری: vote:5 ، ver:5:1 ، ask:5
+        head, rest = data.split(":", 1)
+        cmd = CB_MAP.get(head, head)
+        arg = rest.split(":")[-1] if head == "ver" else rest
+        return cmd, arg
+    return data, ""                       # دکمه‌ی ساده = نام اندپوینت (بدون نگاشت)
+
+
 def _kb(k):
     if not k:
         return None
@@ -153,13 +164,7 @@ async def on_callback(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
     data = q.data or "menu"
     if is_dup_callback(q.message.chat_id if q.message else 0, q.from_user.id, data):
         return                                 # ایده ۲: تپ تکراری نادیده
-    arg = ""
-    if ":" in data:                       # اکشن پارامتری: vote:5 ، ver:5:1 ، ask:5
-        head, rest = data.split(":", 1)
-        cmd = CB_MAP.get(head, head)
-        arg = rest.split(":")[-1] if head == "ver" else rest
-    else:                                 # دکمه‌ی ساده = نام اندپوینت (بدون نگاشت)
-        cmd = data
+    cmd, arg = parse_callback(data)
     res = _dispatch(update, cmd, arg)
     await _reply(update, res)
     await _send_photo_or_voice(update, res)

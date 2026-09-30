@@ -395,6 +395,12 @@ def cmd_quality(_args) -> int:
     return 0                      # قرمزیِ این سوئیت شکستِ اجرا نیست
 
 
+def cmd_playtest(args) -> int:
+    head("🧑‍🤝‍🧑 بازیکن‌های شبیه‌سازی — ۴ تا ۱۰ نفر، فقط با دکمه")
+    from playtest.__main__ import main as playtest_main
+    return playtest_main(["--seeds", str(args.seeds)])
+
+
 def cmd_bot(_args) -> int:
     head("🤖 اجرای ربات تلگرام")
     from karagah.telegram_app import main
@@ -426,6 +432,7 @@ COMMANDS = {
     "cases":    (cmd_cases,    "۴۰ پرونده"),
     "db":       (cmd_db,       "جدول‌ها و تعداد ردیف‌ها"),
     "stats":    (cmd_stats,    "آمار کلی و تعادل نقش‌ها"),
+    "playtest": (cmd_playtest, "agentها از ۴ تا ۱۰ نفر با دکمه بازی می‌کنند → playtest/REPORT.md"),
     "bot":      (cmd_bot,      "اجرای ربات واقعی (به شبکه وصل می‌شود)"),
     "all":      (cmd_all,      "check + selftest + test"),
 }
@@ -439,6 +446,7 @@ def main(argv=None) -> int:
     parser.add_argument("command", nargs="?", choices=list(COMMANDS), help="کار موردنظر")
     parser.add_argument("--players", type=int, default=8, help="تعداد بازیکن در demo")
     parser.add_argument("--case", type=int, default=3, help="شماره‌ی پرونده در demo")
+    parser.add_argument("--seeds", type=int, default=6, help="تعداد بذر برای هر تعداد بازیکن در playtest")
     args = parser.parse_args(argv)
 
     if not args.command:
