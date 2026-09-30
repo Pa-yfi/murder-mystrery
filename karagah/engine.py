@@ -208,7 +208,7 @@ class Game:
                 raise RuleError(
                     f"این بازیکن‌ها هنوز پیوی ربات را باز نکرده‌اند: {names}\n"
                     "هر کدام دکمه‌ی «✅ آماده‌ام» را بزنند (نقش محرمانه آنجا می‌رود). "
-                    "برای شروع بدون آن‌ها: /startgame force")
+                    "میزبان می‌تواند با «⚡ شروع بدون آن‌ها» بی‌آن‌ها شروع کند.")
         from .scenes import CASE_POOL, pack
         pool = CASE_POOL[pack(scenario)]                 # پرونده‌ای که با فضای سناریو بخواند
         self.s.case = CASES[(case_id - 1) if case_id else self.rng.choice(pool) - 1]
@@ -741,7 +741,7 @@ class Game:
         self._build_traces(acts, killed)
         self._deliver_night_info(acts, night_suspect)
         self._update_heir()
-        s.log.append(f"شب {s.day}: کشته‌ها={[s.players[u].name for u in killed]}")
+        s.log.append(f"🌙 شب {s.day}: کشته‌ها — " + ("، ".join(s.players[u].name for u in killed) or "هیچ‌کس"))
         self._arm()
         self._check_win()
         # بازجو نمی‌تواند حکم بدهد (خودش متهم/زندانی/حذف است) → هیئت منصفه خودکار

@@ -402,7 +402,8 @@ class Referee:
                         "بازیکن هرگز به دستش نمی‌رسد و «📓 دفترچه‌ی من» می‌گوید «بازی فعالی وجود ندارد».",
                         key="notes-after-end")
             text = "\n".join(self.s.players[uid].notes)     # نمای خدا برای سنجش خودِ توانایی
-        if line in text:
+        from karagah.l10n import fa_digits
+        if line in text or fa_digits(line) in text:          # بازیکن رقمِ فارسی می‌بیند (نسخه ۸)
             self.r.ok(label)
         else:
             self.r.find("بالا", "توانایی‌ها", f"{label} — نتیجه‌ی درست در دفترچه نیامد",

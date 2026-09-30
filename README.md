@@ -10,7 +10,7 @@ python -m venv .venv
 .\.venv\Scripts\Activate.ps1
 pip install -r requirements.txt
 copy .env.example .env      # بعد BOT_TOKEN و BOT_USERNAME و ADMIN_IDS را داخلش بگذار
-python -m pytest -q tests   # ۲۹۴ تست سبز
+python -m pytest -q tests   # ۳۵۴ تست سبز
 python run.py               # ربات بالا می‌آید
 ```
 لینوکس/مک: `source .venv/bin/activate` و `cp .env.example .env`.
@@ -29,7 +29,7 @@ run.py → karagah/telegram_app.py → karagah/bot.py (۷۳ اندپوینت)
                                         ├── ui.py / menus.py (کیبورد، دکمه‌ی هر فرمان، ایموجی)
                                         └── db.py      (SQLite — پنل ادمین)
 karagah/config.py ← .env
-tests/        ← ۲۹۴ تست سبز (tests/test_rules_v4.py = قواعد نسخه ۴)
+tests/        ← ۳۵۴ تست سبز (v4 قواعد، v5 سرنخ، v6 صحنه، v7 جریان زنده، v8 QA)
 playtest/     ← بازیکن‌های شبیه‌سازی + گزارش (REPORT.md)
 RULES.md      ← قوانین کامل؛ جدول سناریوها با تست با کد هم‌خوان می‌ماند
 ```
@@ -76,7 +76,7 @@ RULES.md      ← قوانین کامل؛ جدول سناریوها با تست 
 دستورهای تازه: `/act` `/ready` `/remind` `/pause` `/resume` `/host` `/table` `/balance`
 
 ## تست‌ها
-- `tests/` — باید همیشه سبز باشد (۲۹۴ تست). `tests/test_rules_v4.py` هر قاعده‌ی RULES.md را می‌سنجد.
+- `tests/` — باید همیشه سبز باشد (۳۵۴ تست). `tests/test_rules_v4.py` هر قاعده‌ی RULES.md را می‌سنجد.
 - `playtest/` — بازیکن‌های شبیه‌سازی کل بازی را با دکمه بازی می‌کنند و یافته‌ها را در `playtest/REPORT.md` می‌نویسند.
   (سوئیتِ «دفترچه‌ی نقص» که مستندات قدیمی به آن ارجاع می‌داد در مخزن نبود؛ همه‌ی نقص‌های آن فهرست در نسخه ۴ بسته شد — PLAN.md.)
 
@@ -84,6 +84,26 @@ RULES.md      ← قوانین کامل؛ جدول سناریوها با تست 
 python -m pytest -q tests          # باید سبز باشد
 python runner.py playtest          # بازیکن‌های شبیه‌سازی → playtest/REPORT.md
 ```
+
+## 🧪 QA — همه‌ی گونه‌های آزمونِ بازی (نسخه ۸)
+```
+python -m playtest.qa            # سریع (چند دقیقه) → playtest/QA_REPORT.md
+python -m playtest.qa --full     # کامل (شبانه در CI)
+python -m playtest.qa --only perf,soak
+```
+| گونه | کجا |
+|---|---|
+| واحد و یکپارچگی | `tests/` (pytest) — منطقِ خالص تا ربات + موتور + SQLite + آداپتور |
+| عملکردی/گیم‌پلی | `playtest/game.py` (agentهای دکمه‌زن + داور)، `playtest/crawl.py` (هر دکمه در ۴۰ وضعیت) |
+| دود (Smoke) | `playtest/qa/smoke.py` — import، ساختِ برنامه‌ی تلگرام، همه‌ی اندپوینت‌ها، یک بازی، ذخیره/بازیابی |
+| پسرفت (Regression) | هر باگِ درست‌شده یک تست (`tests/test_*_v*.py`) + بازیکن‌های شلوغ‌کار (`playtest/monkey.py`) + CI |
+| کارایی | `playtest/qa/perf.py` — p50/p95/p99 هر تپ (حافظه و دیسک)، دورِ تایمر با ۲۰۰ میز، اسنپ‌شات |
+| ماندگاری (Soak) | `playtest/qa/soak.py` — هزاران بازی در یک پروسه، با و بدون پاک‌سازی (`bot.gc`) |
+| شبکه و چندنفره | `playtest/qa/net.py` — نخ‌های هم‌زمان، خرابیِ تلگرام، callbackِ تکراری، فازینگِ ضدتقلب، میزبانِ غایب |
+| سازگاری پلتفرم | `playtest/qa/compat.py` — سقف‌های Bot API، Markdown، ری‌استارت در هر فاز، ارتقای سوپرگروه؛ CI روی پایتون ۳.۱۰–۳.۱۳ |
+| ربات‌ها و تعادل | `playtest/qa/balance.py` — هزاران بازی، نرخ برد با فاصله‌ی اطمینان ۹۵٪ |
+| بومی‌سازی | `playtest/qa/l10n.py` + `karagah/l10n.py` — رقم فارسی، راست‌به‌چپ، نام‌های جعلی، UTF-8 |
+| پلی‌تست و UX | `playtest/qa/ux.py` + `playtest/talk.py` — نقشه‌ی خطای دکمه‌ها، تپ برای هر تصمیم، شلوغیِ گروه |
 
 ## 🎛️ همه‌چیز با دکمه
 هیچ بازیکنی لازم نیست دستور تایپ کند. «🎛️ همه‌ی دکمه‌ها» روی منوی اصلی،

@@ -409,3 +409,27 @@ def q_missions(uid: int):
                           (uid, _today())).fetchall()
     done = {r["key"] for r in rows if r["done"]}
     return [(k, DAILY_MISSIONS[k][0], DAILY_MISSIONS[k][1], k in done) for k in DAILY_MISSIONS]
+
+
+# ---------------- ایمنیِ نخ (نسخه ۸) ----------------
+# یک اتصالِ SQLite بین همه‌ی نخ‌ها مشترک است (check_same_thread=False)؛ دو commitِ هم‌زمان
+# اتصال را خراب می‌کرد ("cannot commit - no transaction is active"، SystemError). همه‌ی توابعِ
+# عمومی زیرِ یک قفلِ بازگشتی اجرا می‌شوند؛ هزینه در یک‌نخی تقریباً صفر است.
+import functools as _functools
+import threading as _threading
+
+DB_LOCK = _threading.RLock()
+
+
+def _locked(fn):
+    @_functools.wraps(fn)
+    def wrapper(*a, **k):
+        with DB_LOCK:
+            return fn(*a, **k)
+    return wrapper
+
+
+for _name, _obj in list(globals().items()):
+    if callable(_obj) and getattr(_obj, "__module__", None) == __name__ and not _name.startswith("_") \
+            and _name not in ("DB_LOCK",) and isinstance(_obj, type(_locked)):
+        globals()[_name] = _locked(_obj)

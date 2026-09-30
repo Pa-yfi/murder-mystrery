@@ -42,7 +42,11 @@ PHASE_SECONDS = {
 }
 # مهلتِ شب تمام شد ولی نقشی هنوز تصمیم نگرفته → یک بار این‌قدر فرصتِ اضافه + یادآوری به پیوی‌اش
 NIGHT_GRACE_SECONDS = int(os.getenv("NIGHT_GRACE_SECONDS", 30))
-MAX_DAYS = int(os.getenv("MAX_DAYS", 20))                  # سقف روز؛ بعدش «بن‌بست» (بدون برنده)
+MAX_DAYS = int(os.getenv("MAX_DAYS", 20))
+# نگه‌داری طولانی: میزِ تمام‌شده بعد از این‌قدر ثانیه از حافظه و اسنپ‌شات پاک می‌شود (افشا تا آن وقت در دسترس)،
+# لابیِ بی‌فعالیت و بازیِ رهاشده هم بعد از IDLE_TTL.
+ENDED_TTL = int(os.getenv("ENDED_TTL", 6 * 3600))
+IDLE_TTL = int(os.getenv("IDLE_TTL", 24 * 3600))                  # سقف روز؛ بعدش «بن‌بست» (بدون برنده)
 DEFENSE_SECONDS = int(os.getenv("DEFENSE_SECONDS", 30))    # ایده ۲
 VOICE_DIR = os.getenv("VOICE_DIR", "assets/voice")         # ایده ۲۹
 LANG = os.getenv("LANG_UI", "fa")                          # ایده ۳۰

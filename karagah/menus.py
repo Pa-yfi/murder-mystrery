@@ -243,7 +243,11 @@ def evidence_kb(s: GameState, cmd: str) -> Dict:
     for c in s.clues:
         if cmd in ("lab", "interp") and c["verified"] is not None:
             continue
-        short = c["text"].split("،")[0].split(" در ")[0][:34]
+        if cmd == "lab" and c["code"] in (getattr(s, "lab_queue", None) or {}):
+            continue                                   # همین حالا در آزمایشگاه است
+        from .clues import TRAITS
+        emo, nm, _vals = TRAITS.get(c["trait"], ("🔎", c["trait"], []))[:3]
+        short = f"{emo} {nm}: {c['value']}"             # کوتاه تا روی موبایل بریده نشود
         items.append((f"{STATUS_ICON[c['verified']]} {c['code']} · {short}", f"{cmd}:{c['code']}"))
     if not items:
         return kb([[("— سرنخِ بازی نمانده —", "board")], [("🗂️ پرونده", "board")], [BACK, HOME]])

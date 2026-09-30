@@ -18,11 +18,13 @@ from telegram.ext import (ApplicationBuilder, CommandHandler, CallbackQueryHandl
 
 try:
     from . import bot as botmod
+    from .bot import GAMES
     from .bot import (handle, ENDPOINTS, COMMANDS, restore_games,
                       is_dup_callback, route_chat, take_pending)
     from .config import BOT_TOKEN as CONFIG_BOT_TOKEN
 except ImportError:
     import bot as botmod
+    from bot import GAMES
     from bot import (handle, ENDPOINTS, COMMANDS, restore_games,
                      is_dup_callback, route_chat, take_pending)
     from config import BOT_TOKEN as CONFIG_BOT_TOKEN
@@ -97,19 +99,51 @@ async def _send_photo_or_voice(update: Update, res: dict):
                 break
 
 
+TG_LIMIT = 4096            # سقفِ طولِ یک پیامِ تلگرام
+
+
+def chunks(text: str, limit: int = TG_LIMIT - 96) -> list:
+    """پیامِ بلند (پرونده‌ی روز ۱۵ با ۳۰ سرنخ…) را سرِ خط‌ها تکه می‌کند؛ تلگرام بیش از ۴۰۹۶ نمی‌پذیرد."""
+    if len(text) <= limit:
+        return [text]
+    out, cur = [], ""
+    for line in text.split("\n"):
+        while len(line) > limit:                 # یک خطِ غول‌آسا
+            if cur:
+                out.append(cur)
+                cur = ""
+            out.append(line[:limit])
+            line = line[limit:]
+        if len(cur) + len(line) + 1 > limit:
+            out.append(cur)
+            cur = line
+        else:
+            cur = f"{cur}\n{line}" if cur else line
+    if cur:
+        out.append(cur)
+    return out
+
+
 async def _send(bot, dest: int, text: str, keyboard=None) -> bool:
-    """Markdown، و اگر خراب شد متن ساده. True یعنی رسید."""
+    """Markdown، و اگر خراب شد متن ساده. پیامِ بلند تکه‌تکه؛ کیبورد زیرِ تکه‌ی آخر. True یعنی رسید."""
     kb = _kb(keyboard)
-    for pm in ("Markdown", None):
-        try:
-            if pm:
-                await bot.send_message(dest, text, parse_mode=pm, reply_markup=kb)
-            else:
-                await bot.send_message(dest, text, reply_markup=kb)
-            return True
-        except Exception as e:
-            log.warning("send to %s failed (%s): %s", dest, pm or "plain", e)
-    return False
+    parts = chunks(text)
+    ok = True
+    for i, part in enumerate(parts):
+        markup = kb if i == len(parts) - 1 else None
+        sent = False
+        for pm in ("Markdown", None):
+            try:
+                if pm:
+                    await bot.send_message(dest, part, parse_mode=pm, reply_markup=markup)
+                else:
+                    await bot.send_message(dest, part, reply_markup=markup)
+                sent = True
+                break
+            except Exception as e:
+                log.warning("send to %s failed (%s): %s", dest, pm or "plain", e)
+        ok = ok and sent
+    return ok
 
 
 async def _flush_outbox(bot, res: dict) -> None:
@@ -157,7 +191,7 @@ async def _deliver(update: Update, res: dict):
         if await _send(bot, target, res["text"], res.get("keyboard")):
             await _send(bot, here, "📣 در گروهِ بازی اعلام شد.")
             return
-    if res.get("edit") and q and q.message and not res.get("private"):
+    if res.get("edit") and q and q.message and not res.get("private") and len(res["text"]) <= TG_LIMIT:
         for pm in ("Markdown", None):
             try:
                 await q.edit_message_text(res["text"], parse_mode=pm, reply_markup=kb)
@@ -168,15 +202,8 @@ async def _deliver(update: Update, res: dict):
         # اگر ویرایش نشد (پیام پاک شده و ...) → به ارسال عادی برگرد
     private = bool(res.get("private"))
     dest = update.effective_user.id if private else update.effective_chat.id
-    for attempt in ("md", "plain"):
-        try:
-            if attempt == "md":
-                await bot.send_message(dest, res["text"], parse_mode="Markdown", reply_markup=kb)
-            else:
-                await bot.send_message(dest, res["text"], reply_markup=kb)
-            return
-        except Exception as e:
-            log.warning("send failed (%s): %s", attempt, e)
+    if await _send(bot, dest, res["text"], res.get("keyboard")):
+        return
     # پیوی شکست خورد. متن محرمانه (نقش/سرنخ) هرگز نباید در گروه بیفتد —
     # فقط یک تذکر بی‌محتوا می‌فرستیم.
     if private:
@@ -249,6 +276,17 @@ async def on_text(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
     await _reply(update, res)
 
 
+async def on_migrate(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
+    """گروه → سوپرگروه: تلگرام آیدیِ چت را عوض می‌کند؛ بازی و ساعتش به آیدیِ تازه می‌روند."""
+    msg = update.effective_message
+    old, new = update.effective_chat.id, getattr(msg, "migrate_to_chat_id", None)
+    if not new:
+        old, new = getattr(msg, "migrate_from_chat_id", None), update.effective_chat.id
+    if old and new and botmod.migrate_chat(old, new):
+        CLOCKS.pop(old, None)
+        await _send(ctx.bot, new, "🔁 گروه به سوپرگروه ارتقا یافت؛ بازی همین‌جا ادامه دارد.")
+
+
 async def on_unknown(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
     """هر متن/دستور ناشناخته → منوی اصلی، نه سکوت."""
     res = _dispatch(update, "menu", "")
@@ -312,7 +350,6 @@ async def _timer_job(ctx: ContextTypes.DEFAULT_TYPE):
     از handle() رد می‌شود، نه مستقیم از موتور — وگرنه قفل چت، ذخیره‌ی
     اسنپ‌شات و ثبت نتیجه‌ی پایان بازی دور زده می‌شود.
     """
-    from .bot import GAMES
     for chat in list(GAMES):
         try:
             res = handle("tick", chat)
@@ -323,6 +360,24 @@ async def _timer_job(ctx: ContextTypes.DEFAULT_TYPE):
             await _update_clock(ctx.bot, chat)
         except Exception as e:
             log.warning("timer tick %s: %s", chat, e)
+    try:
+        botmod.gc()                                   # میزهای تمام‌شده/رهاشده و ورودی‌های کهنه
+        for chat in [c for c in CLOCKS if c not in GAMES]:
+            CLOCKS.pop(chat, None)
+    except Exception as e:
+        log.warning("gc: %s", e)
+
+
+def build_app(token: str):
+    """برنامه‌ی تلگرام با همه‌ی هندلرها — بدون اتصال به شبکه (تستِ دود از همین استفاده می‌کند)."""
+    app = ApplicationBuilder().token(token).post_init(_post_init).concurrent_updates(True).build()
+    for name in ENDPOINTS:
+        app.add_handler(CommandHandler(name, make_cmd(name)))
+    app.add_handler(CallbackQueryHandler(on_callback))
+    app.add_handler(MessageHandler(filters.StatusUpdate.MIGRATE, on_migrate))
+    app.add_handler(MessageHandler(filters.COMMAND, on_unknown))   # /هرچیزِ نامعلوم → منو
+    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, on_text))
+    return app
 
 
 def main():
@@ -330,12 +385,7 @@ def main():
     botmod.REQUIRE_READY = True               # بهبود ۲: بدون پیویِ باز، بازی شروع نشود
     if not TOKEN or TOKEN == "your_telegram_bot_token_here":
         raise SystemExit("⛔ BOT_TOKEN تنظیم نشده یا هنوز مقدار نمونه را دارد. در فایل .env توکن واقعی BotFather را جایگزین کن.")
-    app = ApplicationBuilder().token(TOKEN).post_init(_post_init).concurrent_updates(True).build()
-    for name in ENDPOINTS:
-        app.add_handler(CommandHandler(name, make_cmd(name)))
-    app.add_handler(CallbackQueryHandler(on_callback))
-    app.add_handler(MessageHandler(filters.COMMAND, on_unknown))   # /هرچیزِ نامعلوم → منو
-    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, on_text))
+    app = build_app(TOKEN)
     if app.job_queue:
         app.job_queue.run_repeating(_timer_job, interval=CLOCK_INTERVAL, first=CLOCK_INTERVAL)
     else:

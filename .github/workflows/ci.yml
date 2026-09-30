@@ -1,0 +1,50 @@
+# CI برای ربات «کارآگاه»: هر push و PR → آزمون‌های واحد/یکپارچگی روی چند نسخه‌ی پایتون (سازگاری)
+# + مجموعه‌ی QA سریع (دود، عملکردی، پسرفت با بازیکن‌های شلوغ‌کار، کارایی، ماندگاری، شبکه، سازگاری،
+# تعادل، بومی‌سازی، UX). هر شب نسخه‌ی کامل (--full) هم اجرا می‌شود. گزارش‌ها به‌عنوان artifact.
+name: ci
+
+on:
+  push:
+  pull_request:
+  schedule:
+    - cron: "17 2 * * *"      # هر شب: QA کامل
+  workflow_dispatch:
+
+jobs:
+  tests:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python: ["3.10", "3.11", "3.12", "3.13"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+          cache: pip
+      - run: pip install -r requirements.txt
+      - name: Unit & integration
+        run: python -m pytest -q
+
+  qa:
+    needs: tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+      - run: pip install -r requirements.txt
+      - name: QA suite (quick on push/PR, full nightly)
+        run: python -m playtest.qa ${{ github.event_name == 'schedule' && '--full' || '' }}
+      - name: Upload QA report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: qa-report
+          path: |
+            playtest/QA_REPORT.md
+            playtest/REPORT.md
+            playtest/dead_ends.json

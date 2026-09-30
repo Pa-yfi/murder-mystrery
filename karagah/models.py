@@ -158,6 +158,9 @@ class GameState:
     scene_today: Dict[str, str] = field(default_factory=dict)       # مکان/جزئیاتِ امشب
     # ── نسخه ۷: شبِ منتظرِ همه ──
     grace_day: int = -1                          # روزی که فرصتِ اضافه‌ی شب داده شد
+    # ── نسخه ۸: نگه‌داری طولانی (soak) ──
+    touched: float = 0.0                         # آخرین فعالیت روی این میز
+    ended_at: float = 0.0                        # زمانِ پایان (برای پاک‌سازیِ میزهای تمام‌شده)
 
     def alive_players(self) -> List[Player]:
         return [p for p in self.players.values() if p.in_game]

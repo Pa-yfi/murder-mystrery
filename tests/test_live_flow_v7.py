@@ -84,7 +84,7 @@ def test_night_waits_for_every_role_then_the_last_decision_brings_morning():
     assert g.s.phase is Phase.NIGHT
     r = handle("act", CHAT, pend[-1], arg=str(g.legal_targets(pend[-1])[0]))
     assert g.s.phase is Phase.MORNING and g.s.day == 1
-    assert any(m["chat"] == CHAT and "صبح روز 1" in m["text"] for m in r["outbox"])
+    assert any(m["chat"] == CHAT and "صبح روز ۱" in m["text"] for m in r["outbox"])
 
 
 def test_host_cannot_close_the_night_early_even_after_half_the_time():

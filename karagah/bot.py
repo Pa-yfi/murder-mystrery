@@ -33,13 +33,33 @@ def _lock(chat: int) -> threading.RLock:
     return _LOCKS.setdefault(chat, threading.RLock())
 
 
+# کنترل‌های جهت (RLO و …) و نویسه‌های نامرئی — در نام، متنِ اطرافش را وارونه/جعل می‌کنند.
+# نیم‌فاصله (U+200C) برای فارسی لازم است و می‌ماند.
+_INVISIBLE = dict.fromkeys(map(ord, "\u200b\u200d\u200e\u200f\u202a\u202b\u202c\u202d\u202e"
+                                    "\u2066\u2067\u2068\u2069\ufeff\u00ad"), None)
+NAME_MAX = 32
+
+
 def _sanitize(text: str) -> str:
-    """ایده ۸: خنثی‌سازی نویسه‌های Markdown برای جلوگیری از تزریق/خرابی رندر."""
+    """ایده ۸: خنثی‌سازی نویسه‌های Markdown برای جلوگیری از تزریق/خرابی رندر.
+    نسخه ۸: کنترل‌های جهت/نامرئی حذف، فاصله‌ها یکی، حداکثر ۳۲ نویسه (نام در دکمه و جدول جا شود)."""
     if not text:
         return ""
-    for ch in ("*", "_", "`", "[", "]", "(", ")", "~", ">", "#", "|", "{", "}"):
+    text = text.translate(_INVISIBLE)
+    for ch in ("*", "_", "`", "[", "]", "(", ")", "~", ">", "#", "|", "{", "}", "<"):
         text = text.replace(ch, "")
-    return text[:120].strip()
+    text = " ".join(text.split())
+    return text[:NAME_MAX].strip()
+
+
+def _clean(text: str, limit: int = 300) -> str:
+    """متنِ آزادِ بازیکن (پرسش، جواب، دفاع، وصیت، یادداشت) پیش از ذخیره: بدون نویسه‌ی Markdown،
+    تا هر جا بعداً نشان داده شود (صبح، پایان، پیوی بازجو) قالب‌بندیِ پیام را نشکند."""
+    if not text:
+        return ""
+    for ch in ("*", "_", "`", "[", "]", "~", "|", "\\"):
+        text = text.replace(ch, "")
+    return text.strip()[:limit]
 
 
 def is_dup_callback(chat: int, uid: int, cb: str) -> bool:
@@ -60,6 +80,11 @@ def _upgrade(g: Game) -> Game:
             setattr(g.s, k, v)
     if not hasattr(g, "last_event"):
         g.last_event = None
+    now = _time.time()
+    if not g.s.touched:
+        g.s.touched = now                       # ساعتِ بی‌فعالیتی از لحظه‌ی بازیابی
+    if g.s.phase is Phase.END and not g.s.ended_at:
+        g.s.ended_at = now
     return g
 
 
@@ -217,9 +242,18 @@ _NO_RATE = {"status", "dashboard", "tick", "help", "roles", "menu", "back", "pro
 
 
 def handle(cmd: str, chat: int, uid: int = 0, name: str = "", arg: str = "") -> Dict:
+    """تنها نقطه‌ی ورود؛ خروجی از صافیِ بومی‌سازی (رقم فارسی) رد می‌شود."""
+    from .l10n import localize
+    return localize(_handle(cmd, chat, uid, name, arg))
+
+
+def _handle(cmd: str, chat: int, uid: int = 0, name: str = "", arg: str = "") -> Dict:
     """تنها نقطه‌ی ورود. هرگز استثنا پرت نمی‌کند و هرگز بی‌پاسخ نمی‌ماند.
     ایمن در برابر: ریس (قفل هر چت)، اسپم (نرخ‌محدود)، تزریق (پاکسازی)، دستور ناشناخته."""
-    db.touch_user(uid, _sanitize(name))
+    try:
+        db.touch_user(uid, _sanitize(name))
+    except Exception:                           # دیتابیس نباید پاسخ را بخواباند
+        log.exception("touch_user failed")
     if cmd not in _ROUTES:                      # ایده ۳: دستور/کالبک نامعتبر
         return _ok(t("unknown"), ui.main_menu())
     if uid and cmd not in ("start", "menu", "back", "help") and db.is_banned(uid):
@@ -236,9 +270,13 @@ def handle(cmd: str, chat: int, uid: int = 0, name: str = "", arg: str = "") -> 
         token = _OUT.set([])
         try:
             res = _ROUTES[cmd](chat, uid, name, arg)
-            db.log_event(chat, uid, cmd, arg[:40])   # ایده ۷: audit log
-            if chat in GAMES:
+            idle_tick = cmd == "tick" and not (isinstance(res, dict) and res.get("advanced"))
+            if not idle_tick:                        # تیکِ بی‌اتفاق (هر ۵ ثانیه، هر میز) دیسک را نمی‌کوبد
+                db.log_event(chat, uid, cmd, arg[:40])   # ایده ۷: audit log
+            if chat in GAMES and not idle_tick:
                 g = GAMES[chat]
+                if cmd != "tick":                   # تایمر «فعالیت» نیست؛ وگرنه هیچ میزی بی‌فعالیت نمی‌شد
+                    g.s.touched = _time.time()
                 _push_notes(g)
                 db.save_game(g)
                 if g.s.phase is Phase.END and not g.s.finalized:
@@ -246,6 +284,7 @@ def handle(cmd: str, chat: int, uid: int = 0, name: str = "", arg: str = "") -> 
                     # تا شکستِ نوشتن، تلاشِ دوباره را خفه نکند.
                     db.record_results(g)
                     g.s.finalized = True
+                    g.s.ended_at = _time.time()
                     LAST_ROSTER[chat] = [(p.uid, p.name) for p in g.s.players.values()]
                 # بازیِ تمام‌شده هم ذخیره می‌ماند تا بعد از ری‌استارت افشای پایانی در دسترس باشد
                 db.save_snapshot(chat, g)
@@ -429,7 +468,15 @@ def h_startgame(chat, uid, name, arg):
     _host_only(g, uid, "بازی را شروع کند")
     asked = "force" in (arg or "").lower()
     case = (arg or "").replace("force", "").strip()
-    g.start(int(case) if case else None, force=asked or not REQUIRE_READY)
+    try:
+        g.start(int(case) if case else None, force=asked or not REQUIRE_READY)
+    except RuleError as e:
+        if "پیوی ربات" not in str(e):
+            raise
+        res = _err(str(e))                   # دکمه، نه «/startgame force» تایپی
+        res["keyboard"] = ui.kb([[("⚡ شروع بدون آن‌ها", "startgame:force")],
+                                 [("🔄 دوباره امتحان کن", "startgame")]])
+        return res
     db.log_event(chat, uid, "start", g.s.case.title if g.s.case else "")
     for p in g.s.players.values():               # کارت نقش خودکار به پیوی هر نفر
         _post(p.uid, ui.role_card(p.role, p.knows), ui.kb([[("🌙 اکشن شبانه", "act")],
@@ -648,6 +695,7 @@ def h_ask(chat, uid, name, arg):
         if not g.awaiting_verdict():
             raise RuleError("کسی در بازجویی نیست.")
         return _ask_text(chat, uid, "ask")
+    arg = _clean(arg) or "؟"
     out = g.ask(uid, arg)
     sus = g.s.players[g.s.suspect_uid]
     _post(sus.uid, f"🔦 *بازجو از تو می‌پرسد:*\n«{_sanitize(arg)}»\n\n"
@@ -664,6 +712,7 @@ def h_answer(chat, uid, name, arg):
         if uid not in g.s.questions:
             raise RuleError("پرسشی بی‌جواب برای تو نیست.")
         return _ask_text(chat, uid, "answer")
+    arg = _clean(arg) or "…"
     q, clash = g.answer(uid, arg)
     warn = "\n⚠️ *تناقض:* جوابش با دفعه‌ی قبل به همین پرسش فرق دارد!" if clash else ""
     _post(g.s.officer_uid, f"🗣️ *جواب {p.name}* به «{q}»:\n«{_sanitize(arg)}»{warn}", _officer_tools(g))
@@ -867,6 +916,61 @@ def h_tick(chat, uid, name, arg):
     return res
 
 
+def gc(now: Optional[float] = None) -> Dict[str, int]:
+    """نسخه ۸ (soak): ربات هفته‌ها روشن می‌ماند؛ بدون این، هر بازیِ تمام‌شده، قفل، نرخ‌محدودساز و
+    اسنپ‌شات برای همیشه در حافظه و دیسک می‌ماند. صدا زده می‌شود از تایمر (هر چند ثانیه)."""
+    now = _time.time() if now is None else now
+    gone = []
+    for chat, g in list(GAMES.items()):
+        s = g.s
+        last = getattr(s, "touched", 0) or 0
+        ended = getattr(s, "ended_at", 0) or 0
+        if s.phase is Phase.END and ended and now - ended > config.ENDED_TTL:
+            gone.append(chat)
+        elif last and now - last > config.IDLE_TTL and s.phase is not Phase.END:
+            if s.phase is not Phase.LOBBY:
+                db.record_abandoned(g)          # بازیِ رهاشده در آمار رهاشدگی بماند
+            gone.append(chat)
+    for chat in gone:
+        GAMES.pop(chat, None)
+        LAST_ROSTER.pop(chat, None)
+        db.drop_snapshot(chat)
+    for d, ttl in ((_LAST_CALL, RATE_WINDOW * 20), (_LAST_CB, 60)):
+        for k in [k for k, t in d.items() if now - t > ttl]:
+            d.pop(k, None)
+    for chat in [c for c in _LOCKS if c not in GAMES]:
+        lk = _LOCKS[chat]
+        if lk.acquire(blocking=False):          # قفلی که کسی نگرفته
+            _LOCKS.pop(chat, None)
+            lk.release()
+    for uid in [u for u, (c, _cmd) in _PENDING.items() if c not in GAMES]:
+        _PENDING.pop(uid, None)
+    for uid in [u for u, c in _ACTIVE_TABLE.items() if c not in GAMES]:
+        _ACTIVE_TABLE.pop(uid, None)
+    return {"games_evicted": len(gone), "games": len(GAMES)}
+
+
+def migrate_chat(old: int, new: int) -> bool:
+    """گروه به سوپرگروه تبدیل شد → تلگرام آیدیِ چت را عوض می‌کند؛ بازی نباید یتیم بماند."""
+    g = GAMES.pop(old, None)
+    if g is None:
+        return False
+    g.s.chat_id = new
+    GAMES[new] = g
+    if old in LAST_ROSTER:
+        LAST_ROSTER[new] = LAST_ROSTER.pop(old)
+    for u, c in list(_ACTIVE_TABLE.items()):
+        if c == old:
+            _ACTIVE_TABLE[u] = new
+    for u, (c, cmd) in list(_PENDING.items()):
+        if c == old:
+            _PENDING[u] = (new, cmd)
+    db.drop_snapshot(old)
+    db.save_snapshot(new, g)
+    log.info("chat %s migrated to %s", old, new)
+    return True
+
+
 def clock_view(chat: int) -> Optional[Dict]:
     """پیامِ ساعتِ فاز برای گروه: {"key", "text", "keyboard"} — آداپتور برای هر key یک پیام
     می‌فرستد و بعد همان را مدام ویرایش می‌کند. None یعنی ساعتی لازم نیست (لابی/پایان)."""
@@ -874,7 +978,9 @@ def clock_view(chat: int) -> Optional[Dict]:
     if g is None or g.s.phase in (Phase.LOBBY, Phase.END):
         return None
     key = f"{g.s.phase.value}:{g.s.day}:{int(g.s.tie_break)}:{int(getattr(g.s, 'grace_day', -1) == g.s.day)}"
-    return {"key": key, "text": ui.clock_text(g, detail=True), "keyboard": ui.live_kb(g.s)}
+    from .l10n import fa_digits, localize_keyboard
+    return {"key": key, "text": fa_digits(ui.clock_text(g, detail=True)),
+            "keyboard": localize_keyboard(ui.live_kb(g.s))}
 
 
 def h_dashboard(chat, uid, name, arg):            # ایده ۲۶ + بهبود ۳
@@ -890,7 +996,7 @@ def h_defense(chat, uid, name, arg):
         if uid != g.s.suspect_uid:
             raise RuleError("فقط متهمِ داخل بازجویی می‌تواند دفاع کند.")
         return _ask_text(chat, uid, "defense")
-    return _ok(g.defense(uid, _sanitize(arg) or arg[:120]), announce=True)   # «آخرین دفاع» برای کل شهر
+    return _ok(g.defense(uid, _clean(arg) or "…"), announce=True)   # «آخرین دفاع» برای کل شهر
 
 
 def _ask_text(chat, uid, cmd):
@@ -905,7 +1011,7 @@ def h_will(chat, uid, name, arg):
         raise RuleError("وصیت را باید پیش از مرگ نوشت.")
     if not arg:
         return _ask_text(chat, uid, "will")
-    g.set_will(uid, arg)
+    g.set_will(uid, _clean(arg) or "…")
     return _ok("📜 وصیت‌نامه ثبت شد؛ اگر کشته شوی صبح خوانده می‌شود.",
                menus.commands_menu(), private=True)
 
@@ -914,7 +1020,7 @@ def h_note(chat, uid, name, arg):
     g, p = _player(chat, uid)
     if not arg:
         return _ask_text(chat, uid, "note")
-    g.add_note(uid, arg)
+    g.add_note(uid, _clean(arg) or "…")
     return _ok("📝 یادداشت خصوصی ثبت شد.",
                ui.kb([[("📓 دفترچه‌ی من", "notes")], [menus.BACK, menus.HOME]]), private=True)
 
