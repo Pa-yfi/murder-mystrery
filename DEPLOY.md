@@ -28,7 +28,7 @@ chmod 600 ~/.ssh/authorized_keys
 cat ~/.ssh/github_deploy
 ```
 
-The last command prints the **private key**. Copy all of it, from `-----BEGIN OPENSSH PRIVATE KEY-----` to `-----END OPENSSH PRIVATE KEY-----`, including those two lines. If copying loses the line breaks or picks up the prompt around the key, that's fine: the workflow repairs it.
+The last command prints the **private key**. Copy all of it, from `-----BEGIN OPENSSH PRIVATE KEY-----` to `-----END OPENSSH PRIVATE KEY-----`, including those two lines. If copying loses the line breaks, picks up the prompt around the key, or turns `-----` into long dashes (phones do this), that's fine: the workflow repairs it.
 
 After you save it in GitHub (step 2), delete it from the server. The server only needs the public half, which is already in `authorized_keys`:
 

@@ -123,3 +123,27 @@ def test_fingerprint_and_randomart_are_named(tmp_path, monkeypatch, capsys):
 
 def test_password_is_named(tmp_path, monkeypatch, capsys):
     _fails_with(tmp_path, monkeypatch, capsys, "Sup3r$ecretVpsPass", "password")
+
+
+@pytest.mark.parametrize("swap", ["em_dash", "en_dash", "nbsp", "zero_width", "bom"])
+def test_lookalike_characters_from_phones_and_chat_apps_are_undone(tmp_path, monkeypatch, capsys, swap):
+    key, pub = _keygen(tmp_path, "k", "-t", "ed25519")
+    if swap == "em_dash":                       # "--" typed/pasted through "smart punctuation"
+        key = key.replace("-----", "\u2014\u2014-")
+    elif swap == "en_dash":
+        key = key.replace("-----", "\u2013\u2013\u2013\u2013\u2013")
+    elif swap == "nbsp":
+        key = key.replace("OPENSSH PRIVATE KEY", "OPENSSH\u00a0PRIVATE\u00a0KEY")
+    elif swap == "zero_width":
+        key = key.replace("\n", "\u200b\n")
+    else:
+        key = "\ufeff" + key
+    code, text, loaded = _run(tmp_path, monkeypatch, capsys, key)
+    assert code == 0, text
+    assert loaded == pub
+
+
+def test_changed_begin_line_is_named_with_the_odd_characters(tmp_path, monkeypatch, capsys):
+    key, _ = _keygen(tmp_path, "k", "-t", "ed25519")
+    broken = key.replace("-----BEGIN", "\u2022\u2022BEGIN")          # bullets: not a dash look-alike
+    _fails_with(tmp_path, monkeypatch, capsys, broken, "BULLET")

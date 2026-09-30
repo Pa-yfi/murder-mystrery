@@ -7,9 +7,10 @@ Every version below is one commit. Each commit message has the full detail, and 
 - It repairs copy/paste damage by itself: line breaks turned into spaces or lost, Windows line endings, indentation, a shell prompt around the key.
 - It names each mistake it can't repair: the public `.pub` key, a key cut off before its END line, a damaged middle, a passphrase, a PuTTY `.ppk` key, empty or unrelated text.
 - It also repairs a key where only the middle was copied (no BEGIN/END lines), and names the fingerprint or randomart that `ssh-keygen` prints, or a password pasted instead of the key.
+- It undoes look-alike characters that phones and chat apps put in while copying: long or en dashes instead of `-----`, non-breaking or invisible spaces, a byte-order mark. When such characters break the key anyway, it lists their names, never the key's content.
 - On success it prints the key's fingerprint.
 - Public-repo logs: a successful deploy no longer prints the VPS hostname (it often contains the IP) or the bot's first log lines (group chat IDs). Only a failed start prints the bot log.
-- `tests/test_deploy_key.py`: 24 cases against real `ssh-keygen` (ed25519, RSA, RSA PEM × 4 kinds of damage, middle-only, and every error).
+- `tests/test_deploy_key.py`: 30 cases against real `ssh-keygen` (ed25519, RSA, RSA PEM × 4 kinds of damage, middle-only, look-alike characters, and every error).
 
 ## Deploy from GitHub to a VPS
 - New `.github/workflows/deploy.yml`: on every push to `main` (or "Run workflow") it runs the tests, logs in to the VPS with the `VPS_SSH_KEY` secret and uploads the commit plus a settings file built from the secrets (`BOT_TOKEN`, `BOT_USERNAME`, `DB_PATH`, `ADMIN_IDS`, `BOT_EXTRA_ENV`). The server needs no GitHub access. Until `VPS_HOST` is set, it only prints a warning.
