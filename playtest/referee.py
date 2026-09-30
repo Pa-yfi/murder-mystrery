@@ -127,7 +127,9 @@ class Referee:
                 self.r.ok("زوج سرنوشت: مرگ همراه")
             if any(s.players[u].role == "شکارچی" and s.players[u].hunter_target in died for u in died):
                 self.r.ok("شکارچی: شلیک آخر هنگام مرگ")
-            if day == 1 and s.phase is Phase.END:
+            if day == 1 and s.phase is Phase.END and not (s.winner or "").startswith("قاتل"):
+                self.r.ok("سحر اول: پایانِ مشروع (مثلاً قاتل و جانی همدیگر را کشتند)")
+            elif day == 1 and s.phase is Phase.END:
                 self.r.find("متوسط", "تعادل", "بازی در همان سحرِ اول تمام شد — بدون هیچ روز و رایی",
                             f"{len(s.players)} نفره: {len(died)} نفر در شب اول مردند "
                             f"({'، '.join(self.name(u) for u in died)}) و قاتل‌ها به برابری رسیدند. "
