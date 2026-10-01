@@ -165,7 +165,9 @@ def test_night_clock_names_nobody_and_shows_the_path():
     assert not any(p.name in view["text"] for p in g.s.players.values())
     handle("dawn", CHAT)
     v2 = bot.clock_view(CHAT)
-    assert v2["key"] != view["key"] and "صبحِ روز ۱" in v2["text"] and "🌙۱ ☀️۱▶️" in v2["text"]
+    # نسخه ۱۰: کارتِ صبح خودِ گزارشِ صبح است (کشته‌ها، سرنخ‌ها) و ساعت پایینش
+    assert v2["key"] != view["key"] and "صبح روز ۱" in v2["text"] and "🌙۱ ☀️۱▶️" in v2["text"]
+    assert "⚰️ کشته" in v2["text"] and v2["text"].index("⚰️") < v2["text"].index("📅")
 
 
 def test_day_and_night_numbers_follow_night1_day1_night2_day2():

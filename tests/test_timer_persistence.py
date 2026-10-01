@@ -4,7 +4,7 @@ from types import SimpleNamespace
 
 import pytest
 
-from karagah import db, telegram_app
+from karagah import bot, db, telegram_app
 from karagah.bot import GAMES, handle
 from karagah.models import Phase
 
@@ -171,3 +171,57 @@ def test_flood_control_pauses_only_that_groups_clock_then_resumes(monkeypatch):
     asyncio.run(telegram_app._timer_job(ctx))
     assert len(ctx.edits) == 1                         # دوباره ثانیه‌شمار
     telegram_app.FLOOD_UNTIL.clear()
+
+
+def test_v10_phase_announcement_is_the_live_card_and_old_card_keeps_content(monkeypatch):
+    """نسخه ۱۰: یک پیام برای هر فاز. اعلامِ فاز همان کارتِ زنده است و ثانیه‌شمار پایینش ویرایش می‌شود؛
+    فازِ بعد که آمد، کارتِ قبلی محتوایش را نگه می‌دارد و فقط ساعت و دکمه‌هایش برداشته می‌شود."""
+    import karagah.engine as eng
+    chat = -8551
+    handle("new", chat, 1, "Host")
+    for i in range(2, 8):
+        handle("join", chat, i, f"P{i}")
+    now = [3_000_000.0]
+    monkeypatch.setattr(eng._time, "time", lambda: now[0])
+    res = handle("startgame", chat, 1, arg="force")
+    assert res.get("pin") and not res.get("card")                  # پرونده جدا (و سنجاق)
+    cards = [m for m in res["outbox"] if m.get("card")]
+    assert len(cards) == 1 and cards[0]["chat"] == chat and "شبِ ۱" in cards[0]["text"]
+    ctx = _Ctx()
+    asyncio.run(telegram_app._flush_outbox(ctx.bot, res))
+    night_mid = telegram_app.CLOCKS[chat]["mid"]
+    sent_before = len(ctx.sent)
+    now[0] += 1
+    asyncio.run(telegram_app._timer_job(ctx))
+    assert len(ctx.sent) == sent_before and ctx.edits[-1][1] == night_mid  # همان کارت ویرایش شد، پیامِ تازه نه
+
+    res = handle("dawn", chat)                                          # صبح: گزارش = کارت
+    assert res.get("card") and "⚰️ کشته" in res["text"] and "📅" in res["text"]
+    sent = asyncio.run(telegram_app._send(ctx.bot, chat, res["text"], res.get("keyboard")))
+    asyncio.run(telegram_app._adopt_card(ctx.bot, chat, sent))
+    closing = [e for e in ctx.edits if e[1] == night_mid][-1][2]
+    assert "☑️" in closing and "⏳" not in closing and "⌛" not in closing   # کارتِ شب بسته شد، بی‌ساعت
+    assert telegram_app.CLOCKS[chat]["mid"] == sent.message_id
+    now[0] += 1
+    asyncio.run(telegram_app._timer_job(ctx))
+    assert ctx.edits[-1][1] == sent.message_id and "⚰️ کشته" in ctx.edits[-1][2]  # گزارش می‌ماند، ساعت جلو می‌رود
+    GAMES.pop(chat, None)
+    bot.CARDS.pop(chat, None)
+
+
+def test_v10_votes_answer_with_a_popup_not_a_group_message():
+    chat = -8552
+    handle("new", chat, 1, "Host")
+    for i in range(2, 8):
+        handle("join", chat, i, f"P{i}")
+    handle("startgame", chat, 1, arg="force")
+    g = GAMES[chat]
+    handle("dawn", chat)
+    handle("discuss", chat, 1)
+    handle("vote", chat, 1)
+    voter, target = [p.uid for p in g.s.alive_players() if p.can_vote][:2]
+    r = handle("castvote", chat, voter, arg=str(target))
+    assert r["ok"] and r.get("toast", "").startswith("✅ رای تو ثبت شد")
+    view = bot.clock_view(chat)
+    assert "۱/" in view["text"]                                         # شمارش روی کارتِ زنده
+    GAMES.pop(chat, None)

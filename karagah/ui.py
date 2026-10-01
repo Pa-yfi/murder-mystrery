@@ -589,7 +589,7 @@ def timeline(s: GameState) -> str:
     return "📅 " + " ".join(steps[-6:])
 
 
-def clock_text(g, detail: bool = False) -> str:
+def clock_text(g, detail: bool = False, head: bool = True) -> str:
     """یک خط/چند خط ساعت: فاز، روز، زمانِ باقی‌مانده و نوار پیشرفت. در شب پیشرفتِ نقش‌ها
     محرمانه است (نه نام، نه تعداد) — فقط «منتظرِ تصمیمِ نقش‌ها»."""
     from .models import Phase
@@ -598,7 +598,7 @@ def clock_text(g, detail: bool = False) -> str:
     icon, title = PHASE_TITLE.get(s.phase.value, ("🎮", s.phase.value + " {d}"))
     left = g.remaining()
     tick = left or 0                                         # هر ثانیه یک تیک (ساعت‌شنی و ✨)
-    head = ribbon(icon, title.format(d=_fa(s.day)))
+    hd = ribbon(icon, title.format(d=_fa(s.day)))
     grace = getattr(s, "grace_day", -1) == s.day and s.phase in (Phase.NIGHT, Phase.INTERROGATION)
     full = (config.NIGHT_GRACE_SECONDS if grace else config.PHASE_SECONDS.get(s.phase.value)) or 0
     if getattr(g, "blitz", False):
@@ -610,7 +610,7 @@ def clock_text(g, detail: bool = False) -> str:
     else:
         bar = shiny_bar(left, full, tick, s.phase.value)
         tline = f"{hourglass(tick)} {_mmss(left)}  {bar}" + ("  (فرصتِ اضافه)" if grace else "")
-    lines = [head, tline]
+    lines = [hd, tline] if head else [tline]
     if detail:
         if s.phase in (Phase.NIGHT, Phase.INTERROGATION):
             lines.append("🤫 نقش‌ها در پیوی تصمیم می‌گیرند · صبح وقتی همه تصمیم گرفتند خودش می‌رسد")
@@ -618,8 +618,28 @@ def clock_text(g, detail: bool = False) -> str:
             box = s.votes if s.phase is Phase.VOTE else s.jury_votes
             voters = [p for p in s.alive_players() if p.can_vote]
             lines.append(f"🗳️ {_fa(len(box))}/{_fa(len(voters))} رای ثبت شده")
+            if s.phase is Phase.VOTE and not s.vote_anon and box:      # رای‌گیریِ علنی: شمارشِ زنده
+                tally: Dict[int, int] = {}
+                for t in box.values():
+                    if t:
+                        tally[t] = tally.get(t, 0) + 1
+                if tally:
+                    lines.append("📊 " + "  ·  ".join(f"{s.players[u].name} {_fa(n)}"
+                                                    for u, n in sorted(tally.items(), key=lambda x: -x[1])))
         lines.append(timeline(s))
     return "\n".join(lines)
+
+
+def merge_kb(first: Optional[Dict], second: Optional[Dict]) -> Dict:
+    """کیبوردِ اعلامِ فاز (مثلاً نامزدهای رای) بالا، دکمه‌های همیشگیِ کارت پایین؛ هر دکمه یک بار."""
+    seen, rows = {"dashboard", "menu"}, []          # این دو کارتِ زنده را با متنِ دیگری جایگزین می‌کردند
+    for kb in (first, second):
+        for row in (kb or {}).get("inline_keyboard", []):
+            r = [b for b in row if (b.get("callback_data") or b.get("url")) not in seen]
+            seen.update(b.get("callback_data") or b.get("url") for b in r)
+            if r:
+                rows.append(r)
+    return {"inline_keyboard": rows}
 
 
 def live_kb(s: GameState) -> Dict:
@@ -704,7 +724,7 @@ def dashboard(s: GameState, remaining=None, pending=(), next_step="") -> str:
         tag = "" if p.custody is Custody.FREE or not p.alive else f" — {p.custody.value}"
         wait = " ⏳" if (not secret and p.uid in pending) else ""
         rows.append(f"{icon} {p.name}{tag}{wait}")
-    timer = f"\n{hourglass(remaining // 5)} باقی‌مانده: {_mmss(remaining)}" if remaining is not None else ""
+    timer = f"\n{hourglass(remaining)} باقی‌مانده: {_mmss(remaining)}" if remaining is not None else ""
     # در شب حتی *تعداد* را هم نمی‌گوییم: اگر کسی مدام داشبورد را ببیند،
     # لحظه‌ی کم‌شدن عدد می‌گوید چه وقت آن نقشِ مخفی اکشنش را داد.
     if secret:
@@ -713,8 +733,9 @@ def dashboard(s: GameState, remaining=None, pending=(), next_step="") -> str:
         who = "\n⏳ منتظر: " + "، ".join(s.players[u].name for u in pending)
     else:
         who = ""
+    grid = "\n".join("  ·  ".join(rows[i:i + 3]) for i in range(0, len(rows), 3))
     return (ribbon("📋", f"داشبورد — روز {_fa(s.day)} · {s.phase.value}") + f"{timer}\n{DIV}\n"
-            + "\n".join(rows) +
+            + grid +
             f"\n{DIV}\n{clue_count(s)}{who}"
             f"\n➡️ *قدم بعدی:* {next_step}")
 

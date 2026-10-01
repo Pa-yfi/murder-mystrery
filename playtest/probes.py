@@ -295,7 +295,10 @@ def p_stale_verdict(sc: Scene):
     if sc.g.s.phase is not Phase.MORNING or sc.g.s.suspect_uid != y.uid:
         return False
     off = sc.s.agent(sc.g.s.officer_uid)
-    b = next(b for b in old.buttons() if b.get("callback_data") == f"ver:{x.uid}:1")
+    b = next((b for b in old.buttons() if b.get("callback_data") == f"ver:{x.uid}:1"), None)
+    if b is None or old not in sc.s.tg.inbox(sc.s.group):
+        sc.r.ok("دکمه‌ی حکمِ کهنه از کارتِ تمام‌شده برداشته شد")   # نسخه ۱۰: کارتِ فازِ گذشته دکمه ندارد
+        return
     sc.s.tg.press(off.uid, old, b)                    # دکمه‌ی حبسِ X روی پیام دیروز
     if sc.g.s.players[y.uid].custody is Custody.TEMP_JAIL:
         sc.r.find("بالا", "دکمه‌ها", "دکمه‌ی حکمِ کهنه روی متهمِ تازه اجرا می‌شود", key="stale-verdict")

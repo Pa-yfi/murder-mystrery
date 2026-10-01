@@ -11,6 +11,7 @@ from typing import Dict, List, Tuple
 
 from .models import Custody, GameState, Phase
 from .roles import ROLES
+from .theme import DIV
 
 BACK = ("🔙 بازگشت", "commands")
 HOME = ("🏠 منو", "menu")          # همان ui.HOME
@@ -104,7 +105,7 @@ def commands_menu(admin: bool = True) -> Dict:
 
 
 def commands_screen() -> str:
-    return ("🎛️ *همه‌ی دکمه‌ها*\n" + "─" * 18 +
+    return ("🎛️ *همه‌ی دکمه‌ها*\n" + DIV +
             "\nهیچ دستوری لازم نیست تایپ کنی؛ یک دسته را باز کن."
             "\nهر دکمه‌ای که ورودی بخواهد، خودش فهرست انتخاب‌ها را نشان می‌دهد.")
 
@@ -150,7 +151,7 @@ def role_detail(name: str) -> str:
         ns = [n for n, roles in comps.items() if name in roles]
         if ns:
             where.append(f"{sname} ({min(ns)}–{max(ns)} نفر)" if len(ns) > 1 else f"{sname} ({ns[0]} نفر)")
-    return (f"{r.emoji} *{r.name}*\n" + "─" * 18 +
+    return (f"{r.emoji} *{r.name}*\n" + DIV +
             f"\n🎯 تیم: {r.align.value}"
             f"\n🌙 کار شبانه: {ABILITY_FA.get(r.ability, r.ability)}"
             f"\n📜 {r.desc}"
@@ -173,7 +174,7 @@ def abilities_text(g, p) -> str:
     lines.append(f"{r.emoji} *{r.name}* — تیم {r.align.value}")
     lines.append(f"🌙 کار شبانه: {ABILITY_FA.get(ab, ab)}"
                  + (" (جانشین قاتل)" if ab != r.ability else ""))
-    lines.append("─" * 18)
+    lines.append(DIV)
 
     if p.custody is Custody.LIFE_JAIL or not p.alive:
         lines.append("⛓️ از بازی بیرونی؛ فقط تماشا.")
@@ -218,7 +219,7 @@ def abilities_text(g, p) -> str:
 
     lines.append("*همین حالا:*")
     lines += [f"  • {x}" for x in now]
-    lines.append("─" * 18)
+    lines.append(DIV)
     lines.append("همیشه در دسترس: 📓 دفترچه · 📝 یادداشت · 📜 وصیت‌نامه · 🧪 آزمایشگاه")
     return "\n".join(lines)
 
@@ -305,7 +306,7 @@ PROMPTS = {
 
 def prompt_text(cmd: str) -> str:
     title, body = PROMPTS[cmd]
-    return f"{title}\n{'─' * 18}\n{body}\n\n(برای انصراف «✖️ بی‌خیال» را بزن.)"
+    return f"{title}\n{DIV}\n{body}\n\n(برای انصراف «✖️ بی‌خیال» را بزن.)"
 
 
 def prompt_kb() -> Dict:

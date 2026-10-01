@@ -1382,11 +1382,11 @@ class Game:
         co_line = f"\n🤝 کنار برنده (زنده ماندند): {'، '.join(co)}" if co else ""
 
         mvp = self.s.players[self.s.mvp].name if self.s.mvp else "—"
-        from .theme import ribbon
-        return (ribbon("🏁", f"پایان — برنده: {self.s.winner}") + f"\n{'─' * 18}\n"
-                f"{self.s.win_reason}{co_line}\n{'─' * 18}\n"
+        from .theme import DIV, ribbon
+        return (ribbon("🏁", f"پایان — برنده: {self.s.winner}") + f"\n{DIV}\n"
+                f"{self.s.win_reason}{co_line}\n{DIV}\n"
                 "🎭 *نقش‌ها:* (🏆 = برنده)\n" + "\n".join(rows) +
-                f"\n{'─' * 18}\n{justice}\n{votes}\n⭐ MVP: {mvp}\n\n"
+                f"\n{DIV}\n{justice}\n{votes}\n⭐ MVP: {mvp}\n\n"
                 + self.reconstruction())
 
     def set_hunter(self, uid: int, target: int) -> str:

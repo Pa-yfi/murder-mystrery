@@ -140,7 +140,11 @@ class Monkey:
                     self.r.find("بالا", "ساعت", "فاز در جریان است ولی پیامِ ساعت ندارد", key="clock-missing")
                 continue
             if g.s.phase in (Phase.NIGHT, Phase.INTERROGATION):
-                leaked = [p.name for p in g.s.players.values() if p.name in cm.text]
+                # نسخه ۱۰: بالای کارت همان اعلامِ عمومیِ فاز است (مثلاً «X به بازجویی رفت»)؛
+                # رازداری درباره‌ی بخشِ زنده‌ی کارت است: ساعت، پیشرفتِ نقش‌ها (بعد از آخرین جداکننده).
+                from karagah.theme import DIV
+                live = cm.text.rsplit(DIV, 1)[-1]
+                leaked = [p.name for p in g.s.players.values() if p.name in live]
                 if leaked:
                     self.r.find("بالا", "امنیت", "ساعتِ شب نامِ بازیکن‌ها را نشان می‌دهد", str(leaked),
                                 key="clock-night-names")

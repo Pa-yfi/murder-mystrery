@@ -64,6 +64,8 @@ class Telegram:
         self.presses = 0
         self.clock_msg: Optional[Message] = None   # پیامِ ساعتِ فازِ فعلی (مثل telegram_app.CLOCKS)
         self.clock_key = None
+        self.clock_final = ""                 # متنِ کارت وقتی فازش تمام شد (محتوا می‌ماند، ساعت نه)
+        self.toasts: List[Message] = []      # پیامِ شناورِ روی دکمه (answerCallbackQuery) — به چت نمی‌رود
         self.clock_edits = 0
         self.clock_msgs = 0
         self._orig = (bot._time, engine._time)
@@ -94,9 +96,27 @@ class Telegram:
         """مثل telegram_app._reply: پاسخ اصلی، بعد صندوق خروجی (پیام به دیگران)."""
         msg = self._deliver_main(res, chat, uid, cause, on)
         for m in res.get("outbox") or []:
-            self._put({"text": m["text"], "keyboard": m.get("keyboard"), "ok": True},
-                      m["chat"], f"outbox<{cause}")
+            out = self._put({"text": m["text"], "keyboard": m.get("keyboard"), "ok": True},
+                            m["chat"], f"outbox<{cause}")
+            if m.get("card"):
+                self._adopt_card(out)
         return msg
+
+    def _adopt_card(self, msg: Message) -> None:
+        """مثل telegram_app: پیامِ «کارت» ساعتِ زنده‌ی فاز می‌شود؛ کارتِ فازِ قبل محتوایش را نگه می‌دارد
+        ولی ساعت و دکمه‌هایش برداشته می‌شود."""
+        view = bot.clock_view(self.group)
+        if view is None or msg.chat != self.group:
+            return
+        self._finish_clock()
+        self.clock_msg, self.clock_key, self.clock_final = msg, view["key"], view.get("final", "")
+        self.clock_msgs += 1
+
+    def _finish_clock(self) -> None:
+        if self.clock_msg is not None:
+            self.clock_msg.text = self.clock_final or (self.clock_msg.text + "\n☑️ این مرحله تمام شد.")
+            self.clock_msg.keyboard = None
+        self.clock_msg, self.clock_key, self.clock_final = None, None, ""
 
     def _put(self, res: dict, dest: int, cause: str) -> Message:
         self._check(res.get("text", ""), dest, cause, private=dest != self.group)
@@ -124,6 +144,10 @@ class Telegram:
             out = self._put(res, target, cause)
             self._put({"text": "📣 در گروهِ بازی اعلام شد."}, chat, cause)
             return out
+        if res.get("toast") and on is not None:      # مثل on_callback: فقط پیامِ شناور برای خودِ زننده
+            toast = Message(uid, res["toast"], None, cause, res.get("ok", True))
+            self.toasts.append(toast)
+            return toast
         private = bool(res.get("private"))
         dest = uid if private else chat
         self._check(text, dest, cause, private)
@@ -135,7 +159,9 @@ class Telegram:
             return on
         msg = Message(dest, text, res.get("keyboard"), cause, res.get("ok", True))
         self.inbox(dest).append(msg)
-        if res.get("clock") and dest == self.group:     # مثل _reply: همین پیام کارتِ زنده است
+        if res.get("card") and dest == self.group:
+            self._adopt_card(msg)
+        elif res.get("clock") and dest == self.group:     # مثل _reply: همین پیام کارتِ زنده است
             view = bot.clock_view(self.group)
             if view:
                 if self.clock_msg is not None and self.clock_msg in self.inbox(self.group):
@@ -222,8 +248,12 @@ class Telegram:
         out = None
         if res.get("advanced"):               # پیام کامل + کیبورد، مثل _timer_job
             out = self._put(res, self.group, "timer")
+            if res.get("card"):
+                self._adopt_card(out)
         for m in res.get("outbox") or []:
-            self._put({"text": m["text"], "keyboard": m.get("keyboard")}, m["chat"], "outbox<timer")
+            o = self._put({"text": m["text"], "keyboard": m.get("keyboard")}, m["chat"], "outbox<timer")
+            if m.get("card"):
+                self._adopt_card(o)
         self.update_clock()
         return out
 
@@ -231,16 +261,14 @@ class Telegram:
         """مثل telegram_app._update_clock: یک پیام برای هر فاز؛ همان پیام ویرایش می‌شود."""
         view = bot.clock_view(self.group)
         if self.clock_msg is not None and (view is None or view["key"] != self.clock_key):
-            self.clock_msg.text += "\n✔️ این مرحله تمام شد."
-            self.clock_msg.keyboard = None
-            self.clock_msg, self.clock_key = None, None
+            self._finish_clock()
         if view is None:
             return
         self._check(view["text"], self.group, "clock", private=False)
         if self.clock_msg is None:
             self.clock_msg = Message(self.group, view["text"], view["keyboard"], "clock")
             self.inbox(self.group).append(self.clock_msg)
-            self.clock_key = view["key"]
+            self.clock_key, self.clock_final = view["key"], view.get("final", "")
             self.clock_msgs += 1
         elif self.clock_msg.text != view["text"]:
             self.clock_msg.text, self.clock_msg.keyboard = view["text"], view["keyboard"]

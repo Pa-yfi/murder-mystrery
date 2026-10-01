@@ -2,6 +2,32 @@
 
 Every version below is one commit. Each commit message has the full detail, and this file is the map. Test numbers are the full pytest suite at that commit.
 
+## v10: one live card per phase, cleaner group, right-to-left names
+Based on a captured full game: 27 group messages for 2 days, each phase posted twice, every vote posted its own message, and English names flipped lines. Popular Telegram werewolf bots use one message per phase, private actions by DM, and pop-up vote confirmations.
+
+**One live card per phase**
+- The phase announcement (morning report, voting, interrogation, jury…) *is* the live card. The countdown and progress bar sit at its bottom and update every second.
+- When the phase ends, the card keeps its content but loses the timer and buttons, so old buttons can't be pressed later.
+- Before, each phase was an announcement plus a separate timer message.
+- Implemented once in the bot layer (`bot._phase_card`, `CARDS`, `clock_view` with `final`), so the Telegram adapter and the test harness share it.
+- **Start:** the case file is its own message and is pinned when the bot is an admin. The night-1 card follows it.
+- **Votes:** the voter gets a small pop-up ("✅ your vote: X") instead of a group message per vote. The card shows "n/m votes" and, for public votes, a live tally per candidate.
+- **Result:** group messages per player per day went from 2.96 to 1.88 (−36%) in the UX telemetry. A 7-player game went from 27 to 16 group messages.
+
+**Persian and English names together**
+- Telegram picks each *line's* direction from its first strong letter, so a line starting with "Ali" became left-aligned.
+- Neutral characters (":", "·", numbers) between two English names flipped order.
+- `l10n.rtl_lines` adds an invisible right-to-left mark at the start of such lines and after an English run only where it's followed by punctuation, a number, an emoji, another English name or the line end. It's idempotent, and links and `code` are untouched.
+
+**Tidier texts**
+- The night report starts with its "☀️ Morning N" header; the reason the night ended early comes under it.
+- The dashboard uses the compact three-per-line list.
+- One divider everywhere, including the end report and menus.
+- Cards never carry the dashboard/menu buttons, which would have replaced the card's text.
+- Finished games' cards are cleaned up, and cards follow a group when it is upgraded to a supergroup.
+
+**Tests:** card adoption and closing, per-second edits on the same message, pop-up votes, and line direction. The "night clock names nobody" secrecy check now looks at the live part of the card, which is the part that could leak. 413 tests pass; the quick QA suite is all green.
+
 ## Timers and tidier messages
 **Timers**
 - Night and day (discussion) are now **7 minutes** each (`NIGHT_SECONDS=420`, `DISCUSS_SECONDS=420`, still overridable).

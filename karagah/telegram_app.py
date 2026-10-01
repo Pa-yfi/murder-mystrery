@@ -173,7 +173,37 @@ async def _send(bot, dest: int, text: str, keyboard=None, effect: str = None):
 async def _flush_outbox(bot, res: dict) -> None:
     """پیام‌هایی که هندلر برای دیگران گذاشته (پرسش بازجو به متهم، نتیجه‌ی شب، کارت نقش)."""
     for m in res.get("outbox") or []:
-        await _send(bot, m["chat"], m["text"], m.get("keyboard"), m.get("effect"))
+        sent = await _send(bot, m["chat"], m["text"], m.get("keyboard"), m.get("effect"))
+        if m.get("card"):
+            await _adopt_card(bot, m["chat"], sent)
+
+
+async def _finish_clock(bot, chat: int) -> None:
+    """کارتِ فازِ تمام‌شده: محتوایش می‌ماند، ساعت و دکمه‌هایش برداشته می‌شود (دکمه‌ی کهنه نمی‌ماند)."""
+    old = CLOCKS.pop(chat, None)
+    if not old:
+        return
+    final = old.get("final") or (old["text"] + "\n☑️ این مرحله تمام شد.")
+    for pm in ("Markdown", None):
+        try:
+            await bot.edit_message_text(chat_id=chat, message_id=old["mid"], text=final, parse_mode=pm)
+            return
+        except Exception as e:
+            if _flood_wait(chat, e) or "not modified" in str(e).lower():
+                return
+            log.debug("clock close %s: %s", chat, e)
+
+
+async def _adopt_card(bot, chat: int, sent) -> None:
+    """نسخه ۱۰: پیامِ اعلامِ فاز همان کارتِ زنده‌ی فاز است (یک پیام برای هر فاز، نه دو)."""
+    if sent is None or not hasattr(sent, "message_id") or chat >= 0:
+        return
+    view = botmod.clock_view(chat)
+    if not view:
+        return
+    await _finish_clock(bot, chat)
+    CLOCKS[chat] = {"key": view["key"], "mid": sent.message_id, "text": view["text"],
+                    "final": view.get("final")}
 
 
 ANIM_DELAY = 0.6        # ثانیه بین فریم‌های ایموجیِ متحرک
@@ -202,8 +232,15 @@ async def _reply(update: Update, res: dict):
     await _flush_outbox(update.get_bot(), res)
     # نسخه ۹: کارتِ زنده (لابی/ساعتِ فاز) همین حالا به‌روز شود، نه ۵ ثانیه بعد
     game_chat = res.get("refresh") or res.get("_target") or update.effective_chat.id
+    if res.get("pin") and sent is not None and hasattr(sent, "message_id") and game_chat < 0:
+        try:                                     # پرونده بالای گروه؛ اگر ربات ادمین نیست، بی‌سروصدا رد می‌شود
+            await update.get_bot().pin_chat_message(game_chat, sent.message_id, disable_notification=True)
+        except Exception as e:
+            log.debug("pin skipped: %s", e)
     if game_chat in GAMES and game_chat < 0:
-        if res.get("clock") and sent is not None and hasattr(sent, "message_id"):
+        if res.get("card"):
+            await _adopt_card(update.get_bot(), game_chat, sent)
+        elif res.get("clock") and sent is not None and hasattr(sent, "message_id"):
             view = botmod.clock_view(game_chat)
             if view:
                 old = CLOCKS.pop(game_chat, None)
@@ -285,15 +322,25 @@ def make_cmd(name: str):
 
 async def on_callback(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
     q = update.callback_query
-    try:
-        await q.answer()          # همیشه چرخ لودینگ تلگرام را قطع کن
-    except Exception:
-        pass
     data = q.data or "menu"
     if is_dup_callback(q.message.chat_id if q.message else 0, q.from_user.id, data):
+        try:
+            await q.answer()
+        except Exception:
+            pass
         return                                 # ایده ۲: تپ تکراری نادیده
     cmd, arg = parse_callback(data)
     res = _dispatch(update, cmd, arg)
+    toast = res.get("toast") if res.get("ok") else None
+    try:                                       # همیشه چرخ لودینگ را قطع کن؛ رای = فقط پیامِ شناور
+        await q.answer(text=toast[:190] if toast else None)
+    except Exception:
+        pass
+    if toast:
+        game_chat = res.get("_target") or update.effective_chat.id
+        if game_chat in GAMES and game_chat < 0:
+            await _update_clock(update.get_bot(), game_chat)      # شمارشِ رای روی کارت، همان لحظه
+        return
     await _reply(update, res)
     await _send_photo_or_voice(update, res)
 
@@ -366,14 +413,9 @@ async def _update_clock(bot, chat: int) -> None:
     view = botmod.clock_view(chat)
     cur = CLOCKS.get(chat)
     if cur and (view is None or cur["key"] != view["key"]):
-        try:
-            await bot.edit_message_text(chat_id=chat, message_id=cur["mid"],
-                                        text=cur["text"] + "\n✔️ این مرحله تمام شد.", parse_mode="Markdown")
-        except Exception as e:
-            if _flood_wait(chat, e):
-                return                      # پیامِ قدیمی بعداً بسته می‌شود
-            log.debug("clock close %s: %s", chat, e)
-        CLOCKS.pop(chat, None)
+        await _finish_clock(bot, chat)
+        if chat in FLOOD_UNTIL and FLOOD_UNTIL[chat] > time.monotonic():
+            return
         cur = None
     if view is None:
         return
@@ -382,7 +424,8 @@ async def _update_clock(bot, chat: int) -> None:
     if cur is None:
         try:
             msg = await bot.send_message(chat, view["text"], parse_mode="Markdown", reply_markup=kb)
-            CLOCKS[chat] = {"key": view["key"], "mid": msg.message_id, "text": view["text"]}
+            CLOCKS[chat] = {"key": view["key"], "mid": msg.message_id, "text": view["text"],
+                            "final": view.get("final")}
         except Exception as e:
             if _flood_wait(chat, e):
                 return
@@ -418,8 +461,10 @@ async def _timer_job(ctx: ContextTypes.DEFAULT_TYPE):
         try:
             res = handle("tick", chat)
             if res.get("advanced"):
-                # همان پیام کاملِ دکمه‌ها: کشته‌ها و مدرک صبح، کیبورد رای، هیئت منصفه…
-                await _send(ctx.bot, chat, res["text"], res.get("keyboard"))
+                # همان پیام کاملِ دکمه‌ها: کشته‌ها و مدرک صبح، کیبورد رای، هیئت منصفه… (و کارتِ زنده‌ی فاز)
+                sent = await _send(ctx.bot, chat, res["text"], res.get("keyboard"))
+                if res.get("card"):
+                    await _adopt_card(ctx.bot, chat, sent)
             await _flush_outbox(ctx.bot, res)
             await _update_clock(ctx.bot, chat)
         except Exception as e:

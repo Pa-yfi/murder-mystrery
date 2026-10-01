@@ -246,9 +246,60 @@ _NO_RATE = {"status", "dashboard", "tick", "help", "roles", "menu", "back", "pro
 
 
 def handle(cmd: str, chat: int, uid: int = 0, name: str = "", arg: str = "") -> Dict:
-    """تنها نقطه‌ی ورود؛ خروجی از صافیِ بومی‌سازی (رقم فارسی) رد می‌شود."""
+    """تنها نقطه‌ی ورود؛ خروجی از صافیِ بومی‌سازی (رقم فارسی، جهتِ راست‌به‌چپ) رد می‌شود."""
     from .l10n import localize
-    return localize(_handle(cmd, chat, uid, name, arg))
+    before = _phase_key(chat)
+    res = _handle(cmd, chat, uid, name, arg)
+    try:
+        res = _phase_card(cmd, chat, before, res)
+    except Exception:                            # کارت تزئینِ چیدمان است؛ هرگز پاسخ را نخواباند
+        log.exception("phase card failed")
+    return localize(res)
+
+
+# ── نسخه ۱۰: «یک کارتِ زنده برای هر فاز» ─────────────────────────────────────────
+# قبلاً هر فاز دو پیام بود: اعلامِ فاز (گزارش صبح، رای‌گیری…) و جدا از آن پیامِ ساعت. حالا خودِ اعلام
+# کارتِ زنده است: محتوای فاز بالا، ساعت‌شمار و نوار پایین؛ هر ثانیه ویرایش می‌شود و وقتی فاز تمام شد
+# محتوایش می‌ماند و فقط ساعتش برداشته می‌شود. CARDS[chat] = {"key", "intro", "kb"}.
+CARDS: Dict[int, Dict] = {}
+CARD_MAX = 3200                                 # بیشتر از این (با ساعت) از سقفِ ۴۰۹۶ تلگرام می‌گذرد
+
+
+def _phase_key(chat: int) -> Optional[str]:
+    g = GAMES.get(chat)
+    if g is None or g.s.phase in (Phase.LOBBY, Phase.END):
+        return None
+    return f"{g.s.phase.value}:{g.s.day}:{int(g.s.tie_break)}:{int(getattr(g.s, 'grace_day', -1) == g.s.day)}"
+
+
+def _phase_card(cmd: str, chat: int, before: Optional[str], res: Dict) -> Dict:
+    """فاز عوض شد → اعلامِ این فاز (پاسخ یا پیامِ صندوق به گروه) کارتِ زنده‌ی آن می‌شود."""
+    after = _phase_key(chat)
+    if chat >= 0 or after is None or after == before or not isinstance(res, dict):
+        return res
+    intro, kb, slot = None, None, None
+    if res.get("text") and not res.get("private") and not res.get("no_card") \
+            and (res.get("announce") or cmd == "tick"):
+        intro, kb, slot = res["text"], res.get("keyboard"), "res"
+    else:
+        for i, m in enumerate(res.get("outbox") or []):
+            if m.get("chat") == chat:
+                intro, kb, slot = m["text"], m.get("keyboard"), i
+    if intro and len(intro) > CARD_MAX:          # خیلی بلند → اعلام جدا می‌ماند، کارت فقط ساعت دارد
+        intro, kb, slot = None, None, None
+    CARDS[chat] = {"key": after, "intro": intro, "kb": kb}
+    view = clock_view(chat)
+    if view is None:
+        return res
+    card = {"text": view["text"], "keyboard": view["keyboard"], "card": True}
+    if slot == "res":
+        return {**res, **card, "edit": False}
+    box = list(res.get("outbox") or [])
+    if slot is None:
+        box.append({"chat": chat, **card})
+    else:
+        box[slot] = {**box[slot], **card}
+    return {**res, "outbox": box}
 
 
 def _handle(cmd: str, chat: int, uid: int = 0, name: str = "", arg: str = "") -> Dict:
@@ -495,11 +546,13 @@ def h_startgame(chat, uid, name, arg):
     db.log_event(chat, uid, "start", g.s.case.title if g.s.case else "")
     for p in g.s.players.values():               # کارت نقش خودکار به پیوی هر نفر (با افکتِ 🔥)
         _post(p.uid, ui.role_card(p.role, p.knows), ui.role_kb(p), effect="fire")
-    return _ok(ui.case_intro(g.s) + "\n\n" + ui.status_board(g.s) +
-               f"\n\n🎭 سناریو: {scenario_name(g.scenario)}"
-               "\n🔐 نقش هر کس به پیوی‌اش رفت؛ اگر نرسید «🔐 نقش من» را بزن.",
-               ui.kb([[("🔐 نقش من", "myrole"), ("🗂️ پرونده", "board")]]),
-               anim=ui.ANIM["night"], announce=True)
+    res = _ok(ui.case_intro(g.s) + "\n" + ui.DIV +
+              "\n🔐 نقش هر کس به پیوی‌اش رفت؛ اگر نرسید «🔐 نقش من» را بزن.",
+              ui.kb([[("🔐 نقش من", "myrole"), ("🗂️ پرونده", "board")]]),
+              anim=ui.ANIM["night"], announce=True)
+    res["pin"] = True            # پرونده بالای گروه سنجاق می‌شود؛ کارتِ شب جدا بعدش می‌آید
+    res["no_card"] = True
+    return res
 
 
 def h_scenario(chat, uid, name, arg):
@@ -570,9 +623,10 @@ def _dawn_if_all_decided(g: Game, chat: int, empty_night: bool = False) -> None:
     since = len(g.s.log)
     ev = g.advance_night()
     res = _morning(g, ev["result"], since)
-    head = ("🌅 امشب هیچ نقشی کاری برای انجام دادن نداشت؛ شب تمام شد." if empty_night
-            else "🌅 همه‌ی نقش‌ها تصمیمشان را گرفتند؛ شب تمام شد.")
-    _post(chat, head + "\n\n" + res["text"], res.get("keyboard"))
+    why = ("🌅 امشب هیچ نقشی کاری برای انجام دادن نداشت؛ شب زودتر تمام شد." if empty_night
+           else "🌅 همه‌ی نقش‌ها تصمیمشان را گرفتند؛ شب زودتر تمام شد.")
+    head, _, rest = res["text"].partition("\n")              # سربرگِ صبح اول، دلیلِ زود تمام شدن زیرش
+    _post(chat, f"{head}\n{why}\n{rest}", res.get("keyboard"))
 
 
 def _grace_notice(g: Game, ev: Dict) -> Dict:
@@ -654,11 +708,16 @@ def h_castvote(chat, uid, name, arg):
     target = int(arg)
     g.vote(uid, target)
     if target == 0:
-        return _ok(f"⏭️ رای ممتنع ثبت شد ({len(g.s.votes)} رای).",
-                   ui.kb([[("📊 بستن رای‌گیری", "closevote")]]))
+        res = _ok(f"⏭️ رای ممتنع ثبت شد ({len(g.s.votes)} رای).",
+                  ui.kb([[("📊 بستن رای‌گیری", "closevote")]]))
+        res["toast"] = "⏭️ رای ممتنعِ تو ثبت شد"
+        return res
     who = "" if g.s.vote_anon else f" — {_name(name, uid)} به {g.s.players[target].name}"
-    return _ok(f"✅ رای ثبت شد ({len(g.s.votes)} رای){who}.",
-               ui.kb([[("📊 بستن رای‌گیری", "closevote")]]))
+    res = _ok(f"✅ رای ثبت شد ({len(g.s.votes)} رای){who}.",
+              ui.kb([[("📊 بستن رای‌گیری", "closevote")]]))
+    # نسخه ۱۰: روی دکمه فقط یک پیامِ کوتاهِ شناور برای خودِ رای‌دهنده؛ شمارش روی کارتِ زنده است
+    res["toast"] = f"✅ رای تو ثبت شد: {g.s.players[target].name}"
+    return res
 
 
 def _vote_closed(g: Game, who: Optional[int]) -> Dict:
@@ -798,8 +857,10 @@ def h_jury(chat, uid, name, arg):
 def h_juryvote(chat, uid, name, arg):
     g = _g(chat)
     g.jury_vote(uid, arg == "1")
-    return _ok(f"🗳️ رای هیئت منصفه ثبت شد ({len(g.s.jury_votes)}).",
-               ui.kb([[("📊 نتیجه‌ی هیئت", "closejury")]]))
+    res = _ok(f"🗳️ رای هیئت منصفه ثبت شد ({len(g.s.jury_votes)}).",
+              ui.kb([[("📊 نتیجه‌ی هیئت", "closejury")]]))
+    res["toast"] = "✅ رای تو در هیئت منصفه ثبت شد" + (" (تبرئه)" if arg == "1" else " (ادامه‌ی بازداشت)")
+    return res
 
 
 def _jury_closed(g: Game, msg: str) -> Dict:
@@ -962,6 +1023,7 @@ def gc(now: Optional[float] = None) -> Dict[str, int]:
     for chat in gone:
         GAMES.pop(chat, None)
         LAST_ROSTER.pop(chat, None)
+        CARDS.pop(chat, None)
         db.drop_snapshot(chat)
     for d, ttl in ((_LAST_CALL, RATE_WINDOW * 20), (_LAST_CB, 60)):
         for k in [k for k, t in d.items() if now - t > ttl]:
@@ -987,6 +1049,8 @@ def migrate_chat(old: int, new: int) -> bool:
     GAMES[new] = g
     if old in LAST_ROSTER:
         LAST_ROSTER[new] = LAST_ROSTER.pop(old)
+    if old in CARDS:
+        CARDS[new] = CARDS.pop(old)
     for u, c in list(_ACTIVE_TABLE.items()):
         if c == old:
             _ACTIVE_TABLE[u] = new
@@ -1012,9 +1076,20 @@ def clock_view(chat: int) -> Optional[Dict]:
         tick = int(now // 5) if now - (g.s.touched or now) < 600 else 0
         return {"key": "lobby", "text": fa_digits(ui.lobby_screen(g.s, tick)),
                 "keyboard": localize_keyboard(ui.lobby_kb(chat))}
-    key = f"{g.s.phase.value}:{g.s.day}:{int(g.s.tie_break)}:{int(getattr(g.s, 'grace_day', -1) == g.s.day)}"
-    return {"key": key, "text": fa_digits(ui.clock_text(g, detail=True)),
-            "keyboard": localize_keyboard(ui.live_kb(g.s))}
+    from .l10n import rtl_guard, rtl_lines
+    key = _phase_key(chat)
+    card = CARDS.get(chat)
+    if card and card["key"] == key and card.get("intro"):
+        body = card["intro"].rstrip()
+        text = body + "\n" + ui.DIV + "\n" + ui.clock_text(g, detail=True, head=False)
+        kb = ui.merge_kb(card.get("kb"), ui.live_kb(g.s))
+    else:
+        body = ui.clock_text(g, detail=False).split("\n")[0]          # فقط سربرگ
+        text = ui.clock_text(g, detail=True)
+        kb = ui.live_kb(g.s)
+    final = body + "\n" + ui.DIV + "\n☑️ این مرحله تمام شد."
+    loc = lambda x: rtl_lines(rtl_guard(fa_digits(x)))          # noqa: E731
+    return {"key": key, "text": loc(text), "keyboard": localize_keyboard(kb), "final": loc(final)}
 
 
 def h_dashboard(chat, uid, name, arg):            # ایده ۲۶ + بهبود ۳

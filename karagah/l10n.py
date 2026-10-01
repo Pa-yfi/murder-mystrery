@@ -41,6 +41,31 @@ def rtl_guard(text: str) -> str:
     return text
 
 
+# نامِ لاتین («Ali»، «P2») وسطِ متنِ فارسی: تلگرام جهتِ هر *خط* را از اولین حرفِ قوی می‌گیرد، پس خطی که
+# با نامِ انگلیسی شروع شود چپ‌چین می‌شد و «:»، «·»، عدد و پرانتزِ بعد از نام به سمتِ اشتباه می‌پریدند.
+# درمان: پشتِ هر تکه‌ی لاتین یک RLM (نامرئی) و اولِ هر خطی که با لاتین شروع شود هم یک RLM.
+# فقط جایی که لازم است: تکه‌ی لاتینی که بعدش علامت/عدد/ایموجی/نامِ لاتینِ دیگر یا پایانِ خط می‌آید
+# («Ali · Sara»، «P2:»، «Host ۳ رای»). اگر بعدش حرفِ فارسی بیاید، خودِ آن حرف جهت را درست نگه می‌دارد.
+_LTR_RUN = re.compile(r"(?:[A-Za-z][A-Za-z0-9_.'\-]*(?: [A-Za-z][A-Za-z0-9_.'\-]*)*)"
+                      r"(?![A-Za-z0-9_.'\-])"            # تکه را وسطش نشکن («P3» ≠ «P» + «3»)
+                      r"(?=[ \t]*(?:$|[^\sA-Za-z\u0600-\u06FF\u200c\u200f]|[A-Za-z]))", re.M)
+
+
+def _anchor_runs(seg: str) -> str:
+    return _LTR_RUN.sub(lambda m: m.group(0) + RLM, seg)
+
+
+def rtl_lines(text: str) -> str:
+    """هر خط راست‌به‌چپ بماند و هر نامِ لاتین سرِ جایش؛ لینک و `کد` دست نمی‌خورند."""
+    if not text or not any("A" <= ch <= "z" for ch in text):
+        return text
+    parts = _KEEP.split(text)
+    for i in range(0, len(parts), 2):
+        parts[i] = _anchor_runs(parts[i])
+    out = "".join(parts)
+    return "\n".join(rtl_guard(line) for line in out.split("\n"))
+
+
 def localize_keyboard(kb: Any) -> Any:
     if not isinstance(kb, dict) or "inline_keyboard" not in kb:
         return kb
@@ -62,10 +87,10 @@ def localize(res: Dict) -> Dict:
         return res
     out = dict(res)
     if isinstance(out.get("text"), str):
-        out["text"] = rtl_guard(fa_digits(out["text"]))
+        out["text"] = rtl_lines(rtl_guard(fa_digits(out["text"])))
     if out.get("keyboard"):
         out["keyboard"] = localize_keyboard(out["keyboard"])
     if out.get("outbox"):
-        out["outbox"] = [{**m, "text": rtl_guard(fa_digits(m.get("text", ""))),
+        out["outbox"] = [{**m, "text": rtl_lines(rtl_guard(fa_digits(m.get("text", "")))),
                           "keyboard": localize_keyboard(m.get("keyboard"))} for m in out["outbox"]]
     return out
